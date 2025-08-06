@@ -1,4 +1,4 @@
-from nonebot import on_command, on_message, on_request, reload_plugins
+from nonebot import on_command, on_message, on_request
 from nonebot.adapters.onebot.v11 import FriendRequestEvent, Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
 from nonebot.params import CommandArg
@@ -7,6 +7,7 @@ from hikari_bot.utils.whitelist import *
 from nonebot.matcher import Matcher
 import base64
 import re
+import asyncio
 
 help_pic = os.path.join(RESOURCES_DIR, 'help.png')
 
@@ -19,14 +20,24 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
-reload_plugins = on_command("重载插件", permission=SUPERUSER, priority=5)
-@reload_plugins.handle()
+reload = on_command("重载插件", permission=SUPERUSER)
+@reload.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
-        reload_plugins()
-        await reload_plugins.finish("插件已重载。")
+        proc = await asyncio.create_subprocess_exec(
+            "git", "pull",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        git_output = stdout.decode().strip() + "\n" + stderr.decode().strip()
+        if proc.returncode != 0:
+            await reload.finish(f"更新失败：\n{git_output}")
+        else:
+            await reload.send("更新完成，正在重启...")
+            os._exit(0)
     except Exception as e:
-        await reload_plugins.finish(f"重载插件失败：{e}")
+        await reload.finish(f"重载插件失败：{e}")
 
 whitelist = on_command('添加至白名单', permission=SUPERUSER)
 
