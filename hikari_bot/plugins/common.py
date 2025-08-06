@@ -1,0 +1,135 @@
+from nonebot import on_command, on_message, on_request, reload_plugins
+from nonebot.adapters.onebot.v11 import FriendRequestEvent, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
+from nonebot.params import CommandArg
+from nonebot.permission import SUPERUSER
+from hikari_bot.utils.whitelist import *
+from nonebot.matcher import Matcher
+import base64
+import re
+
+help_pic = os.path.join(RESOURCES_DIR, 'help.png')
+
+help = on_command("帮助", priority=5)
+@help.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    with open(help_pic, "rb") as f:
+        image_data = f.read()
+    image_base64 = base64.b64encode(image_data).decode("utf-8")
+    await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
+
+
+reload_plugins = on_command("重载插件", permission=SUPERUSER, priority=5)
+@reload_plugins.handle()
+async def _(bot: Bot, event: MessageEvent):
+    try:
+        reload_plugins()
+        await reload_plugins.finish("插件已重载。")
+    except Exception as e:
+        await reload_plugins.finish(f"重载插件失败：{e}")
+
+whitelist = on_command('添加至白名单', permission=SUPERUSER)
+
+@whitelist.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if args:
+        group_id = int(args.extract_plain_text())
+    elif isinstance(event, GroupMessageEvent):
+        group_id = event.group_id
+    else:
+        await whitelist.finish("请提供需要添加到白名单的群号！")
+    
+    if add_group_to_whitelist(group_id):
+        await whitelist.finish(f"已添加群{group_id}至白名单。")
+    else:
+        await whitelist.finish(f"群{group_id}已经在白名单中。")
+
+
+whitelist_check = on_message(priority=1, block=False)
+
+@whitelist_check.handle()
+async def _(bot: Bot, event: MessageEvent, matcher: Matcher):
+    if isinstance(event, GroupMessageEvent) and not is_allowed_group(event.group_id):
+        matcher.stop_propagation()
+
+
+broadcast = on_command('广播', permission=SUPERUSER)
+
+@broadcast.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    message = args.extract_plain_text()
+    for group in get_whitelist()["groups"]:
+        await bot.send_group_msg(group_id=group, message=message)
+
+
+spy_check = on_command('卧底检测', permission=SUPERUSER)
+
+@spy_check.handle()
+async def _(bot: Bot, event: MessageEvent):
+    members_srds = await bot.get_group_member_list(group_id=457767939)
+    members_st = await bot.get_group_member_list(group_id=876573031)
+    
+    print(len(members_srds))
+    print(len(members_st))
+
+    bot_id = bot.self_id
+    member_ids_srds = {
+        member["user_id"]: member["nickname"]
+        for member in members_srds if member["user_id"] != bot_id
+    }
+    member_ids_st = {
+        member["user_id"]: member["nickname"]
+        for member in members_st if member["user_id"] != bot_id
+    }
+
+    common_ids = set(member_ids_srds.keys()) & set(member_ids_st.keys())
+    if not common_ids:
+        await spy_check.finish(f"查询完成，没有卧底。")
+
+    result = "以下成员可能是卧底："
+    kill = []
+    for user_id in common_ids:
+        info_srds = await bot.get_group_member_info(group_id=457767939, user_id=user_id)
+        info_st = await bot.get_group_member_info(group_id=876573031, user_id=user_id)
+        if info_srds and info_st:
+            l1 = int(info_srds["level"])
+            l2 = int(info_st["level"])
+            name = info_srds["nickname"]
+            if l1 < l2:
+                kill.append({"user_id":user_id, "name":name, "l1":l1, "l2":l2})
+                result += f"\n{name},{l1},{l2}"
+    
+    await spy_check.finish(result)
+
+
+friend_request_handler = on_request(priority=1)
+
+@friend_request_handler.handle()
+async def handle_friend_request(bot: Bot, event: FriendRequestEvent):
+    try:
+        # 自动通过好友请求
+        await bot.call_api("set_friend_add_request", flag=event.flag, approve=True)
+        print(f"已自动通过好友申请，来自用户：{event.user_id}")
+    except Exception as e:
+        print(f"处理好友申请失败：{e}")
+
+
+srdslist = on_command('队员列表', permission=SUPERUSER)
+
+@srdslist.handle()
+async def _(bot: Bot, event: MessageEvent):
+    group_id = event.group_id
+
+    member_list = await bot.get_group_member_list(group_id=group_id)
+
+    result = []
+    for member in member_list:
+        card = member.get("card", "") or member.get("nickname", "")
+        if card.startswith("SRDS"):
+            new_card = re.sub(r"^SRDS\s*", "", card)
+            result.append(f"{new_card} {member['user_id']}")
+            print(result)
+
+    MAX_LINES = 100
+    output = "\n".join(result[:MAX_LINES])
+    await srdslist.finish(output)
