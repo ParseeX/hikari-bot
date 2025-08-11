@@ -163,6 +163,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         if not result:
             await ygo_metaltronus_calc.finish("没有满足条件的卡片！")
         else:
-            msg = "满足条件的卡片：\n" + "\n".join(result)
+            msg = "满足条件的卡片：\n" + "、".join(result)
             await ygo_metaltronus_calc.finish(msg)
 
