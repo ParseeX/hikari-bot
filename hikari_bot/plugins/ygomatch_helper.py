@@ -329,7 +329,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     with open(file_path, "r", encoding="utf-8-sig") as f:
         deck_text = f.read()
 
-    deck_img = generate_deck_image(deck_text, xcx_name, match_state["match_name"], deck_name=deck_name, result=result)
+    deck_img = await generate_deck_image(deck_text, xcx_name, match_state["match_name"], deck_name=deck_name, result=result)
     if not deck_img:
         await confirm_deck.finish("卡组图像生成失败！")
 
@@ -353,7 +353,7 @@ async def _(bot: Bot, event: MessageEvent):
         deck_file_path = os.path.join(DECK_DIR, f"{xcx_name}.ydk")
         with open(deck_file_path, "r", encoding="utf-8") as f:
             deck_text = f.read()
-        deck_img = generate_deck_image(deck_text, xcx_name, match_state["match_name"])
+        deck_img = await generate_deck_image(deck_text, xcx_name, match_state["match_name"])
         if deck_img:
             output_directory = os.path.join(DECK_DIR, "pics")
             os.makedirs(output_directory, exist_ok=True)
@@ -515,7 +515,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     else:
         return
 
-    deck_img = generate_deck_image(deck_text, player_id, match_name, deck_name=deck_name, result=result)
+    deck_img = await generate_deck_image(deck_text, player_id, match_name, deck_name=deck_name, result=result)
     if not deck_img:
         await deck_pic.finish("卡组图像生成失败！")
 

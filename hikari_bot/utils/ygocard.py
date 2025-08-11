@@ -5,6 +5,7 @@ import random
 from PIL import Image
 import aiohttp
 import asyncio
+from io import BytesIO
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 from hikari_bot.utils.constants import *
@@ -104,23 +105,36 @@ def random_card():
         conn.close()
 
 
-def get_ygopic(id: int):
-    UNKNOWN = os.path.join(YGOPRO, "textures/unknown.jpg")
-
-    if int(id) < 100000000:
-        image_path = os.path.join(YGOPRO, "pics", f"{id}.jpg")
-    else:
-        image_path = os.path.join(YGOPRO, "expansions/pics", f"{id}.jpg")
-    
-    if not os.path.exists(image_path):
-        print(f"Image not found: {image_path}")
-        return Image.open(UNKNOWN)
-
+async def get_unknown_card():
+    url = f"https://cdn.233.momobako.com/ygopro/textures/unknown.jpg"
     try:
-        return Image.open(image_path)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    return data
+                else:
+                    print(f"Image not found: {url}")
+                    return None
     except Exception as e:
-        print(f"Error loading image {image_path}: {e}")
-        return Image.open(UNKNOWN)
+        print(f"Error loading image {url}: {e}")
+        return None
+
+
+async def get_ygopic(id: int):
+    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg!half"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    return data
+                else:
+                    print(f"Image not found: {url}")
+                    return await get_unknown_card()
+    except Exception as e:
+        print(f"Error loading image {url}: {e}")
+        return await get_unknown_card()
 
 
 async def get_image_by_id(id: int):

@@ -7,6 +7,7 @@ from typing import OrderedDict
 import urllib.parse
 import cairosvg
 import fitz
+import asyncio
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from hikari_bot.utils.ygocard import *
@@ -132,8 +133,17 @@ def parse_ydk(deck_text):
     return main_deck, extra_deck, side_deck
 
 
-def batch_get_images(card_ids, width=200, height=290):
-    return [get_ygopic(card_id).resize((width,height)) for card_id in card_ids]
+
+
+async def batch_get_images(card_ids, width=200, height=290):
+    # 并发下载图片
+    tasks = [get_ygopic(card_id) for card_id in card_ids]
+    images = await asyncio.gather(*tasks)
+    result = []
+    for img in images:
+        if img is not None:
+            result.append(Image.open(BytesIO(img)).resize((width, height)))
+    return result
 
 
 def draw_section(img, card_images, title, start_x, start_y, card_width, card_height, rows, padding):
@@ -189,7 +199,7 @@ def draw_section(img, card_images, title, start_x, start_y, card_width, card_hei
             img.paste(card_img, (x, y))
 
 
-def generate_deck_image(deck_text, id, match, result="", deck_name=""):
+async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
     main_deck, extra_deck, side_deck = parse_ydk(deck_text)
 
     if len(extra_deck) > 15 or len(side_deck) > 15:
@@ -220,7 +230,7 @@ def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
     # 批量获取卡片图片
     all_card_ids = main_deck + extra_deck + side_deck
-    all_card_images = batch_get_images(all_card_ids)
+    all_card_images = await batch_get_images(all_card_ids)
 
     # 分割批量获取的图片结果
     main_images = all_card_images[:len(main_deck)]
@@ -268,12 +278,12 @@ def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
 
 
-def generate_card_list_image(id_list):
+async def generate_card_list_image(id_list):
     card_width, card_height = 200, 290
     cards_per_row = 15
     padding = 5
     margin = 30
-    all_card_images = batch_get_images(id_list, card_width, card_height)
+    all_card_images = await batch_get_images(id_list, card_width, card_height)
     n = len(all_card_images)
     rows = (n + cards_per_row - 1) // cards_per_row
     total_width = cards_per_row * (card_width + padding) + padding + 2 * margin
@@ -436,10 +446,10 @@ async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
         TY = (dy-(dy-taby*2)*name_size/20)/2
         
         rect = fitz.Rect(x1+X, taby+y+Y, x2+X, y+Y+dy)
-        page.insert_textbox(rect, card["count"], fontname="sc", fontsize=20, align=fitz.TEXT_ALIGN_CENTER)
+        page.insert_textbox(rect, card["count"], fontname="sc", fontsize=20, align=fitz.TEXT_ALIGN_CENTER) # type: ignore
         
         rect = fitz.Rect(tabx+x2+X, TY+y+Y, x3+X, y+Y+dy)
-        page.insert_textbox(rect, card["name"], fontname=card["font"], fontsize=name_size)
+        page.insert_textbox(rect, card["name"], fontname=card["font"], fontsize=name_size) # type: ignore
 
     if not file_name:
         pdf_buffer = io.BytesIO()

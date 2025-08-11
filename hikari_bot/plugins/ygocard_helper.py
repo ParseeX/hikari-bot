@@ -11,11 +11,12 @@ from hikari_bot.utils.ygodeck import *
 ygo_random_card = on_command("随机一卡", priority=5)
 @ygo_random_card.handle()
 async def _(bot: Bot, event: MessageEvent):
-    image = get_ygopic(random_card())
-    buffer = BytesIO()
-    image.save(buffer, format="JPEG")  # 把 Image 对象转成二进制
-    image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
+    image = await get_ygopic(random_card())
+    if not image:
+        await ygo_random_card.finish("未找到随机卡片！")
+        return
+    image_base64 = base64.b64encode(image).decode('utf-8')
+    await ygo_random_card.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
 ygo_card_pic = on_command("查卡图", aliases={"游戏王卡图", "卡图"}, priority=5)
@@ -40,12 +41,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                     card_id = None
         
         if not card_id:
-            #return
             await ygo_card_pic.finish("未找到对应卡片！")
+            return
 
         image = await get_image_by_id(card_id)
         if not image:
             await ygo_card_pic.finish("卡图加载失败！")
+            return
             
         image_base64 = base64.b64encode(image).decode('utf-8')
         await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
@@ -59,6 +61,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         
         if not card_info:
             await ygo_card_id.finish("查询失败！")
+            return
 
         await ygo_card_id.finish(str(card_info["id"]))
 
@@ -70,8 +73,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         card_info = await get_card_info(input)
 
         if not card_info:
-            #return
             await ygo_card_effect.finish("未找到对应卡片！")
+            return
 
         jp_name = card_info["jp_name"]
         cn_name = card_info["cn_name"]
@@ -95,13 +98,14 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         card_info = await get_card_info(input[0])
 
         if not card_info:
-            #return
             await ygo_card_faq.finish("未找到对应卡片！")
+            return
 
         faq_ids = card_info["faqs"]
 
         if len(faq_ids) == 0:
             await ygo_card_faq.finish("暂无相关裁定！")
+            return
         
         message_2 = []
 
@@ -127,9 +131,11 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
                 except Exception as e:
                     await ygo_card_faq.finish("查询失败！")
+                    return
 
         if len(message_2) == 0:
             await ygo_card_faq.finish("暂无相关裁定！")
+            return
         
         group_id = getattr(event, "group_id", None)
         try:
@@ -159,14 +165,17 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
         if not card_info:
             await ygo_metaltronus_calc.finish("未找到对应卡片！")
+            return
         
         result = metaltronus_calc(card_info["id"])
         if not result:
             await ygo_metaltronus_calc.finish("没有满足条件的卡片！")
+            return
         else:
-            image = generate_card_list_image(result)
+            image = await generate_card_list_image(result)
             if not image:
                 await ygo_metaltronus_calc.finish("结果加载失败！")
+                return
                 
             buffer = io.BytesIO()
             image.save(buffer, format="PNG")
