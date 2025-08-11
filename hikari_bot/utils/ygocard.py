@@ -52,8 +52,8 @@ def metaltronus_calc(id: int):
         return []
     atk, race, attribute = row
 
-    # 查找所有卡片
-    cursor.execute("SELECT id, atk, race, attribute FROM datas WHERE id != ?", (id,))
+    # 查找所有卡片，不包含衍生物
+    cursor.execute("SELECT id, atk, race, attribute FROM datas WHERE id != ? AND type != 16401", (id,))
     id_list = []
     for cid, catk, crace, cattribute in cursor.fetchall():
         same = 0
