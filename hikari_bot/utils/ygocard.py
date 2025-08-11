@@ -10,11 +10,10 @@ from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 from hikari_bot.utils.constants import *
 
-card_info_db = os.path.join(DATA_DIR, 'card_info.db')
-moecard_db = os.path.join(DATA_DIR, 'card.cdb')
+
 
 def update_db():
-    conn = sqlite3.connect(card_info_db)
+    conn = sqlite3.connect(YGOCDB)
     cursor = conn.cursor()
     
     try:
@@ -31,18 +30,18 @@ async def update_cdb():
         async with session.get(url) as resp:
             if resp.status == 200:
                 data = await resp.read()
-                with open(moecard_db, "wb") as f:
+                with open(MOECARD_DB, "wb") as f:
                     f.write(data)
             else:
                 print(f"Download failed: {resp.status}")
 
 
 def metaltronus_calc(id: int):
-    if not os.path.exists(moecard_db):
+    if not os.path.exists(MOECARD_DB):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(update_cdb())
 
-    conn = sqlite3.connect(moecard_db)
+    conn = sqlite3.connect(MOECARD_DB)
     cursor = conn.cursor()
     # 获取目标卡片信息
     cursor.execute("SELECT atk, race, attribute FROM datas WHERE id = ?", (id,))
@@ -51,9 +50,12 @@ def metaltronus_calc(id: int):
         conn.close()
         return []
     atk, race, attribute = row
+    if race == 0 or attribute == 0:
+        conn.close()
+        return []
 
     # 查找所有卡片，不包含衍生物
-    cursor.execute("SELECT id, atk, race, attribute FROM datas WHERE id != ? AND type != 16401", (id,))
+    cursor.execute("SELECT id, atk, race, attribute FROM datas WHERE id != ? AND type NOT IN (16401, 20497)", (id,))
     id_list = []
     for cid, catk, crace, cattribute in cursor.fetchall():
         same = 0
@@ -106,12 +108,20 @@ def random_card():
 
 
 async def get_unknown_card():
+    local_path = os.path.join(CARD_PICS, f"unknown.jpg")
+    if os.path.exists(local_path):
+        with open(local_path, "rb") as f:
+            return f.read()
+    
     url = f"https://cdn.233.momobako.com/ygopro/textures/unknown.jpg"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status == 200:
                     data = await resp.read()
+                    os.makedirs(CARD_PICS, exist_ok=True)
+                    with open(local_path, "wb") as f:
+                        f.write(data)
                     return data
                 else:
                     print(f"Image not found: {url}")
@@ -121,13 +131,22 @@ async def get_unknown_card():
         return None
 
 
-async def get_ygopic(id: int, type: str = ""):
-    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg{type}"
+async def get_ygopic(id: int):
+    local_path = os.path.join(CARD_PICS, f"{id}.jpg")
+    if os.path.exists(local_path):
+        with open(local_path, "rb") as f:
+            return f.read()
+
+    # 本地没有则下载
+    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg!half"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status == 200:
                     data = await resp.read()
+                    os.makedirs(CARD_PICS, exist_ok=True)
+                    with open(local_path, "wb") as f:
+                        f.write(data)
                     return data
                 else:
                     print(f"Image not found: {url}")
@@ -172,7 +191,7 @@ def keyword_in_card(card, keyword: str):
     return False
 
 def init_card_info_db():
-    conn = sqlite3.connect(card_info_db)
+    conn = sqlite3.connect(YGOCDB)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS cards (
@@ -184,9 +203,9 @@ def init_card_info_db():
     conn.close()
 
 async def get_card_info_by_id(id: str):
-    if not os.path.exists(card_info_db):
+    if not os.path.exists(YGOCDB):
         init_card_info_db()
-    conn = sqlite3.connect(card_info_db)
+    conn = sqlite3.connect(YGOCDB)
     cursor = conn.cursor()
     cursor.execute("SELECT data FROM cards WHERE id = ?", (id,))
     row = cursor.fetchone()

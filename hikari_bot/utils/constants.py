@@ -29,3 +29,7 @@ MC_BASE_API = "https://sapi.moecube.com:444/ygopro/"
 API_PLAYER_HISTORY = "arena/history"
 API_PLAYER_INFO = "arena/user"
 API_PLAYER_HISTORY_RANK = "arena/historyScore"
+
+YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
+MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
+CARD_PICS = os.path.join(DATA_DIR, 'pics')
