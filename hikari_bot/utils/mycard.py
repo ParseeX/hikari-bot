@@ -106,3 +106,5 @@ def add_mycard_user(qq, id):
 	user_list = get_mycard_user()
 	user_list[qq] = id
 	save_mycard_user(user_list)
+
+

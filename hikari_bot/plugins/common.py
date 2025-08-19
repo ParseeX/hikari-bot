@@ -9,8 +9,19 @@ import base64
 import re
 import asyncio
 
-help_pic = os.path.join(RESOURCES_DIR, 'help.png')
+driver = nonebot.get_driver()
+@driver.on_startup
+async def startup():
+    while not driver.bots:
+        await asyncio.sleep(0.5)
 
+    bot: Bot = list(driver.bots.values())[0]
+    superusers = driver.config.superusers
+    for uid in superusers:
+        await bot.send_private_msg(user_id=int(uid), message="早上好！")
+
+
+help_pic = os.path.join(RESOURCES_DIR, 'help.png')
 help = on_command("帮助", priority=5)
 @help.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
