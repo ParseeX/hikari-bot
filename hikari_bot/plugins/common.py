@@ -1,4 +1,4 @@
-from nonebot import on_command, on_message, on_request
+from nonebot import on_command, on_message, on_request, get_driver
 from nonebot.adapters.onebot.v11 import FriendRequestEvent, Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
 from nonebot.params import CommandArg
@@ -9,7 +9,7 @@ import base64
 import re
 import asyncio
 
-driver = nonebot.get_driver()
+driver = get_driver()
 @driver.on_startup
 async def startup():
     while not driver.bots:
