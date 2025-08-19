@@ -10,14 +10,9 @@ import re
 import asyncio
 
 driver = get_driver()
-@driver.on_startup
-async def startup():
-    while not driver.bots:
-        await asyncio.sleep(0.5)
-
-    bot: Bot = list(driver.bots.values())[0]
-    superusers = driver.config.superusers
-    for uid in superusers:
+@driver.on_bot_connect
+async def _on_bot_connect(bot: Bot):
+    for uid in driver.config.superusers:
         await bot.send_private_msg(user_id=int(uid), message="早上好！")
 
 
