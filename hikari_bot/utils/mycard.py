@@ -8,12 +8,12 @@ from hikari_bot.utils.constants import *
 mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
 mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')
 
-async def fetch_player_history(username: str):
+async def fetch_player_history(username: str, page_num: int = 999999):
 	url = f"{MC_BASE_API}{API_PLAYER_HISTORY}"
 	params = {
 		"username": username,
 		"type": 0,
-		"page_num": 999999
+		"page_num": page_num
 	}
 	async with aiohttp.ClientSession() as session:
 		try:

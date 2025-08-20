@@ -10,6 +10,7 @@ _stop_event = asyncio.Event()
 
 _ws_task: asyncio.Task | None = None
 
+watching_list = {}
 
 async def process_mycard_event(bot: Bot, payload: dict):
     event = payload.get("event") or "?"
@@ -22,18 +23,38 @@ async def process_mycard_event(bot: Bot, payload: dict):
             logger.warning(f"[mycard] 无法处理的对局数据：{data}")
             return
         
+        subscribe_list = get_subscribe_list()
         for i in range(2):
-            id = ids[i]
-            subscribe_list = get_subscribe_list()
-            if id in subscribe_list:
-                message = f"您关注的{id}已开始对局，对手id：{ids[1-i]}。"
-                for subscriber in subscribe_list[id]:
+            player_id = ids[i]
+            if player_id in subscribe_list:
+                message = f"您关注的{player_id}已开始对局，对手id：{ids[1-i]}。"
+                watching_list.setdefault(data.get["id"]).append(player_id)
+                for subscriber in subscribe_list[player_id]:
                     [usertype, qq] = subscriber
                     if usertype == "group":
                         await bot.send_group_msg(group_id=int(qq), message=message)
                     else:
                         await bot.send_private_msg(user_id=int(qq), message=message)
+    elif event == "delete":
+        room_id = payload.get("data")
+        if room_id in watching_list:
+            ids = watching_list[room_id]
+            del watching_list[room_id]
 
+            subscribe_list = get_subscribe_list()
+            for player_id in ids:
+                history = await fetch_player_history(player_id, page_num=1)
+                data = history["data"][0]
+                pt_delta = data["pta"]-data["pta_ex"] if data["usernamea"] == player_id else data["ptb"]-data["ptb_ex"]
+                result = "胜利" if data["winner"] == player_id else "失败"
+
+                message = f"您关注的{player_id}已结束对局，对局结果：{result}，pt变动：{pt_delta:.2f}。"
+                for subscriber in subscribe_list[player_id]:
+                    [usertype, qq] = subscriber
+                    if usertype == "group":
+                        await bot.send_group_msg(group_id=int(qq), message=message)
+                    else:
+                        await bot.send_private_msg(user_id=int(qq), message=message)
 
 async def ws_runner(bot: Bot):
     backoff = 1
