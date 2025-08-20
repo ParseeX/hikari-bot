@@ -72,6 +72,7 @@ async def ws_runner(bot: Bot):
                         if msg.type == aiohttp.WSMsgType.TEXT:
                             try:
                                 data = json.loads(msg.data)
+                                logger.info(f"[mycard raw] {msg.data}")
                                 await process_mycard_event(bot, data)
                             except Exception:
                                 logger.warning(f"[mycard raw] {msg.data}")
