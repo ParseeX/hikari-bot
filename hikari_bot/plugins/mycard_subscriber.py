@@ -4,7 +4,7 @@ import json
 from nonebot import get_driver, logger
 from nonebot.adapters.onebot.v11 import Bot
 from hikari_bot.utils.constants import *
-from hikari_bot.utils.mycard import get_subscribe_list
+from hikari_bot.utils.mycard import *
 
 _stop_event = asyncio.Event()
 
