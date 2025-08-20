@@ -11,7 +11,8 @@ mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
 mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')
 
 async def fetch_latest_record_with_retry(username: str,
-                                         tries: int = 20,
+                                         tries: int = 30,
+                                         delay: float = 1,
                                          freshness_sec: int = 90):
     for attempt in range(1, tries + 1):
         try:
@@ -26,6 +27,8 @@ async def fetch_latest_record_with_retry(username: str,
                     return rec
         except Exception:
             logger.exception(f"[mycard] 拉取 {username} 历史失败（第{attempt}次）")
+
+        await asyncio.sleep(delay)
 
     logger.error(f"[mycard] 拉取 {username} 历史失败（多次尝试后）")
     return None
