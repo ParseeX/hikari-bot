@@ -30,8 +30,9 @@ async def process_mycard_event(bot: Bot, payload: dict):
                 message = f"您关注的{player_id}已开始对局，对手id：{player_ids[1-i]}。"
                 room_id = data.get("id")
                 watching_list.setdefault(room_id, []).append(player_id)
+                logger.info(f"[mycard] 关注的对局已开始：{room_id}")
                 for subscriber in subscribe_list.get(player_id, []):
-                    [usertype, qq] = subscriber
+                    usertype, qq = subscriber
                     if usertype == "group":
                         await bot.send_group_msg(group_id=int(qq), message=message)
                     else:
@@ -40,6 +41,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
     elif event == "delete":
         room_id = data
         if room_id in watching_list:
+            logger.info(f"[mycard] 关注的对局已结束：{room_id}")
             player_ids = watching_list[room_id]
             del watching_list[room_id]
 
