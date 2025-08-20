@@ -53,7 +53,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
                 result = "胜利" if rec["winner"] == player_id else "失败"
 
                 pt_str = f"+{pt_delta:.1f}" if pt_delta > 0 else f"{pt_delta:.1f}"
-                message = f"您关注的{player_id}已结束对局，对局结果：{result}，pt变动：{pt_str}。"
+                message = f"您关注的{player_id}已结束对局\n对局结果：{result}\npt变动：{pt_str}"
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
