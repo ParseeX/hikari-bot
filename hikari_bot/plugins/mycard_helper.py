@@ -165,3 +165,14 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
             qq = str(event.user_id)
         unsubscribe(usertype, qq, id)
         await mycard_unsubscribe.finish("退订成功！")
+
+
+mycard_test = on_command("测试123", priority=5)
+
+@mycard_test.handle()
+async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
+    rec = await fetch_latest_record_with_retry("水橋パルスィ", freshness_sec=999999)
+   if rec:
+       await mycard_test.finish(f"测试成功！\n{rec}")
+   else:
+       await mycard_test.finish("测试失败！")
