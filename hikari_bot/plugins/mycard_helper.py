@@ -122,27 +122,41 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         await mycard_bind.finish("绑定成功！")
 
 
-mycard_subscribe = on_command("订阅", priority=5)
 
+mycard_subscribe = on_command("订阅", priority=5)
 @mycard_subscribe.handle()
-async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if str(msg).startswith("订阅 "):
         raw_id = str(msg)[len("订阅 "):].strip()
         id = html.unescape(raw_id)
         if not id:
-            await mycard_subscribe.finish("请提供要订阅的用户名！")
-        
-        await mycard_subscribe.finish(f"订阅功能尚未实现，敬请期待！\n您订阅的用户名是：{id}")
+            await mycard_bind.finish("请提供要订阅的用户名！")
+        if isinstance(event, GroupMessageEvent):
+            usertype = "group"
+            qq = str(event.group_id)
+        else:
+            usertype = "private"
+            qq = str(event.user_id)
+        subscribe(usertype, qq, id)
+        await mycard_subscribe.finish("订阅成功！")
 
-
-mycard_unsubscribe = on_command("取消订阅", priority=5)
-
+mycard_unsubscribe = on_command("退订", priority=5)
 @mycard_unsubscribe.handle()
-async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
-    if str(msg).startswith("取消订阅 "):
-        raw_id = str(msg)[len("取消订阅 "):].strip()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if str(msg).startswith("退订 "):
+        raw_id = str(msg)[len("退订 "):].strip()
         id = html.unescape(raw_id)
         if not id:
-            await mycard_unsubscribe.finish("请提供要取消订阅的用户名！")
-
-        await mycard_unsubscribe.finish(f"取消订阅功能尚未实现，敬请期待！\n您取消订阅的用户名是：{id}")
+            await mycard_bind.finish("请提供要退订的用户名！")
+        if isinstance(event, GroupMessageEvent):
+            role = getattr(event.sender, "role", None)
+            if not role in ("owner", "admin"):
+                await mycard_unsubscribe.finish("只有群主或管理员可以退订！")
+                return
+            usertype = "group"
+            qq = str(event.group_id)
+        else:
+            usertype = "private"
+            qq = str(event.user_id)
+        unsubscribe(usertype, qq, id)
+        await mycard_unsubscribe.finish("退订成功！")

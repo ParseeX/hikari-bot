@@ -2,7 +2,6 @@ import os
 import json
 from hikari_bot.utils.constants import *
 
-ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 whitelist_file = os.path.join(DATA_DIR, 'whitelist.json')
 
 def get_whitelist():

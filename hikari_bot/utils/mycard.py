@@ -5,8 +5,8 @@ import aiohttp
 import pytz
 from hikari_bot.utils.constants import *
 
-ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
+mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')
 
 async def fetch_player_history(username: str):
 	url = f"{MC_BASE_API}{API_PLAYER_HISTORY}"
@@ -108,3 +108,36 @@ def add_mycard_user(qq, id):
 	save_mycard_user(user_list)
 
 
+
+def get_subscribe_list() - > dict:
+    try:
+        with open(mycard_subscribe_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        logger.error("文件格式错误，无法解析")
+        return {}
+
+def save_subscribe_list(subscribe_list):
+    with open(mycard_subscribe_file, 'w', encoding='utf-8') as f:
+        json.dump(subscribe_list, f, indent=4, ensure_ascii=False)
+
+def subscribe(usertype, qq, id):
+    subscribe_list = get_subscribe_list()
+    if id not in subscribe_list:
+        subscribe_list[id] = []
+    if [usertype, qq] not in subscribe_list[id]:
+        subscribe_list[id].append([usertype, qq])
+        save_subscribe_list(subscribe_list)
+
+def unsubscribe(usertype, qq, id):
+    subscribe_list = get_subscribe_list()
+    if id in subscribe_list:
+        if [usertype, qq] in subscribe_list[id]:
+            subscribe_list[id].remove([usertype, qq])
+            if not subscribe_list[id]:  # 如果列表为空，删除该ID
+                del subscribe_list[id]
+            save_subscribe_list(subscribe_list)
+            return True
+    return False
