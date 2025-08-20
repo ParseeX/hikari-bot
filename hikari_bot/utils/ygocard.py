@@ -89,11 +89,7 @@ def metaltronus_calc(id: int):
 
 
 def random_card():
-    cdb_path = os.path.join(YGOPRO, "cards.cdb")
-    if not os.path.exists(cdb_path):
-        return 0
-
-    conn = sqlite3.connect(cdb_path)
+    conn = sqlite3.connect(MOECARD_DB)
     cursor = conn.cursor()
 
     try:
