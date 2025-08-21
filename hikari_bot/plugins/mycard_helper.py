@@ -178,6 +178,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
     firstwin = await is_first_win(user_id)
     if firstwin:
-        await mycard_firstwin.finish("您已完成今日首胜！")
+        await mycard_firstwin.finish(f"{user_id}已完成今日首胜！")
     else:
-        await mycard_firstwin.finish("您还未完成今日首胜！")
+        await mycard_firstwin.finish(f"{user_id}还未完成今日首胜！")
