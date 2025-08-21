@@ -176,8 +176,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if not user_id:
         await mycard_query.finish("请先绑定或提供用户名！")
 
-    is_first_win = await is_first_win(id)
-    if is_first_win:
+    firstwin = await is_first_win(user_id)
+    if firstwin:
         await mycard_firstwin.finish("您已完成今日首胜！")
     else:
         await mycard_firstwin.finish("您还未完成今日首胜！")
