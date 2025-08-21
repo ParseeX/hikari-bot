@@ -27,7 +27,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
             subscribe_list = get_subscribe_list()
             for i in range(2):
                 player_id = player_ids[i]
-                if player_id in subscribe_list:
+                if player_id in subscribe_list and not is_first_win(player_id):
                     room_id = match.get("id")
                     watching_list.setdefault(room_id, []).append(player_id)
                     logger.info(f"[mycard] 关注的玩家{player_id}已开始对局。")
@@ -42,11 +42,11 @@ async def process_mycard_event(bot: Bot, payload: dict):
         subscribe_list = get_subscribe_list()
         for i in range(2):
             player_id = player_ids[i]
-            if player_id in subscribe_list:
-                message = f"您关注的{player_id}已开始对局，对手id：{player_ids[1-i]}。"
+            if player_id in subscribe_list and not is_first_win(player_id):
+                message = f"您关注的{player_id}已开始挑战首胜，对手id：{player_ids[1-i]}。"
                 room_id = data.get("id")
                 watching_list.setdefault(room_id, []).append(player_id)
-                logger.info(f"[mycard] 关注的玩家{player_id}已结束对局。")
+                logger.info(f"[mycard] 关注的玩家{player_id}已开始对局。")
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
@@ -65,10 +65,12 @@ async def process_mycard_event(bot: Bot, payload: dict):
             for player_id in player_ids:
                 rec = await fetch_latest_record_with_retry(player_id)
                 pt_delta = rec["pta"]-rec["pta_ex"] if rec["usernamea"] == player_id else rec["ptb"]-rec["ptb_ex"]
-                result = "胜利" if rec["winner"] == player_id else "失败"
 
                 pt_str = f"+{pt_delta:.1f}" if pt_delta > 0 else f"{pt_delta:.1f}"
-                message = f"您关注的{player_id}已结束对局\n对局结果：{result}\npt变动：{pt_str}"
+                if rec["winner"] == player_id:
+                    message = f"您关注的{player_id}成功拿下首胜！pt变动：{pt_str}。"
+                else:
+                    message = f"您关注的{player_id}挑战首胜失败。pt变动：{pt_str}。"
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
