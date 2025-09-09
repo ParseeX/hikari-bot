@@ -166,7 +166,7 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         unsubscribe(usertype, qq, id)
         await mycard_unsubscribe.finish("退订成功！")
 
-mycard_firstwin = on_command("首胜查询", priority=5)
+mycard_firstwin = on_command("首胜查询",aliases={"首赢查询"}, priority=5)
 @mycard_firstwin.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -178,6 +178,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
     firstwin = await is_first_win(user_id)
     if firstwin:
-        await mycard_firstwin.finish(f"{user_id}已完成今日首胜！")
+        await mycard_firstwin.finish(f"{user_id}已完成今日首赢！")
     else:
-        await mycard_firstwin.finish(f"{user_id}还未完成今日首胜！")
+        await mycard_firstwin.finish(f"{user_id}还未完成今日首赢！")
