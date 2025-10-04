@@ -28,28 +28,14 @@ async def is_first_win(username: str) -> bool:
             logger.exception(f"Exception occurred while fetching data")
             return False
 
-async def fetch_latest_record_with_retry(username: str,
-                                         tries: int = 30,
-                                         delay: float = 1,
-                                         freshness_sec: int = 90):
-    for attempt in range(1, tries + 1):
-        try:
-            history = await fetch_player_history(username, page_num=1)
-            if history:
-                rec = history[0]
-                end_time_str = rec.get("end_time")
-                end_time = datetime.fromisoformat(end_time_str.replace("Z", "+00:00"))
-                now = datetime.now(timezone.utc)
-                delta_sec = (now - end_time).total_seconds()
-                if 0 <= delta_sec <= freshness_sec:
-                    return rec
-        except Exception:
-            logger.exception(f"[mycard] 拉取 {username} 历史失败（第{attempt}次）")
-
-        await asyncio.sleep(delay)
-
-    logger.error(f"[mycard] 拉取 {username} 历史失败（多次尝试后）")
-    return None
+async def fetch_latest_record(username: str,
+                                delay: float = 10):
+    asyncio.sleep(delay)
+    history = await fetch_player_history(username, page_num=1)
+    if history:
+        return history[0]
+    else:
+        return None
 
 async def fetch_player_history(username: str, page_num: int = 999999):
     url = f"{MC_BASE_API}{API_PLAYER_HISTORY}"

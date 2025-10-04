@@ -63,7 +63,11 @@ async def process_mycard_event(bot: Bot, payload: dict):
 
             subscribe_list = get_subscribe_list()
             for player_id in player_ids:
-                rec = await fetch_latest_record_with_retry(player_id)
+                rec = await fetch_latest_record(player_id)
+                if rec is None:
+                    await message_superusers(bot, f"获取最新记录失败，username={player_id}")
+                    continue
+
                 pt_delta = rec["pta"]-rec["pta_ex"] if rec["usernamea"] == player_id else rec["ptb"]-rec["ptb_ex"]
 
                 pt_str = f"+{pt_delta:.1f}" if pt_delta > 0 else f"{pt_delta:.1f}"
