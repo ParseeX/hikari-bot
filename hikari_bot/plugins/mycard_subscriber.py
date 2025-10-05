@@ -12,38 +12,37 @@ _stop_event = asyncio.Event()
 _ws_task: asyncio.Task | None = None
 
 room_list = {}
+watching_list = []
+
+async def room_add_players(room_id, player_ids):
+    if len(player_ids) != 2:
+        return
+    for i in range(2):
+        player_info = await fetch_player_info(player_ids[i])
+        room_list.setdefault(room_id, []).append(player_info)
 
 async def process_mycard_event(bot: Bot, payload: dict):
     event = payload.get("event") or "?"
     data  = payload.get("data") or {}
+    subscribe_list = get_subscribe_list()
 
     if event == "init":
         for match in data:
             users = match.get("users") or []
             player_ids = [user.get("username") for user in users if user.get("username")]
-            if len(player_ids) != 2:
-                logger.warning(f"[mycard] 无法处理的对局数据：{match}")
-                continue
             room_id = match.get("id")
-            for i in range(2):
-                player_id = player_ids[i]
-                if player_id not in room_list.setdefault(room_id, []):
-                    room_list[room_id].append(player_id)
+            await room_add_players(room_id, player_ids)
 
     elif event == "create":
         users = data.get("users") or []
         player_ids = [user.get("username") for user in users if user.get("username")]
-        if len(player_ids) != 2:
-            logger.warning(f"[mycard] 无法处理的对局数据：{data}")
-            return
-        
         room_id = data.get("id")
-        subscribe_list = get_subscribe_list()
+        await room_add_players(room_id, player_ids)
+
         for i in range(2):
             player_id = player_ids[i]
-            room_list.setdefault(room_id, []).append(player_id)
-
             if player_id in subscribe_list and not await is_first_win(player_id):
+                watching_list.append(player_id)
                 message = f"您关注的{player_id}已开始挑战首赢，对手id：{player_ids[1-i]}。"
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
@@ -58,26 +57,23 @@ async def process_mycard_event(bot: Bot, payload: dict):
             await message_superusers(bot, f"房间不在列表中：{room_id}")
             return
         
-        player_ids = room_list[room_id]
+        player_infos = room_list[room_id]
         del room_list[room_id]
 
-        await message_superusers(bot, f"对局已完成：{player_ids[0]} vs {player_ids[1]}")
+        player_ids = [info["username"] for info in player_infos if info.get("username")]
+        player_infos_now = [await fetch_player_info(player_id) for player_id in player_ids]
+        pt_deltas = [info["pt"] - player_infos[i]["pt"] for i, info in enumerate(player_infos_now) if info and info.get("pt") is not None]
+        pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
-        subscribe_list = get_subscribe_list()
-        for player_id in player_ids:
-            if player_id in subscribe_list and not await is_first_win(player_id):
-                rec = await fetch_latest_record(player_id)
-                if rec is None:
-                    await message_superusers(bot, f"获取最新记录失败，username={player_id}")
-                    continue
+        await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
 
-                pt_delta = rec["pta"]-rec["pta_ex"] if rec["usernamea"] == player_id else rec["ptb"]-rec["ptb_ex"]
-
-                pt_str = f"+{pt_delta:.1f}" if pt_delta > 0 else f"{pt_delta:.1f}"
-                if rec["winner"] == player_id:
-                    message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_str}。"
+        for i, player_id in enumerate(player_ids):
+            if player_id in watching_list:
+                watching_list.remove(player_id)
+                if pt_deltas[i] > 0:
+                    message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
                 # else:
-                #     message = f"您关注的{player_id}挑战首赢失败。pt变动：{pt_str}。"
+                #     message = f"您关注的{player_id}挑战首赢失败。pt变动：{pt_strs[i]}。"
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
