@@ -14,48 +14,40 @@ _ws_task: asyncio.Task | None = None
 room_list = {}
 watching_list = []
 
-async def room_add_players(room_id, player_ids):
-    if len(player_ids) != 2:
-        return
+async def _room_add_players(room_id, player_ids):
     for i in range(2):
         player_info = await fetch_player_info(player_ids[i])
         room_list.setdefault(room_id, []).append(player_info)
 
-async def process_mycard_event(bot: Bot, payload: dict):
-    event = payload.get("event") or "?"
-    data  = payload.get("data") or {}
-    subscribe_list = get_subscribe_list()
 
-    
-    await message_superusers(bot, f"ws收到事件，类型：{event}")
+async def _send_notifications(bot: Bot, subscribers: list, message: str):
+    for subscriber in subscribers:
+        try:
+            usertype, qq = subscriber
+            if usertype == "group":
+                await bot.send_group_msg(group_id=int(qq), message=message)
+            else:
+                await bot.send_private_msg(user_id=int(qq), message=message)
+        except Exception as e:
+            await message_superusers(bot, f"发送通知失败: {e}")
 
-    if event == "init":
-        for match in data:
-            users = match.get("users") or []
-            player_ids = [user.get("username") for user in users if user.get("username")]
-            room_id = match.get("id")
-            await room_add_players(room_id, player_ids)
 
-    elif event == "create":
-        users = data.get("users") or []
-        player_ids = [user.get("username") for user in users if user.get("username")]
-        room_id = data.get("id")
-        await room_add_players(room_id, player_ids)
-
+async def _handle_create_event(bot: Bot, player_ids: list):
+    try:
+        subscribe_list = get_subscribe_list()
         for i in range(2):
             player_id = player_ids[i]
             if player_id in subscribe_list and not await is_first_win(player_id):
                 watching_list.append(player_id)
                 message = f"您关注的{player_id}已开始挑战首赢，对手id：{player_ids[1-i]}。"
-                for subscriber in subscribe_list.get(player_id, []):
-                    usertype, qq = subscriber
-                    if usertype == "group":
-                        await bot.send_group_msg(group_id=int(qq), message=message)
-                    else:
-                        await bot.send_private_msg(user_id=int(qq), message=message)
-    
-    elif event == "delete":
-        room_id = data
+                await _send_notifications(bot, subscribe_list.get(player_id, []), message)
+    except Exception as e:
+        await message_superusers(bot, f"处理create事件出错: {e}")
+
+
+async def _handle_delete_event(bot: Bot, room_id):
+    try:
+        subscribe_list = get_subscribe_list()
         if room_id not in room_list:
             await message_superusers(bot, f"房间不在列表中：{room_id}")
             return
@@ -75,15 +67,35 @@ async def process_mycard_event(bot: Bot, payload: dict):
                 watching_list.remove(player_id)
                 if pt_deltas[i] > 0:
                     message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
-                # else:
-                #     message = f"您关注的{player_id}挑战首赢失败。pt变动：{pt_strs[i]}。"
-                for subscriber in subscribe_list.get(player_id, []):
-                    usertype, qq = subscriber
-                    if usertype == "group":
-                        await bot.send_group_msg(group_id=int(qq), message=message)
-                    else:
-                        await bot.send_private_msg(user_id=int(qq), message=message)
-            
+                    await _send_notifications(bot, subscribe_list.get(player_id, []), message)
+    except Exception as e:
+        await message_superusers(bot, f"处理delete事件出错: {e}")
+
+
+async def process_mycard_event(bot: Bot, payload: dict):
+    event = payload.get("event") or "?"
+    data  = payload.get("data") or {}
+
+    if event == "init":
+        for match in data:
+            users = match.get("users") or []
+            player_ids = [user.get("username") for user in users if user.get("username")]
+            room_id = match.get("id")
+            if len(player_ids) == 2:
+                asyncio.create_task(_room_add_players(room_id, player_ids))
+
+    elif event == "create":
+        users = data.get("users") or []
+        player_ids = [user.get("username") for user in users if user.get("username")]
+        room_id = data.get("id")
+        if len(player_ids) == 2:
+            asyncio.create_task(_room_add_players(room_id, player_ids))
+            asyncio.create_task(_handle_create_event(bot, player_ids))
+    
+    elif event == "delete":
+        room_id = data
+        asyncio.create_task(_handle_delete_event(bot, room_id))
+
 
 async def ws_runner(bot: Bot):
     backoff = 1
@@ -100,7 +112,7 @@ async def ws_runner(bot: Bot):
                             try:
                                 data = json.loads(msg.data)
                                 logger.info(f"[mycard raw] {msg.data}")
-                                await process_mycard_event(bot, data)
+                                asyncio.create_task(process_mycard_event(bot, data))
                             except Exception:
                                 logger.exception(f"[mycard raw] {msg.data}")
                         elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
