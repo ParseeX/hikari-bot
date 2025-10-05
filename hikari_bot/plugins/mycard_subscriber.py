@@ -57,8 +57,10 @@ async def handle_delete_event(bot: Bot, room_id):
         
         rec = await fetch_latest_record(player_ids[0])
         if rec is None or rec["usernameb"] != player_ids[1]:
-            await message_superusers(bot, f"获取最新记录失败")
-            return
+            rec = await fetch_latest_record(player_ids[0], delay=3)
+            if rec is None or rec["usernameb"] != player_ids[1]:
+                await message_superusers(bot, f"获取最新记录失败")
+                return
 
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
