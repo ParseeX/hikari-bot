@@ -13,11 +13,6 @@ _ws_task: asyncio.Task | None = None
 
 room_list = {}
 
-def _room_add_players(room_id, player_ids):
-    for i in range(2):
-        room_list.setdefault(room_id, []).append(player_ids[i])
-
-
 async def _send_notifications(bot: Bot, subscribers: list, message: str):
     for subscriber in subscribers:
         try:
@@ -88,14 +83,14 @@ async def process_mycard_event(bot: Bot, payload: dict):
             player_ids = [user.get("username") for user in users if user.get("username")]
             room_id = match.get("id")
             if len(player_ids) == 2:
-                room_list.setdefault(room_id, []).extend(player_ids)
+                room_list[room_id] = player_ids
 
     elif event == "create":
         users = data.get("users") or []
         player_ids = [user.get("username") for user in users if user.get("username")]
         room_id = data.get("id")
         if len(player_ids) == 2:
-            room_list.setdefault(room_id, []).extend(player_ids)
+            room_list[room_id] = player_ids
             await handle_create_event(bot, player_ids)
 
     elif event == "delete":
