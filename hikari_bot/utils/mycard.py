@@ -29,7 +29,8 @@ async def is_first_win(username: str) -> bool:
             return False
 
 async def fetch_latest_record(username: str, delay: float = 0):
-    asyncio.sleep(delay)
+    if delay > 0:
+        await asyncio.sleep(delay)
     history = await fetch_player_history(username, page_num=1)
     if history:
         return history[0]

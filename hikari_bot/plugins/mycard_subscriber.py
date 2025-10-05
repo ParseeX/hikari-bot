@@ -67,7 +67,7 @@ async def handle_delete_event(bot: Bot, room_id):
 
         if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
-                if player_id in watching_list:
+                if player_id in subscribe_list:
                     if pt_deltas[i] > 0:
                         message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
                         asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
