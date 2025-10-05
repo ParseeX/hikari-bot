@@ -13,10 +13,12 @@ _ws_task: asyncio.Task | None = None
 
 room_list = {}
 
-async def _send_notifications(bot: Bot, subscribers: list, message: str):
+async def _send_notifications(bot: Bot, subscribers: list, message: str, message_type: str):
     for subscriber in subscribers:
         try:
             usertype, qq = subscriber
+            if message_type != "both" and usertype != message_type:
+                continue
             if usertype == "group":
                 await bot.send_group_msg(group_id=int(qq), message=message)
             else:
@@ -29,9 +31,16 @@ async def handle_create_event(bot: Bot, player_ids: list):
     try:
         subscribe_list = get_subscribe_list()
         for i, player_id in enumerate(player_ids):
-            if player_id in subscribe_list and not await is_first_win(player_id):
-                message = f"您关注的{player_id}已开始挑战首赢，对手id：{player_ids[1-i]}。"
-                asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
+            if player_id in subscribe_list:
+                message = f"您关注的{player_id}已开始对局，对手id：{player_ids[1-i]}。"
+                asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message, "private"))
+        if player_id[0] in subscribe_list and player_id[1] in subscribe_list:
+            subscribers_0 = set(subscribe_list.get(player_ids[0], []))
+            subscribers_1 = set(subscribe_list.get(player_ids[1], []))
+            common_subscribers = subscribers_0 & subscribers_1
+            message = f"您关注的{player_ids[0]}和{player_ids[1]}已开始对局。"
+            asyncio.create_task(_send_notifications(bot, list(common_subscribers), message, "group"))
+        
     except Exception as e:
         await message_superusers(bot, f"处理create事件出错: {e}")
 
@@ -67,7 +76,7 @@ async def handle_delete_event(bot: Bot, room_id):
                 if player_id in subscribe_list:
                     if pt_deltas[i] > 0:
                         message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
-                        asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
+                        asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message, "both"))
         
     except Exception as e:
         await message_superusers(bot, f"处理delete事件出错: {e}")
