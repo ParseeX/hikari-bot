@@ -59,12 +59,30 @@ async def handle_delete_event(bot: Bot, room_id):
             await message_superusers(bot, f"房间玩家数异常：{room_id}，{player_ids}")
             return
         
-        rec = await fetch_latest_record(player_ids[0])
-        if rec is None or rec["usernameb"] != player_ids[1]:
-            rec = await fetch_latest_record(player_ids[1], delay=3)
-            if rec is None or rec["usernamea"] != player_ids[0]:
-                await message_superusers(bot, f"获取最新记录失败")
-                return
+        rec = None
+        start_time = asyncio.get_event_loop().time()
+        timeout = 180  # 3分钟 = 180秒
+        retry_interval = 5  # 5秒
+        
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            # 先尝试获取第一个玩家的记录
+            rec = await fetch_latest_record(player_ids[0])
+            if rec and rec.get("usernameb") == player_ids[1]:
+                break
+                
+            # 如果第一个玩家的记录不匹配，尝试第二个玩家
+            rec = await fetch_latest_record(player_ids[1])
+            if rec and rec.get("usernamea") == player_ids[0]:
+                break
+                
+            # 都没有找到匹配的记录，等待5秒后重试
+            rec = None
+            logger.info(f"[mycard] 未找到匹配记录，5秒后重试... ({player_ids[0]} vs {player_ids[1]})")
+            await asyncio.sleep(retry_interval)
+        
+         if rec is None:
+            await message_superusers(bot, f"获取最新记录失败，已重试3分钟：{player_ids[0]} vs {player_ids[1]}")
+            return
 
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
@@ -104,7 +122,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
 
     elif event == "delete":
         room_id = data
-        await handle_delete_event(bot, room_id)
+        asyncio.create_task(handle_delete_event(bot, room_id))
 
 
 async def ws_runner(bot: Bot):
