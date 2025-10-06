@@ -65,16 +65,17 @@ async def handle_delete_event(bot: Bot, room_id):
         retry_interval = 5  # 5秒
         
         while asyncio.get_event_loop().time() - start_time < timeout:
-            # 先尝试获取第一个玩家的记录
             rec = await fetch_latest_record(player_ids[0])
             if rec and rec.get("usernameb") == player_ids[1]:
                 break
-                
-            # 如果第一个玩家的记录不匹配，尝试第二个玩家
-            rec = await fetch_latest_record(player_ids[1])
-            if rec and rec.get("usernamea") == player_ids[0]:
+            
+            # 某些情况下，两个玩家的顺序会被交换
+            player_ids[0], player_ids[1] = player_ids[1], player_ids[0]
+            rec = await fetch_latest_record(player_ids[0])
+            if rec and rec.get("usernameb") == player_ids[1]:
                 break
-                
+            player_ids[0], player_ids[1] = player_ids[1], player_ids[0]
+
             # 都没有找到匹配的记录，等待5秒后重试
             rec = None
             logger.info(f"[mycard] 未找到匹配记录，5秒后重试... ({player_ids[0]} vs {player_ids[1]})")
