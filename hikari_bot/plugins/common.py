@@ -173,9 +173,15 @@ async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
     option = create_option_by_file(os.path.join(RESOURCES_DIR, "option.yml"))
     try:
         await loop.run_in_executor(None, download_album, comic_id, option)
-        await bot.send(event=event, message=f"✅ 下载完成：{comic_id}")
+        # 删除 JM_DIR/tmp/comic_id 目录
+        tmp_dir = os.path.join(JM_DIR, "tmp", str(comic_id))
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        # 发送pdf文件
+        pdf_path = os.path.join(JM_DIR, f"{comic_id}.pdf")
+        await bot.send(event=event, message=MessageSegment.file(pdf_path))
+
     except Exception as e:
-        await bot.send(event=event, message=f"❌ 下载失败：{comic_id}\n{type(e).__name__}: {e}")
+        await bot.send(event=event, message=f"下载失败，请重试。\n{type(e).__name__}: {e}")
 
 
 jmcomic_download = on_command('jm', priority=5)
