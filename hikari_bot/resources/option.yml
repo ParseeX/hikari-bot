@@ -1,0 +1,37 @@
+client:
+  cache: null
+  domain: []
+  impl: api
+  postman:
+    meta_data:
+      headers: null
+      impersonate: chrome
+      proxies: {}
+    type: curl_cffi
+  retry_times: 5
+dir_rule:
+  base_dir: /home/xyk/hikari-bot/hikari_bot/jm/tmp
+  normalize_zh: null
+  rule: Bd_Aid
+download:
+  cache: true
+  image:
+    decode: true
+    suffix: null
+  threading:
+    image: 30
+    photo: 16
+log: true
+plugins:
+  before_photo:
+    - plugin: skip_photo_with_few_images # 跳过下载章节图片数量过少的章节。一些韩漫的章节是公告，没有实际内容，就可以用该插件来跳过下载这些章节。
+      kwargs:
+        at_least_image_count: 3
+  after_album:
+    - plugin: img2pdf
+      kwargs:
+        pdf_dir: /home/xyk/hikari-bot/hikari_bot/jm
+        filename_rule: Aid
+        encrypt:
+          password: 350234
+version: '2.1'
