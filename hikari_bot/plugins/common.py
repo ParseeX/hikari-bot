@@ -1,6 +1,6 @@
 from nonebot import on_command, on_message, on_request, get_driver
 from nonebot.adapters.onebot.v11 import FriendRequestEvent, Message, MessageSegment
-from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
+from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from hikari_bot.utils.whitelist import *
@@ -11,6 +11,7 @@ import re
 import asyncio
 import shutil
 from jmcomic import download_album, create_option_by_file
+import os
 
 async def message_superusers(bot: Bot, message: str):
     for uid in get_driver().config.superusers:
@@ -170,6 +171,11 @@ async def _(bot: Bot, event: GroupMessageEvent):
 
 
 async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
+    if isinstance(event, PrivateMessageEvent):
+        friend_list = await bot.call_api("get_friend_list")
+        if not any(str(friend["user_id"]) == str(event.user_id) for friend in friend_list):
+            await bot.send(event=event, message="未添加好友无法发送文件，请先添加好友！")
+
     loop = asyncio.get_running_loop()
     option = create_option_by_file(os.path.join(RESOURCES_DIR, "option.yml"))
     try:
@@ -179,7 +185,10 @@ async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
         shutil.rmtree(tmp_dir, ignore_errors=True)
         # 发送pdf文件
         pdf_path = os.path.join(JM_DIR, f"{comic_id}.pdf")
-        await bot.send(event=event, message=MessageSegment.file(pdf_path))
+        if isinstance(event, PrivateMessageEvent):
+            await bot.upload_private_file(user_id=event.user_id, file=pdf_path, name=f"{comic_id}.pdf")
+        else:
+            await bot.upload_group_file(group_id=event.group_id, file=pdf_path, name=f"{comic_id}.pdf")
 
     except Exception as e:
         await bot.send(event=event, message=f"下载失败，请重试。\n{type(e).__name__}: {e}")
