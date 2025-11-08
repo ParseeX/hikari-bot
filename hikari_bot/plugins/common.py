@@ -194,7 +194,7 @@ async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
         await bot.send(event=event, message=f"下载失败，请重试。\n{type(e).__name__}: {e}")
 
 
-jmcomic_download = on_command('jm', priority=5)
+jmcomic_download = on_command('jm', priority=5, permission=SUPERUSER)
 
 @jmcomic_download.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
