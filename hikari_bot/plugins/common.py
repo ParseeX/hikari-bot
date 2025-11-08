@@ -9,6 +9,7 @@ from nonebot.matcher import Matcher
 import base64
 import re
 import asyncio
+import shutil
 from jmcomic import download_album, create_option_by_file
 
 async def message_superusers(bot: Bot, message: str):
