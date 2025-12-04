@@ -16,7 +16,8 @@ mycard_query = on_regex(mycard_regex, priority=5)
 
 @mycard_query.handle()
 async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
-    plain_text = event.get_plaintext()
+    plain_text = event.get_plaintext().strip()
+    print(plain_text)
     res = re.match(mycard_regex, plain_text)
 
     if not res:
