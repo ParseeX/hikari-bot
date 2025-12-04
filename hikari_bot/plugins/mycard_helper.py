@@ -11,101 +11,117 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
 from nonebot.params import EventMessage, CommandArg
 from hikari_bot.utils.mycard import *
 
-#mycard_regex = r"^(?:(\d{2,4})年)?(1[0-2]|[1-9])月历史\s+(.+)$"
 mycard_regex = r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))?$"
 mycard_query = on_regex(mycard_regex, priority=5)
 
 @mycard_query.handle()
 async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
-    res = re.match(mycard_regex, str(message))
+    plain_text = event.get_plaintext()
+    res = re.match(mycard_regex, plain_text)
+
+    if not res:
+        return
     
-    if (res):
-        year = int(res.group(1)) if res.group(1) else None
-        month = int(res.group(2)) if res.group(2) else None
-        user_id = res.group(3)
+    year = int(res.group(1)) if res.group(1) else None
+    month = int(res.group(2)) if res.group(2) else None
+    user_id = res.group(3)
 
-        if not user_id:
-            user_id = get_mycard_user()[str(event.user_id)]
+    if user_id:
+        user_id = html.unescape(user_id)
+    else:
+        at_targets = [
+            seg.data.get("qq")
+            for seg in message
+            if seg.type == "at"
+            and seg.data.get("qq") not in ("all", str(bot.self_id))
+        ]
+        at_qq = at_targets[0] if at_targets else None
+
+        if at_qq:
+            user_id = get_mycard_user().get(str(at_qq))
             if not user_id:
-                await mycard_query.finish("请先绑定或提供用户名！")
+                await mycard_query.finish("对方未绑定 MyCard 用户名！")
         else:
-            user_id = html.unescape(user_id)
-        
-        current_month = datetime.now().month
-        current_year = datetime.now().year
+            user_id = get_mycard_user().get(str(event.user_id))
+            if not user_id:
+                await mycard_query.finish("请先绑定或提供 MyCard 用户名！")
+    
+    
+    current_month = datetime.now().month
+    current_year = datetime.now().year
 
-        if not month:
+    if not month:
+        year = current_year
+        month = current_month
+    elif not year:
+        if month <= current_month:
             year = current_year
-            month = current_month
-        elif not year:
-            if month <= current_month:
-                year = current_year
-            else:
-                year = current_year - 1
-        elif year < 2000:
-            year = year + 2000
-        
-        if year > current_year or (year == current_year and month > current_month):
-            return
+        else:
+            year = current_year - 1
+    elif year < 2000:
+        year = year + 2000
+    
+    if year > current_year or (year == current_year and month > current_month):
+        return
 
-        records = await mycard_get_records(user_id, month, year)
-        if records == None:
-            await mycard_query.finish(f"查询失败，请稍后重试")
+    records = await mycard_get_records(user_id, month, year)
+    if records == None:
+        await mycard_query.finish(f"查询失败，请稍后重试")
 
-        wins = [record for record in records if record['winner'] == user_id]
+    wins = [record for record in records if record['winner'] == user_id]
 
-        result_message = f"""玩家：{user_id}
+    result_message = f"""玩家：{user_id}
 {str(year-2000)+'年' if year!=current_year else ''}{month}月场次：{len(records)}
 {str(year-2000)+'年' if year!=current_year else ''}{month}月胜率：{(0 if len(records)==0 else len(wins)*100.0/len(records)):.2f}%"""
 
-        if len(records) > 0:
-            pt_ex = [record['pta_ex'] if record['usernamea'] == user_id else record['ptb_ex'] for record in records]
-            pt = [record['pta'] if record['usernamea'] == user_id else record['ptb'] for record in records]
+    if len(records) > 0:
+        pt_ex = [record['pta_ex'] if record['usernamea'] == user_id else record['ptb_ex'] for record in records]
+        pt = [record['pta'] if record['usernamea'] == user_id else record['ptb'] for record in records]
 
-            pt.append(pt_ex[-1])
-            pt.reverse()
+        pt.append(pt_ex[-1])
+        pt.reverse()
 
-            result_message = result_message + f"\n{str(year-2000)+'年' if year!=current_year else ''}{month}月最高分：{max(pt):.2f}"
+        result_message = result_message + f"\n{str(year-2000)+'年' if year!=current_year else ''}{month}月最高分：{max(pt):.2f}"
 
-            if month == current_month and year == current_year:
-                rank = await mycard_get_player_rank(user_id)
-                if rank != None:
-                    result_message = result_message + f"\n当前排名：{rank}"
-            else:
-                rank = await fetch_player_history_rank(user_id, year, month)
-                if rank != None:
-                    result_message = result_message + f"\n结算排名：{rank}"
+        if month == current_month and year == current_year:
+            rank = await mycard_get_player_rank(user_id)
+            if rank != None:
+                result_message = result_message + f"\n当前排名：{rank}"
+        else:
+            rank = await fetch_player_history_rank(user_id, year, month)
+            if rank != None:
+                result_message = result_message + f"\n结算排名：{rank}"
 
-            plt.figure(figsize=(8, 6))
-            
-            # 绘制折线
-            plt.plot(pt, marker='.', linestyle='--', color='b', linewidth=0.5)
+        plt.figure(figsize=(8, 6))
+        
+        # 绘制折线
+        plt.plot(pt, marker='.', linestyle='--', color='b', linewidth=0.5)
 
-            # 不显示标题、标签和图例
-            plt.title("")  # 不显示标题
-            plt.xlabel("")  # 不显示 x 轴标签
-            plt.ylabel("")  # 不显示 y 轴标签
-            plt.grid(False)  # 隐藏网格
+        # 不显示标题、标签和图例
+        plt.title("")  # 不显示标题
+        plt.xlabel("")  # 不显示 x 轴标签
+        plt.ylabel("")  # 不显示 y 轴标签
+        plt.grid(False)  # 隐藏网格
 
-            # 标记第一个和最后一个数据点的值
-            if pt:
-                plt.text(0, pt[0], f"{pt[0]:.2f}", ha='center', va='bottom', fontsize=10, color='black')
-                plt.text(len(pt)-1, pt[-1], f"{pt[-1]:.2f}", ha='center', va='bottom', fontsize=10, color='black')
+        # 标记第一个和最后一个数据点的值
+        if pt:
+            plt.text(0, pt[0], f"{pt[0]:.2f}", ha='center', va='bottom', fontsize=10, color='black')
+            plt.text(len(pt)-1, pt[-1], f"{pt[-1]:.2f}", ha='center', va='bottom', fontsize=10, color='black')
 
-            plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
-            plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+        plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
-            # 保存图表到内存中的二进制流
-            buf = BytesIO()
-            plt.savefig(buf, format="png", bbox_inches='tight')
-            buf.seek(0)  # 将文件指针移到开始位置
-            plt.close()
+        # 保存图表到内存中的二进制流
+        buf = BytesIO()
+        plt.savefig(buf, format="png", bbox_inches='tight')
+        buf.seek(0)  # 将文件指针移到开始位置
+        plt.close()
 
-            image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
 
-            await mycard_query.finish(Message([MessageSegment("text", {"text": result_message}), MessageSegment("image", {"file": f"base64://{image_base64}"})]))
+        await mycard_query.finish(Message([MessageSegment("text", {"text": result_message}), MessageSegment("image", {"file": f"base64://{image_base64}"})]))
 
-        await mycard_query.finish(result_message)
+    await mycard_query.finish(result_message)
 
 
 mycard_bind = on_command("绑定", priority=5)
