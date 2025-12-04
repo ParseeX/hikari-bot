@@ -12,12 +12,11 @@ from nonebot.params import EventMessage, CommandArg
 from hikari_bot.utils.mycard import *
 
 mycard_regex = r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))?$"
-mycard_query = on_regex(mycard_regex, priority=5)
+mycard_query = on_regex(r".*历史.*", priority=5)
 
 @mycard_query.handle()
 async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
     plain_text = event.get_plaintext().strip()
-    print(plain_text)
     res = re.match(mycard_regex, plain_text)
 
     if not res:
