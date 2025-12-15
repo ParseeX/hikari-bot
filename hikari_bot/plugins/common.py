@@ -148,13 +148,6 @@ async def handle_friend_request(bot: Bot, event: FriendRequestEvent):
     except Exception as e:
         print(f"处理好友申请失败：{e}")
 
-group_increase = on_notice(priority=1)
-
-@group_increase.handle()
-async def _(bot: Bot, event: GroupIncreaseNoticeEvent):
-    if str(event.user_id) == str(bot.self_id):
-        await message_superusers(bot, f"已加入群：{event.group_id}")
-
 
 srdslist = on_command('队员列表', permission=SUPERUSER)
 
