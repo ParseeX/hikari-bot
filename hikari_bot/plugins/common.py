@@ -1,5 +1,5 @@
 from nonebot import on_command, on_message, on_request, on_notice, get_driver
-from nonebot.adapters.onebot.v11 import FriendRequestEvent, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import FriendRequestEvent, GroupRequestEvent, Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
