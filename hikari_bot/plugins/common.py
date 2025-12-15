@@ -163,16 +163,16 @@ async def request_handler(bot: Bot, event: GroupRequestEvent):
         print(f"处理群邀请失败：{e}")
 
 
-def _invited(bot: Bot, event: Event, state: dict)->bool:
-    return event.notice_type=='group_increase' and event.sub_type=='invite'
+# def _invited(bot: Bot, event: Event, state: dict)->bool:
+#     return event.notice_type=='group_increase' and event.sub_type=='invite'
 
 
-invited = on_notice(_invited)
+# invited = on_notice(_invited)
 
-@invited.handle()
-async def _(bot: Bot, event: Event):
-    if str(event.user_id) == str(bot.self_id):
-        await message_superusers(bot, f"已被用户 {event.operator_id} 拉入群：{event.group_id}")
+# @invited.handle()
+# async def _(bot: Bot, event: Event):
+#     if str(event.user_id) == str(bot.self_id):
+#         await message_superusers(bot, f"已被用户 {event.operator_id} 拉入群：{event.group_id}")
 
 
 srdslist = on_command('队员列表', permission=SUPERUSER)
