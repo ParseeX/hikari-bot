@@ -60,7 +60,7 @@ async def _(bot: Bot, event: MessageEvent):
     except Exception as e:
         await reload.finish(f"重载插件失败：{e}")
 
-whitelist = on_command('添加至白名单', permission=SUPERUSER)
+whitelist = on_command("添加至白名单", alias={"白"}, permission=SUPERUSER)
 
 @whitelist.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -147,6 +147,22 @@ async def handle_friend_request(bot: Bot, event: FriendRequestEvent):
         print(f"已自动通过好友申请，来自用户：{event.user_id}")
     except Exception as e:
         print(f"处理好友申请失败：{e}")
+
+group_request_handler = on_request(priority=1)
+
+@group_request_handler.handle()
+async def handle_group_request(bot: Bot, event: GroupRequestEvent):
+    try:
+        if event.sub_type == "invite":
+            await bot.call_api(
+                "set_group_add_request",
+                flag=event.flag,
+                sub_type=event.sub_type,
+                approve=True
+            )
+            await message_superusers(bot, f"已自动通过群邀请，来自用户：{event.user_id}，群号：{event.group_id}")
+    except Exception as e:
+        print(f"处理群邀请失败：{e}")
 
 
 srdslist = on_command('队员列表', permission=SUPERUSER)

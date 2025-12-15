@@ -24,7 +24,8 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
             else:
                 await bot.send_private_msg(user_id=int(qq), message=message)
         except Exception as e:
-            await message_superusers(bot, f"发送通知失败: {e}")
+            pass
+            #await message_superusers(bot, f"发送通知失败: {e}")
 
 
 async def handle_create_event(bot: Bot, player_ids: list):
@@ -88,7 +89,7 @@ async def handle_delete_event(bot: Bot, room_id):
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
-        await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
+        #await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
 
         if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
