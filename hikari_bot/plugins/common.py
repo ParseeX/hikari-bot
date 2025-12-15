@@ -164,11 +164,8 @@ async def request_handler(bot: Bot, event: GroupRequestEvent):
 
 
 
-async def _invited(bot: Bot, event: Event, state: dict)->bool:
-    if event.notice_type=='group_increase' and event.sub_type=='invite':
-        return True
-    else:
-        return False
+def _invited(bot: Bot, event: Event, state: dict)->bool:
+    return event.notice_type=='group_increase' and event.sub_type=='invite'
 
 
 invited = on_notice(_invited)
