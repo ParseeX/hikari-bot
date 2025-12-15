@@ -163,7 +163,7 @@ async def request_handler(bot: Bot, event: GroupRequestEvent):
         print(f"处理群邀请失败：{e}")
 
 
-def _invited(bot: Bot, event: Event, state: dict)->bool:
+def _invited(bot: Bot, event: Event)->bool:
     return event.notice_type=='group_increase' and event.sub_type=='invite'
 
 
