@@ -294,9 +294,9 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         year, month = month_key.split('-')
         month_labels.append(f"{year[-2:]}年{int(month)}月")
 
-    total_wins = sum([record for record in records if record['winner'] == user_id])
+    total_wins = len([record for record in records if record['winner'] == user_id])
     total_games = len(records)
-    overall_rate = (len([record for record in records if record['winner'] == user_id]) * 100.0 / total_games) if total_games > 0 else 0.0
+    overall_rate = (total_wins * 100.0 / total_games) if total_games > 0 else 0.0
 
     result_message = f"""玩家：{user_id}
 总场次：{total_games}

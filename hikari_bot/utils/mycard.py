@@ -40,7 +40,31 @@ async def fetch_latest_record(username: str, delay: float = 0):
         return None
 
 async def fetch_player_history(username: str, page_num: int = 999999):
-    """获取玩家历史对战记录"""
+    """
+        获取玩家历史对战记录
+        数据格式：
+        [{
+			"usernamea": "3133223461",
+			"usernameb": "水橋パルスィ",
+			"userscorea": 1,
+			"userscoreb": 2,
+			"expa": 1646,
+			"expb": 1801.5,
+			"expa_ex": 1645.5,
+			"expb_ex": 1800.5,
+			"pta": 1350.78405124773,
+			"ptb": 1551.09307262336,
+			"pta_ex": 1358.78405124773,
+			"ptb_ex": 1543.09307262336,
+			"type": "athletic",
+			"start_time": "2025-12-16T22:41:34.000Z",
+			"end_time": "2025-12-16T22:48:04.000Z",
+			"winner": "水橋パルスィ",
+			"isfirstwin": false,
+			"decka": null,
+			"deckb": null
+		},...]
+    """
     url = f"{MC_BASE_API}{API_PLAYER_HISTORY}"
     params = {
         "username": username,
