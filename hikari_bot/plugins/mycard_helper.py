@@ -16,8 +16,8 @@ mycard_query = on_regex(r".*历史.*", priority=5)
 mycard_bind = on_command("绑定", priority=5)
 mycard_subscribe = on_command("订阅", priority=5)
 mycard_unsubscribe = on_command("退订", priority=5)
-mycard_firstwin = on_command("首胜查询",aliases={"首赢查询"}, priority=5)
-mycard_whois = on_command("查询绑定", priority=5)
+mycard_firstwin = on_command("首胜查询", aliases={"首赢查询"}, priority=5)
+mycard_whois = on_command("查询绑定", aliases={"绑定查询"}, priority=5)
 mycard_addtag = on_command("添加标签", priority=5)
 mycard_deltag = on_command("删除标签", priority=5)
 mycard_taglist = on_command("查看标签", priority=5)
@@ -218,23 +218,23 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
         qq = at_targets[0]
         user_id = get_mycard_user().get(str(qq))
         if user_id:
-            await mycard_whois.finish(f"QQ号 {qq} 绑定的 MyCard 用户名为：{user_id}")
+            await mycard_whois.finish(f"该用户绑定的 MyCard 用户名为：{user_id}")
         else:
-            await mycard_whois.finish(f"QQ号 {qq} 未绑定 MyCard 用户名")
+            await mycard_whois.finish(f"该用户还未绑定 MyCard 用户名！")
     elif input_text := args.extract_plain_text().strip():
         # 如果有输入参数，作为MyCard用户名反向查找QQ号
         mycard_username = html.unescape(input_text)
         user_list = get_mycard_user()
-        found_qq = None
+        found_qq_list = []
         for qq, username in user_list.items():
             if username == mycard_username:
-                found_qq = qq
-                break
+                found_qq_list.append(qq)
         
-        if found_qq:
-            await mycard_whois.finish(f"MyCard 用户名 {mycard_username} 绑定的QQ号为：{found_qq}")
+        if found_qq_list:
+            qq_list_text = "、".join(found_qq_list)
+            await mycard_whois.finish(f"以下qq绑定了 Mycard 用户名 {mycard_username}：{qq_list_text}")
         else:
-            await mycard_whois.finish(f"MyCard 用户名 {mycard_username} 未找到对应的绑定QQ号")
+            await mycard_whois.finish(f"暂无用户绑定 Mycard 用户名 {mycard_username}！")
     else:
         # 如果没有@也没有参数，查询自己的绑定信息
         qq = str(event.user_id)
@@ -242,4 +242,4 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
         if user_id:
             await mycard_whois.finish(f"你绑定的 MyCard 用户名为：{user_id}")
         else:
-            await mycard_whois.finish(f"你未绑定 MyCard 用户名")
+            await mycard_whois.finish(f"你还未绑定 MyCard 用户名！")
