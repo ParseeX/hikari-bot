@@ -2,7 +2,7 @@ from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, PrivateMessageEvent, Message
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
-from hikari_bot.utils.constants import RESOURCES_DIR, JM_DIR
+from hikari_bot.utils.constants import RESOURCES_DIR, DATA_DIR
 import asyncio
 import shutil
 import os
