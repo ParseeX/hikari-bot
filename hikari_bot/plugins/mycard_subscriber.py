@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 import json
 from nonebot import get_driver, logger, on_command
+from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import Bot
 from hikari_bot.utils.constants import *
 from hikari_bot.utils.mycard import *
