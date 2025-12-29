@@ -74,6 +74,15 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     else:
         await whitelist.finish(f"群{group_id}已经在白名单中。")
 
+kill_all_whitelist = on_command("清空白名单", permission=SUPERUSER)
+
+@kill_all_whitelist.handle()
+async def _(bot: Bot, event: MessageEvent):
+    try:
+        save_whitelist({"groups": [], "users": []})
+        await kill_all_whitelist.finish("已清空白名单。")
+    except Exception as e:
+        await kill_all_whitelist.finish(f"清空白名单失败：{e}")
 
 whitelist_check = on_message(priority=1, block=False)
 
