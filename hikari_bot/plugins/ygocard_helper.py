@@ -11,7 +11,7 @@ from hikari_bot.utils.ygodeck import *
 ygo_random_card = on_command("随机一卡", priority=5)
 @ygo_random_card.handle()
 async def _(bot: Bot, event: MessageEvent):
-    image = await get_ygopic(random_card())
+    image = await get_ygopic(random_card(), half=False)
     if not image:
         await ygo_random_card.finish("未找到随机卡片！")
         return

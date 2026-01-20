@@ -82,7 +82,7 @@ async def get_unknown_card():
         return None
 
 
-async def get_ygopic(id: int):
+async def get_ygopic(id: int, half: bool = True):
     """根据卡片ID获取卡片图片"""
     local_path = os.path.join(CARD_PICS, f"{id}.jpg")
     if os.path.exists(local_path):
@@ -90,15 +90,16 @@ async def get_ygopic(id: int):
             return f.read()
 
     # 本地没有则下载
-    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg!half"
+    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg{'!half' if half else ''}"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status == 200:
                     data = await resp.read()
-                    os.makedirs(CARD_PICS, exist_ok=True)
-                    with open(local_path, "wb") as f:
-                        f.write(data)
+                    if half:
+                        os.makedirs(CARD_PICS, exist_ok=True)
+                        with open(local_path, "wb") as f:
+                            f.write(data)
                     return data
                 else:
                     print(f"Image not found: {url}")
