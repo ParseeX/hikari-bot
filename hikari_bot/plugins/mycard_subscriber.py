@@ -7,7 +7,7 @@ from nonebot.adapters.onebot.v11 import Bot
 from hikari_bot.utils.constants import *
 from hikari_bot.utils.mycard import *
 from hikari_bot.utils.feature_flags import get_notify_enabled, set_notify_enabled
-from hikari_bot.plugins.common import message_superusers
+from hikari_bot.utils.whitelist import message_superusers
 
 _stop_event = asyncio.Event()
 
@@ -29,7 +29,7 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
                 await bot.send_private_msg(user_id=int(qq), message=message)
         except Exception as e:
             pass
-            #await message_superusers(bot, f"发送通知失败: {e}")
+            #await message_superusers(f"发送通知失败: {e}")
 
 
 async def handle_create_event(bot: Bot, player_ids: list):
@@ -47,21 +47,21 @@ async def handle_create_event(bot: Bot, player_ids: list):
             asyncio.create_task(_send_notifications(bot, list(common_subscribers), message, "group"))
         
     except Exception as e:
-        await message_superusers(bot, f"处理create事件出错: {e}")
+        await message_superusers(f"处理create事件出错: {e}")
 
 
 async def handle_delete_event(bot: Bot, room_id):
     try:
         subscribe_list = get_subscribe_list()
         if room_id not in room_list:
-            await message_superusers(bot, f"房间不在列表中：{room_id}")
+            await message_superusers(f"房间不在列表中：{room_id}")
             return
         
         player_ids = room_list[room_id]
         del room_list[room_id]
 
         if len(player_ids) != 2:
-            await message_superusers(bot, f"房间玩家数异常：{room_id}，{player_ids}")
+            await message_superusers(f"房间玩家数异常：{room_id}，{player_ids}")
             return
         
         rec = None
@@ -87,14 +87,14 @@ async def handle_delete_event(bot: Bot, room_id):
             await asyncio.sleep(retry_interval)
         
         if rec is None:
-            await message_superusers(bot, f"获取最新记录失败，已重试3分钟：{player_ids[0]} vs {player_ids[1]}")
+            await message_superusers(f"获取最新记录失败，已重试3分钟：{player_ids[0]} vs {player_ids[1]}")
             return
 
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
         if get_notify_enabled():
-            await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
+            await message_superusers(f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
 
         if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
@@ -104,7 +104,7 @@ async def handle_delete_event(bot: Bot, room_id):
                         asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message, "both"))
         
     except Exception as e:
-        await message_superusers(bot, f"处理delete事件出错: {e}")
+        await message_superusers(f"处理delete事件出错: {e}")
 
 
 async def process_mycard_event(bot: Bot, payload: dict):

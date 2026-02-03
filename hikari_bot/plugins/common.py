@@ -11,14 +11,10 @@ import re
 import asyncio
 import os
 
-async def message_superusers(bot: Bot, message: str):
-    for uid in get_driver().config.superusers:
-        await bot.send_private_msg(user_id=int(uid), message=message)
-
 driver = get_driver()
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
-    await message_superusers(bot, "早上好！")
+    await message_superusers("早上好！")
 
 
 help_pic = os.path.join(RESOURCES_DIR, 'help.png')
@@ -125,7 +121,7 @@ async def request_handler(bot: Bot, event: GroupRequestEvent):
                 sub_type=event.sub_type,
                 approve=True
             )
-            await message_superusers(bot, f"已自动通过群邀请，来自用户：{event.user_id}，群号：{event.group_id}")
+            await message_superusers(f"已自动通过群邀请，来自用户：{event.user_id}，群号：{event.group_id}")
     except Exception as e:
         print(f"处理群邀请失败：{e}")
 
@@ -139,7 +135,7 @@ invited = on_notice(_invited)
 @invited.handle()
 async def _(bot: Bot, event: Event):
     if str(event.user_id) == str(bot.self_id):
-        await message_superusers(bot, f"已被用户 {event.operator_id} 拉入群：{event.group_id}")
+        await message_superusers(f"已被用户 {event.operator_id} 拉入群：{event.group_id}")
 
 
 srdslist = on_command('队员列表', permission=SUPERUSER)

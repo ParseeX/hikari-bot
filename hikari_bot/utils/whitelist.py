@@ -1,5 +1,7 @@
 import os
 import json
+from nonebot import get_bot, get_driver
+from nonebot.adapters.onebot.v11 import Bot
 from hikari_bot.utils.constants import *
 
 whitelist_file = os.path.join(DATA_DIR, 'whitelist.json')
@@ -27,4 +29,11 @@ def add_group_to_whitelist(group_id):
 
 def is_allowed_group(group_id) -> bool:
     return group_id in get_whitelist()["groups"]
-
+    
+async def message_superusers(message: str):
+    try:
+        bot = get_bot()
+        for uid in get_driver().config.superusers:
+            await bot.send_private_msg(user_id=int(uid), message=message)
+    except Exception as e:
+        print(f"发送消息失败: {e}")
