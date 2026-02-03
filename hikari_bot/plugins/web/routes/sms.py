@@ -6,7 +6,7 @@ from hikari_bot.utils.whitelist import message_superusers
 router = APIRouter()
 
 class SmsPayload(BaseModel):
-    from_: str
+    from_: str = Field(alias="from")
     to: Optional[str] = ""
     tos: Optional[List[str]] = []
     toName: Optional[str] = ""
@@ -15,11 +15,6 @@ class SmsPayload(BaseModel):
     dir: Optional[str] = ""
     date: Optional[str] = ""
     simSlot: Optional[int] = None
-
-    # 兼容字段名 "from"
-    class Config:
-        populate_by_name = True
-        fields = {"from_": "from"}
 
 @router.post("/sms")
 async def tome_handler(payload: SmsPayload):
