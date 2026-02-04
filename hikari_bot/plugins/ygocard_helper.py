@@ -193,19 +193,15 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         if not result:
             await ygo_metaltronus_calc.finish("没有满足条件的卡片！")
             return
-        else:
-            try:
-                image = await generate_card_list_image(result)
-                if not image:
-                    await ygo_metaltronus_calc.finish("结果加载失败！")
-                    return
-                    
-                buffer = io.BytesIO()
-                image.save(buffer, format="PNG")
-                buffer.seek(0)
-                image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-                await ygo_metaltronus_calc.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
-                
-            except Exception as e:
-                await ygo_metaltronus_calc.finish(f"图片生成过程中出现错误：{str(e)}")
+        
+        image = await generate_card_list_image(result)
+        if not image:
+            await ygo_metaltronus_calc.finish("结果加载失败！")
+            return
+            
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        await ygo_metaltronus_calc.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
