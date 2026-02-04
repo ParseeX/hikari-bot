@@ -136,9 +136,9 @@ def parse_ydk(deck_text):
 
 
 async def batch_get_images(card_ids):
-    # 根据服务器配置优化：2核心2GB内存，图片100KB
-    batch_size = 6  # 每批6张，控制内存峰值（约30-60MB per batch）
-    semaphore = asyncio.Semaphore(2)  # 限制同时下载2张，适合2核心CPU
+    # 极度保守的配置，避免内存溢出和死机
+    batch_size = 3  # 每批只处理3张，极大降低内存峰值
+    semaphore = asyncio.Semaphore(1)  # 一次只下载1张，完全避免并发压力
     all_images = []
     
     async def download_single(card_id):
@@ -146,12 +146,15 @@ async def batch_get_images(card_ids):
             try:
                 img_data = await get_ygopic(card_id)
                 if img_data:
-                    return Image.open(BytesIO(img_data))
+                    image = Image.open(BytesIO(img_data))
+                    # 缩小图片尺寸以节省内存
+                    image = image.resize((100, 145), Image.Resampling.LANCZOS)
+                    return image
                 return None
             except Exception:
                 return None
     
-    # 分批处理
+    # 分批处理，并强制垃圾回收
     for i in range(0, len(card_ids), batch_size):
         batch = card_ids[i:i + batch_size]
         tasks = [download_single(card_id) for card_id in batch]
@@ -162,9 +165,10 @@ async def batch_get_images(card_ids):
             if isinstance(img, Image.Image):
                 all_images.append(img)
         
-        # 延迟时间稍微增加，减轻服务器和网络压力
-        if i + batch_size < len(card_ids):
-            await asyncio.sleep(1.0)
+        # 手动触发垃圾回收并增加延迟
+        import gc
+        gc.collect()
+        await asyncio.sleep(0.5)
     
     return all_images
 
@@ -302,10 +306,12 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
 
 async def generate_card_list_image(id_list):
-    card_width, card_height = 200, 290
-    cards_per_row = 15
-    padding = 3
-    margin = 6
+    # 使用更小的卡片尺寸以节省内存
+    card_width, card_height = 100, 145  # 缩小到原来的一半
+    cards_per_row = 20  # 增加每行卡片数量以补偿
+    padding = 2
+    margin = 4
+    
     all_card_images = await batch_get_images(id_list)
     n = len(all_card_images)
     rows = (n + cards_per_row - 1) // cards_per_row
