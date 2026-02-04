@@ -136,14 +136,37 @@ def parse_ydk(deck_text):
 
 
 async def batch_get_images(card_ids):
-    # 并发下载图片
-    tasks = [get_ygopic(card_id) for card_id in card_ids]
-    images = await asyncio.gather(*tasks)
-    result = []
-    for img in images:
-        if img is not None:
-            result.append(Image.open(BytesIO(img)))
-    return result
+    # 根据服务器配置优化：2核心2GB内存，图片100KB
+    batch_size = 6  # 每批6张，控制内存峰值（约30-60MB per batch）
+    semaphore = asyncio.Semaphore(2)  # 限制同时下载2张，适合2核心CPU
+    all_images = []
+    
+    async def download_single(card_id):
+        async with semaphore:
+            try:
+                img_data = await get_ygopic(card_id)
+                if img_data:
+                    return Image.open(BytesIO(img_data))
+                return None
+            except Exception:
+                return None
+    
+    # 分批处理
+    for i in range(0, len(card_ids), batch_size):
+        batch = card_ids[i:i + batch_size]
+        tasks = [download_single(card_id) for card_id in batch]
+        batch_images = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # 过滤掉异常和None
+        for img in batch_images:
+            if isinstance(img, Image.Image):
+                all_images.append(img)
+        
+        # 延迟时间稍微增加，减轻服务器和网络压力
+        if i + batch_size < len(card_ids):
+            await asyncio.sleep(1.0)
+    
+    return all_images
 
 
 def draw_section(img, card_images, title, start_x, start_y, card_width, card_height, rows, padding):
