@@ -1,12 +1,15 @@
 import asyncio
 import re
-from nonebot import on_command
+from nonebot import on_command, get_driver
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.params import CommandArg
+from nonebot.permission import SUPERUSER
 from nonebot.exception import FinishedException
-from hikari_bot.utils.cardrush import query as query_card_prices
+from hikari_bot.utils.cardrush import query as query_card_prices, query_all, compare_prices, save_prices
 from hikari_bot.utils.ygocard import get_card_info
+from hikari_bot.utils.whitelist import message_superusers
+from datetime import datetime
 
 # 稀有度映射表：日文名称 → 英文缩写 (支持多个日文对应同一个英文)
 RARITY_MAPPING = {
@@ -134,3 +137,91 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     except Exception as e:
         if not isinstance(e, FinishedException):
             await card_price.finish(f"查询失败：{str(e)}")
+
+
+# 定时价格监控任务
+async def check_price_changes():
+    """检查卡价变化并通知管理员"""
+    try:
+        # 获取最新价格
+        new_prices = query_all()
+        
+        # 比较价格变化
+        changes = compare_prices(new_prices)
+        
+        if changes:
+            message = "🔔卡价变化通知：\n"
+            
+            for change in changes[:20]:  # 限制显示前20个变化
+                name = change["name"]
+                rarity = change["rarity"] or "未知"
+                model_number = change["model_number"] or "未知"
+                
+                if change["change_type"] == "new":
+                    message += f"🆕{name}【{model_number}({rarity})】\n"
+                    message += f"   0円 → {change['new_price']}円\n"
+                elif change["change_type"] == "changed":
+                    old_price = change["old_price"]
+                    new_price = change["new_price"]
+                    diff = change["price_diff"]
+                    
+                    if diff > 0:
+                        emoji = "📈"
+                    else:
+                        emoji = "📉"
+                    
+                    message += f"{emoji}{name}【{model_number}({rarity})】\n"
+                    message += f"  {old_price}円 → {new_price}円\n"
+                elif change["change_type"] == "deleted":
+                    message += f"🗑️{name}【{model_number}({rarity})】\n"
+                    message += f"  {change['old_price']}円 → 0円\n"
+            
+            if len(changes) > 20:
+                message += f"还有 {len(changes) - 20} 个变化未显示..."
+            
+            # 发送通知给管理员
+            await message_superusers(message)
+        
+        # 保存新价格到数据库
+        save_prices(new_prices)
+        
+    except Exception as e:
+        await message_superusers(f"卡价监控出错：{str(e)}")
+
+
+async def schedule_price_monitor():
+    """定时价格监控调度器"""
+    while True:
+        try:
+            now = datetime.now()
+            # 检查是否为整点、15分、30分、45分
+            if now.minute in [0, 15, 30, 45] and now.second < 60:
+                await check_price_changes()
+                await asyncio.sleep(600)
+            else:
+                await asyncio.sleep(30)
+        except Exception as e:
+            print(f"价格监控调度器错误：{e}")
+            await asyncio.sleep(300)  # 出错时等待5分钟
+
+
+# 手动触发价格检查
+price_check = on_command("检查卡价", permission=SUPERUSER)
+
+@price_check.handle()
+async def _(bot: Bot, event: MessageEvent):
+    await price_check.send("开始检查卡价变化...")
+    
+    try:
+        await check_price_changes()
+        await price_check.finish("卡价检查完成！")
+    except Exception as e:
+        await price_check.finish(f"卡价检查失败：{str(e)}")
+
+
+# 启动价格监控
+driver = get_driver()
+@driver.on_bot_connect
+async def _start_price_monitor(bot: Bot):
+    asyncio.create_task(schedule_price_monitor())
+
