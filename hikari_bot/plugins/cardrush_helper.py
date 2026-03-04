@@ -196,8 +196,7 @@ async def schedule_price_monitor():
     while True:
         try:
             now = datetime.now()
-            # 检查是否为整点、15分、30分、45分
-            if now.minute in [0, 15, 30, 45] and now.second < 60:
+            if now.minute in [1, 16, 31, 46] and now.second < 60:
                 await check_price_changes()
                 await asyncio.sleep(600)
             else:
