@@ -99,7 +99,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             return
         
         # 格式化查询结果
-        reply_text = f"【{input_text}】的价格信息：\n"
+        reply_text = f"【{input_text}】的价格信息："
         
         for i, card in enumerate(results[:10]):  # 限制显示前10个结果
             card_name = card.get("name", "未知")
@@ -109,8 +109,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             
             card_rarity = translate_rarity_to_english(card_rarity_jp)
             
-            reply_text += f"{card_name}【{card_rarity}】【{card_model}】"
-            reply_text += f"  买取价格：{card_price_val}円\n"
+            reply_text += f"\n{card_name}【{card_model}({card_rarity})】\n"
+            reply_text += f"  买取价格：{card_price_val}円"
         
         if len(results) > 10:
             reply_text += f"还有 {len(results) - 10} 个结果未显示..."
