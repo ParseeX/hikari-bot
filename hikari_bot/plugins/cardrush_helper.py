@@ -107,15 +107,15 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await card_price.finish("未找到对应卡片！")
             return
 
-        name_jp = card_info["jp_name"]
+        name_jp = clean_card_name(card_info["jp_name"])
         
         rarity_jp = translate_rarity_to_japanese(rarity)
         
         loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(None, query_card_prices, clean_card_name(name_jp), rarity_jp, model_number)
+        results = await loop.run_in_executor(None, query_card_prices, name_jp, rarity_jp, model_number)
         
         if not results:
-            await card_price.finish(f"没有{name_jp}的价格信息！")
+            await card_price.finish(f"没有 {name_jp} 的价格信息！")
             return
         
         # 格式化查询结果
