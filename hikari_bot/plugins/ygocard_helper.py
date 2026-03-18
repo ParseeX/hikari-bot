@@ -43,10 +43,17 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             card_id = int(input)
         else:
             if "异画" in input:
-                input = input.replace("异画","")
+                match = re.search(r'异画(\d+)', input)
+                if match:
+                    offset = int(match.group(1))
+                    input = input.replace(match.group(0), "")
+                else:
+                    offset = 1
+                    input = input.replace("异画", "")
+                
                 card_info = await get_card_info(input)
                 if card_info:
-                    card_id = card_info["id"] + 1
+                    card_id = card_info["id"] + offset
                 else:
                     card_id = None
             else:
