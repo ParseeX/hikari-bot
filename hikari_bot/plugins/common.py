@@ -54,7 +54,7 @@ async def _(bot: Bot, event: MessageEvent):
     except Exception as e:
         await reload.finish(f"重载插件失败：{e}")
 
-reboot = on_command("重启", permission=SUPERUSER)
+reboot = on_command("重启服务器", permission=SUPERUSER)
 @reboot.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
