@@ -3,6 +3,7 @@ from nonebot.adapters.onebot.v11 import Event, FriendRequestEvent, GroupRequestE
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
+from nonebot.exception import FinishedException
 from hikari_bot.utils.whitelist import *
 from hikari_bot.utils.constants import *
 from nonebot.matcher import Matcher
@@ -59,7 +60,8 @@ async def _(bot: Bot, event: MessageEvent):
         await version.finish(version_info)
         
     except Exception as e:
-        await version.finish(f"版本信息查询失败：{e}")
+        if not isinstance(e, FinishedException):
+            await version.finish(f"版本信息查询失败：{e}")
 
 reload = on_command("重载插件", permission=SUPERUSER)
 @reload.handle()
