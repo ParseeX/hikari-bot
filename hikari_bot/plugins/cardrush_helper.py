@@ -223,5 +223,14 @@ async def _(bot: Bot, event: MessageEvent):
 driver = get_driver()
 @driver.on_bot_connect
 async def _start_price_monitor(bot: Bot):
-    asyncio.create_task(schedule_price_monitor())
+    global _price_task
+    if _price_task and not _price_task.done():
+        _price_task.cancel()
+        try:
+            await _price_task
+        except Exception:
+            pass
+        logger.info("[mycard] 已取消旧的价格监控任务")
 
+    _price_task = asyncio.create_task(schedule_price_monitor())
+    logger.info("[mycard] 价格监控任务已启动")
