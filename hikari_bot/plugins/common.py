@@ -16,7 +16,6 @@ import asyncio
 import os
 
 driver = get_driver()
-log_file = driver.state.log_file
 
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
