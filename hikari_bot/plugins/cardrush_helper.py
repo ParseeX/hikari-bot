@@ -12,7 +12,7 @@ from hikari_bot.utils.ygocard import get_card_info
 from hikari_bot.utils.whitelist import message_superusers
 from datetime import datetime
 
-_ws_task: asyncio.Task | None = None
+_cr_task: asyncio.Task | None = None
 
 # 稀有度映射表：日文名称 → 英文缩写 (支持多个日文对应同一个英文)
 RARITY_MAPPING = {
