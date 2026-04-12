@@ -230,10 +230,10 @@ async def _start_price_monitor(bot: Bot):
             await _cr_task
         except Exception:
             pass
-        await log_message("CardRush monitor canceled old task.")
+        await log_message("[cardrush_helper] CardRush monitor canceled old task.")
 
     _cr_task = asyncio.create_task(schedule_price_monitor())
-    await log_message("CardRush monitor started.")
+    await log_message("[cardrush_helper] CardRush monitor started.")
 
 async def cr_status_check():
     global _cr_task
