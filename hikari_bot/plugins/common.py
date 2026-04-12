@@ -19,7 +19,7 @@ driver = get_driver()
 
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
-    await log_message("Bot connected.")
+    await log_message("QQ connected.")
     await message_superusers("早上好！")
 
 read_log = on_command("读取日志", permission=SUPERUSER)
