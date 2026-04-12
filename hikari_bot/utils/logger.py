@@ -55,5 +55,5 @@ async def log_message(message: str):
 async def log_read():
     if log_file and os.path.exists(log_file):
         with open(log_file, "r", encoding="utf-8") as f:
-            return f.read()
-    return "日志文件不存在。"
+            return f.readlines()
+    return ["日志文件不存在。"]

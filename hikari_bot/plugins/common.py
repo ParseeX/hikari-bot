@@ -27,9 +27,9 @@ read_log = on_command("读取日志", permission=SUPERUSER)
 async def _(bot: Bot, event: MessageEvent):
     log_content = await log_read()    
     # 发送日志内容，分段发送以避免消息过长
-    MAX_MESSAGE_LENGTH = 2000
-    for i in range(0, len(log_content), MAX_MESSAGE_LENGTH):
-        await read_log.send(log_content[i:i+MAX_MESSAGE_LENGTH])
+    MAX_LINE = 50
+    for i in range(0, len(log_content), MAX_LINE):
+        await read_log.send("".join(log_content[i:i+MAX_LINE]))
 
 
 status = on_command("状态查询", permission=SUPERUSER)
