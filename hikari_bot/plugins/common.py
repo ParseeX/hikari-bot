@@ -6,6 +6,7 @@ from nonebot.permission import SUPERUSER
 from nonebot.exception import FinishedException
 from hikari_bot.utils.whitelist import *
 from hikari_bot.utils.constants import *
+from hikari_bot.utils.logger import *
 from hikari_bot.plugins.mycard_subscriber import ws_status_check
 from hikari_bot.plugins.cardrush_helper import cr_status_check
 from nonebot.matcher import Matcher
@@ -13,7 +14,6 @@ import base64
 import re
 import asyncio
 import os
-from datetime import datetime
 
 driver = get_driver()
 log_file = driver.state.log_file
@@ -26,60 +26,12 @@ async def _on_bot_connect(bot: Bot):
 read_log = on_command("读取日志", permission=SUPERUSER)
 @read_log.handle()
 async def _(bot: Bot, event: MessageEvent):
-    if not log_file or not os.path.exists(log_file):
-        await read_log.finish("日志文件不存在。")
-    
-    with open(log_file, "r", encoding="utf-8") as f:
-        log_content = f.read()
-    
+    log_content = await log_read()    
     # 发送日志内容，分段发送以避免消息过长
     MAX_MESSAGE_LENGTH = 2000
     for i in range(0, len(log_content), MAX_MESSAGE_LENGTH):
         await read_log.send(log_content[i:i+MAX_MESSAGE_LENGTH])
 
-async def log_message(message: str):
-    if log_file:
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
-
-
-def get_bot_startup_info():
-    """从日志文件名中提取启动时间并计算运行时长"""
-    if not log_file:
-        return "未知", "未知"
-    
-    try:
-        filename = os.path.basename(log_file)
-        match = re.search(r'bot_log_(\d{8})_(\d{6})\.log', filename)
-        
-        if match:
-            date_str, time_str = match.groups()
-            startup_time = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
-            
-            # 计算运行时长
-            current_time = datetime.now()
-            uptime = current_time - startup_time
-            
-            # 格式化启动时间
-            startup_str = startup_time.strftime("%Y-%m-%d %H:%M:%S")
-            
-            # 格式化运行时长
-            days = uptime.days
-            hours, remainder = divmod(uptime.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            
-            if days > 0:
-                uptime_str = f"{days}天{hours}小时{minutes}分钟"
-            elif hours > 0:
-                uptime_str = f"{hours}小时{minutes}分钟"
-            else:
-                uptime_str = f"{minutes}分钟{seconds}秒"
-            
-            return startup_str, uptime_str
-        else:
-            return "解析失败", "未知"
-    except Exception as e:
-        return f"获取失败: {e}", "未知"
 
 status = on_command("状态查询", permission=SUPERUSER)
 @status.handle()
