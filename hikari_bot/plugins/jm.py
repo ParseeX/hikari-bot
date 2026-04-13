@@ -36,6 +36,7 @@ async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
             await bot.upload_group_file(group_id=event.group_id, file=pdf_path, name=f"{comic_id}.pdf")
 
     except Exception as e:
+        await log_message(f"[jm] Exception occurred in jm_download: {e}")
         await bot.send(event=event, message=f"下载失败，请重试。\n{type(e).__name__}: {e}")
 
 

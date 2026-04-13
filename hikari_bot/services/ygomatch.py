@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import aiohttp
 
 from hikari_bot.core.constants import DATA_DIR
+from hikari_bot.core.logger import log_message
 
 JIHUANSHE_BASE_API = "https://api.jihuanshe.com/api/"
 API_NEW_TOURNAMENT = "tournaments?token="
@@ -37,10 +38,10 @@ async def search_by_keyword(keyword: str):
                     data = await response.json()
                     return data['data']['matchs']
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[search_by_keyword] Failed to fetch data: {response.status}")
                     return None
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[search_by_keyword] Exception occurred while fetching data: {e}")
             return None
 
 async def get_match_detail(id: int):
@@ -52,10 +53,10 @@ async def get_match_detail(id: int):
                     data = await response.json()
                     return data['data']['info']
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[get_match_detail] Failed to fetch data: {response.status}")
                     return None
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[get_match_detail] Exception occurred while fetching data: {e}")
             return None
         
 def get_match_state():
@@ -111,10 +112,10 @@ async def start_tournament(match_name):
                     data = await response.json()
                     return data["tournament_code"], data["tournament_id"]
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[start_tournament] Failed to fetch data: {response.status}")
                     return None, None
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[start_tournament] Exception occurred while fetching data: {e}")
             return None, None
 
 async def get_tournament_info(id, code):
@@ -126,10 +127,10 @@ async def get_tournament_info(id, code):
                     data = await response.json()
                     return data
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[get_tournament_info] Failed to fetch data: {response.status}")
                     return None
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[get_tournament_info] Exception occurred while fetching data: {e}")
             return None
 
         
@@ -154,9 +155,9 @@ async def get_contestants(id):
                             user_name = user["user"]["username"]
                             result.append({"id": user_id, "name": user_name})
                     else:
-                        print(f"Failed to fetch data: {response.status}")
+                        await log_message(f"[get_contestants] Failed to fetch data: {response.status}")
             except Exception as e:
-                print(f"Exception occurred while fetching data: {e}")
+                await log_message(f"[get_contestants] Exception occurred while fetching data: {e}")
     
     return result
 
@@ -173,10 +174,10 @@ async def match_check_in(xcx_id):
                     data = await response.json()
                     return data["message"] == "success"
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[match_check_in] Failed to fetch data: {response.status}")
                     return False
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[match_check_in] Exception occurred while fetching data: {e}")
             return False
 
 
@@ -192,10 +193,10 @@ async def match_quit(xcx_id):
                     data = await response.json()
                     return data["message"] == "success"
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[match_quit] Failed to fetch data: {response.status}")
                     return False
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[match_quit] Exception occurred while fetching data: {e}")
             return False
         
 async def get_pairing(id, round):
@@ -212,8 +213,8 @@ async def get_pairing(id, round):
                                        "b": data["battles"][battle][1]["opponent"]["username"]})
                     return result
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[get_pairing] Failed to fetch data: {response.status}")
                     return None
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[get_pairing] Exception occurred while fetching data: {e}")
             return None

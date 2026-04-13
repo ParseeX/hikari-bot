@@ -2,6 +2,7 @@ import json
 import os
 
 from hikari_bot.core.constants import RESOURCES_DIR
+from hikari_bot.core.logger import log_message
 
 FLAGS_FILE = os.path.join(RESOURCES_DIR, "feature_flags.json")
 
@@ -9,7 +10,8 @@ def _load_flags() -> dict:
     try:
         with open(FLAGS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        await log_message(f"[feature_flags] Exception occurred while loading flags: {e}")
         return {}
 
 def _save_flags(flags: dict) -> None:

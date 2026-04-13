@@ -9,6 +9,7 @@ from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegme
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
+from hikari_bot.core.logger import log_message
 from hikari_bot.services.ygocard import *
 from hikari_bot.services.ygodeck import generate_card_list_image
 
@@ -17,6 +18,7 @@ ygo_random_card = on_command("随机一卡", priority=5, permission=SUPERUSER)
 async def _(bot: Bot, event: MessageEvent):
     image = await get_ygopic(random_card(), half=False)
     if not image:
+        await log_message(f"[ygo_random_card] Ramdom card image not found.")
         await ygo_random_card.finish("未找到随机卡片！")
         return
     image_base64 = base64.b64encode(image).decode('utf-8')
@@ -30,6 +32,7 @@ async def _(bot: Bot, event: MessageEvent):
     seed = hash(seed_str) % (2**31 - 1)
     image = await get_ygopic(random_card(seed), half=False)
     if not image:
+        await log_message(f"[ygo_daily_card] Daily card image not found.")
         await ygo_daily_card.finish("未找到每日卡片！")
         return
     image_base64 = base64.b64encode(image).decode('utf-8')
@@ -70,6 +73,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
         image = await get_image_by_id(card_id)
         if not image:
+            await log_message(f"[ygo_card_pic] Card image not found for card ID: {card_id}")
             await ygo_card_pic.finish("卡图加载失败！")
             return
             
@@ -154,6 +158,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                         break
 
                 except Exception as e:
+                    await log_message(f"[ygo_card_faq] Failed to send FAQ message: {e}")
                     await ygo_card_faq.finish("查询失败！")
                     return
 
@@ -168,17 +173,22 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             else:  # 如果是私聊消息
                 await bot.call_api("send_private_forward_msg", user_id=event.user_id, messages=message_2)
         except Exception as e:
-            print(f"发送失败：{e}")
+            await log_message(f"[ygo_card_faq] Failed to send FAQ message: {e}")
+            await ygo_card_faq.finish("查询失败！")
+            return
 
 
 
 ygo_update_database = on_command("更新数据库", priority=5)
 @ygo_update_database.handle()
 async def _(bot: Bot, event: MessageEvent):
-    update_db()
-    await update_cdb()
-    await ygo_update_database.finish("更新完成。")
-
+    try:
+        update_db()
+        await update_cdb()
+        await ygo_update_database.finish("更新完成。")
+    except Exception as e:
+        await log_message(f"[ygo_update_database] Failed to update database: {e}")
+        await ygo_update_database.finish("更新失败！")
 
 
 ygo_metaltronus_calc = on_command("共界计算", priority=5)
@@ -195,6 +205,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         try:
             result = await asyncio.to_thread(metaltronus_calc, card_info["id"])
         except Exception as e:
+            await log_message(f"[ygo_metaltronus_calc] Error during calculation for card ID {card_info['id']}: {e}")
             await ygo_metaltronus_calc.finish(f"计算过程中出现错误：{str(e)}")
             return
             

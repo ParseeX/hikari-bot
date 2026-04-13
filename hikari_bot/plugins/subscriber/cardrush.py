@@ -146,6 +146,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         
     except Exception as e:
         if not isinstance(e, FinishedException):
+            await log_message(f"[cardrush] Exception occurred in card_price: {e}")
             await card_price.finish(f"查询失败：{str(e)}")
 
 
@@ -231,8 +232,8 @@ async def _start_price_monitor(bot: Bot):
         _cr_task.cancel()
         try:
             await _cr_task
-        except Exception:
-            pass
+        except Exception as e:
+            await log_message(f"[cardrush] Exception occurred while canceling task: {e}")
         await log_message("[cardrush_helper] CardRush monitor canceled old task.")
 
     _cr_task = asyncio.create_task(schedule_price_monitor())

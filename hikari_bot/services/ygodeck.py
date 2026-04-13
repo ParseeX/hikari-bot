@@ -154,7 +154,8 @@ async def batch_get_images(card_ids):
                     image = image.resize((100, 145), Image.Resampling.LANCZOS)
                     return image
                 return None
-            except Exception:
+            except Exception as e:
+                await log_message(f"[ygodeck] Exception occurred while downloading card image {card_id}: {e}")
                 return None
     
     # 分批处理，并强制垃圾回收

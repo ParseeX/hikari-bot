@@ -5,6 +5,7 @@ from nonebot import get_bot, get_driver
 from nonebot.adapters.onebot.v11 import Bot
 
 from hikari_bot.core.constants import DATA_DIR
+from hikari_bot.core.logger import log_message
 
 whitelist_file = os.path.join(DATA_DIR, 'whitelist.json')
 
@@ -17,8 +18,10 @@ def _load_whitelist_from_file():
         with open(whitelist_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
+        await log_message(f"[whitelist] File not found: {whitelist_file}")
         return {"groups": [], "users": []}
     except json.JSONDecodeError:
+        await log_message(f"[whitelist] JSON decode error in file: {whitelist_file}")
         return {"groups": [], "users": []}
 
 def get_whitelist():
@@ -55,4 +58,4 @@ async def message_superusers(message: str):
         for uid in get_driver().config.superusers:
             await bot.send_private_msg(user_id=int(uid), message=message)
     except Exception as e:
-        print(f"发送消息失败: {e}")
+        await log_message(f"[message_superusers] Failed to send message: {e}")

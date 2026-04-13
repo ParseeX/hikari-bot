@@ -11,6 +11,7 @@ from bs4.element import NavigableString
 from PIL import Image
 
 from hikari_bot.core.constants import DATA_DIR
+from hikari_bot.core.logger import log_message
 
 IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
 IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
@@ -59,7 +60,7 @@ async def update_cdb():
                 with open(MOECARD_DB, "wb") as f:
                     f.write(data)
             else:
-                print(f"Download failed: {resp.status}")
+                await log_message(f"[update_cdb] Download failed: {resp.status}")
 
 
 # ==================== 图片处理 ====================
@@ -82,10 +83,10 @@ async def get_unknown_card():
                         f.write(data)
                     return data
                 else:
-                    print(f"Image not found: {url}")
+                    await log_message(f"[get_unknown_card] Image not found: {url}")
                     return None
     except Exception as e:
-        print(f"Error loading image {url}: {e}")
+        await log_message(f"[get_unknown_card] Error loading image {url}: {e}")
         return None
 
 
@@ -110,10 +111,10 @@ async def get_ygopic(id: int, half: bool = True):
                             f.write(data)
                     return data
                 else:
-                    print(f"Image not found: {url}")
+                    await log_message(f"[get_ygopic] Image not found: {url}")
                     return await get_unknown_card()
     except Exception as e:
-        print(f"Error loading image {url}: {e}")
+        await log_message(f"[get_ygopic] Error loading image {url}: {e}")
         return await get_unknown_card()
 
 
@@ -127,10 +128,10 @@ async def get_image_by_id(id: int):
                     image_data = await response.read()   
                     return image_data
                 else:
-                    print(f"Failed to download image: {response.status}")
+                    await log_message(f"[get_image_by_id] Failed to download image: {response.status}")
                     return None
         except Exception as e:
-            print(f"Exception occurred while downloading image: {e}")
+            await log_message(f"[get_image_by_id] Exception occurred while downloading image: {e}")
             return None
 
 
@@ -150,10 +151,10 @@ async def get_card_info_by_id_from_net(id: str):
                             return result
                     return None
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[get_card_info_by_id_from_net] Failed to fetch data: {response.status}")
                     return None
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[get_card_info_by_id_from_net] Exception occurred while fetching data: {e}")
             return None
 
 async def get_card_info_by_id(id: str):
@@ -200,10 +201,10 @@ async def get_card_info(keyword: str):
                     #     return None
                     return result
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[get_card_info] Failed to fetch data: {response.status}")
                     return None
         except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[get_card_info] Exception occurred while fetching data: {e}")
             return None
         
 async def get_qa_by_id(id: int):
@@ -231,10 +232,10 @@ async def get_qa_by_id(id: int):
 
                     return question, answer
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    await log_message(f"[get_qa_by_id] Failed to fetch data: {response.status}")
                     return None, None
     except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+            await log_message(f"[get_qa_by_id] Exception occurred while fetching data: {e}")
             return None, None
 
 # ==================== 工具函数 ====================

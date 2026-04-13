@@ -12,13 +12,7 @@ from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.constants import RESOURCES_DIR
 from hikari_bot.core.logger import get_bot_startup_info, log_message, log_read
-from hikari_bot.core.whitelist import (
-    add_group_to_whitelist,
-    get_whitelist,
-    is_allowed_group,
-    message_superusers,
-    save_whitelist,
-)
+from hikari_bot.core.whitelist import *
 from hikari_bot.plugins.subscriber.cardrush import cr_status_check
 from hikari_bot.plugins.subscriber.mycard import ws_status_check
 
@@ -87,7 +81,8 @@ async def _(bot: Bot, event: MessageEvent):
                     git_info[key] = stdout.decode().strip()
                 else:
                     git_info[key] = "获取失败"
-            except Exception:
+            except Exception as e:
+                await log_message(f"[version] Exception occurred while getting git info: {e}")
                 git_info[key] = "获取失败"
         
         # 格式化版本信息
@@ -120,11 +115,13 @@ async def _(bot: Bot, event: MessageEvent):
             stdout, stderr = await proc.communicate()
             git_output += stdout.decode().strip() + "\n" + stderr.decode().strip() + "\n"
             if proc.returncode != 0:
+                await log_message(f"[reload] Git command failed: {git_output}")
                 await reload.finish(f"更新失败：\n{git_output}")
                 return
         await reload.send("更新完成，正在重启...")
         os._exit(0)
     except Exception as e:
+        await log_message(f"[reload] Exception occurred while reloading plugins: {e}")
         await reload.finish(f"重载插件失败：{e}")
 
 reboot = on_command("重启服务器", permission=SUPERUSER)
@@ -146,6 +143,7 @@ async def _(bot: Bot, event: MessageEvent):
             await reboot.finish("重启命令已执行")
             
     except Exception as e:
+        await log_message(f"[reboot] Exception occurred while rebooting server: {e}")
         await reboot.finish(f"重启服务器失败：{e}")
 
 whitelist = on_command("添加至白名单", aliases={"白名单"}, permission=SUPERUSER)
@@ -171,6 +169,7 @@ async def _(bot: Bot, event: MessageEvent):
         save_whitelist({"groups": [], "users": []})
         await kill_all_whitelist.finish("已清空白名单。")
     except Exception as e:
+        await log_message(f"[kill_all_whitelist] Exception occurred while clearing whitelist: {e}")
         await kill_all_whitelist.finish(f"清空白名单失败：{e}")
 
 whitelist_check = on_message(priority=1, block=False)
@@ -190,7 +189,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         try:
             await bot.send_group_msg(group_id=group, message=message)
         except Exception as e:
-            print(f"向群{group}发送消息失败: {e}")
+            await log_message(f"[broadcast] Failed to send message to group {group}: {e}")
 
 
 request_handler = on_request(priority=1)
@@ -200,12 +199,12 @@ async def _(bot: Bot, event: FriendRequestEvent):
     try:
         # 自动通过好友请求
         await bot.call_api("set_friend_add_request", flag=event.flag, approve=True)
-        print(f"已自动通过好友申请，来自用户：{event.user_id}")
+        await log_message(f"[friend_request] Automatically approved friend request from user: {event.user_id}")
     except Exception as e:
-        print(f"处理好友申请失败：{e}")
+        await log_message(f"[friend_request] Failed to process friend request from user {event.user_id}: {e}")
 
 @request_handler.handle()
-async def request_handler(bot: Bot, event: GroupRequestEvent):
+async def _(bot: Bot, event: GroupRequestEvent):
     try:
         if event.sub_type == "invite":
             await bot.call_api(
@@ -214,21 +213,10 @@ async def request_handler(bot: Bot, event: GroupRequestEvent):
                 sub_type=event.sub_type,
                 approve=True
             )
+            await log_message(f"[group_request] Automatically approved group invite from user {event.user_id} for group {event.group_id}")
             await message_superusers(f"已自动通过群邀请，来自用户：{event.user_id}，群号：{event.group_id}")
     except Exception as e:
-        print(f"处理群邀请失败：{e}")
-
-
-def _invited(bot: Bot, event: Event)->bool:
-    return event.notice_type=='group_increase' and event.sub_type=='invite'
-
-
-invited = on_notice(_invited)
-
-@invited.handle()
-async def _(bot: Bot, event: Event):
-    if str(event.user_id) == str(bot.self_id):
-        await message_superusers(f"已被用户 {event.operator_id} 拉入群：{event.group_id}")
+        await log_message(f"[group_request] Failed to process group invite from user {event.user_id} in group {event.group_id}: {e}")
 
 
 srdslist = on_command('队员列表', permission=SUPERUSER)
@@ -245,7 +233,6 @@ async def _(bot: Bot, event: GroupMessageEvent):
         if card.startswith("SRDS"):
             new_card = re.sub(r"^SRDS\s*", "", card)
             result.append(f"{new_card} {member['user_id']}")
-            print(result)
 
     MAX_LINES = 100
     output = "\n".join(result[:MAX_LINES])

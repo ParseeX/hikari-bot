@@ -13,7 +13,7 @@ from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 
-from hikari_bot.core.constants import DECK_DIR
+from hikari_bot.core.constants import DECK_DIR, ADMIN
 from hikari_bot.services.ygodeck import (
     get_deck_text_from_url,
     is_deck_code,
@@ -319,13 +319,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if texts:=args.extract_plain_text().strip().split():
         if not checked_in.get(texts[0]):
             return
-        elif user_id == "909333601":
+        elif user_id in ADMIN:
             xcx_name = texts[0]
         elif not xcx_name or xcx_name != texts[0]:
             await confirm_deck.finish("你没有权限查看其他人的卡组！")
         if len(texts) >= 2:
             deck_name = texts[1]
-        if len(texts) >= 3 and user_id == "909333601":
+        if len(texts) >= 3 and user_id in ADMIN:
             result = texts[2]
     
     if not xcx_name:

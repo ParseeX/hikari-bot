@@ -26,7 +26,8 @@ async def sms_handler(payload: SmsPayload):
     try:
         dt = datetime.fromisoformat(payload.date.replace("Z", "+00:00"))
         time_fmt = dt.astimezone().strftime("%Y-%m-%d %H:%M")
-    except Exception:
+    except Exception as e:
+        await log_message(f"[sms_route] Exception occurred while parsing date: {e}")
         time_fmt = payload.date or "unknown"
 
     # 1️⃣ 完整短信（原文）

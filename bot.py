@@ -1,6 +1,7 @@
 import nonebot
 from nonebot import on_message
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
+from hikari_bot.core.constants import ADMIN
 from hikari_bot.core.logger import new_log_file
 
 import sys
@@ -10,7 +11,7 @@ sys.path.append(os.path.dirname(__file__))
 
 new_log_file()
 
-nonebot.init(superusers={"909333601"},command_start={"","/"})
+nonebot.init(superusers=ADMIN, command_start={"","/"})
 
 driver = nonebot.get_driver()
 driver.register_adapter(ONEBOT_V11Adapter)

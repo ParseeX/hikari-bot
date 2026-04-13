@@ -34,7 +34,7 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
             else:
                 await bot.send_private_msg(user_id=int(qq), message=message)
         except Exception as e:
-            log_message(f"[mycard_subscriber] _send_notifications error: {e}")
+            await log_message(f"[mycard_subscriber] _send_notifications error: {e}")
 
 
 async def handle_create_event(bot: Bot, player_ids: list):
@@ -173,8 +173,8 @@ async def _on_bot_connect(bot: Bot):
         _ws_task.cancel()
         try:
             await _ws_task
-        except Exception:
-            pass
+        except Exception as e:
+            await log_message(f"[mycard_subscriber] Exception occurred while canceling ws task: {e}")
         await log_message("[mycard_subscriber] MyCard monitor canceled old task.")
     
     _ws_task = asyncio.create_task(ws_runner(bot))
@@ -187,8 +187,8 @@ async def _on_shutdown():
         _ws_task.cancel()
         try:
             await _ws_task
-        except Exception:
-            pass
+        except Exception as e:
+            await log_message(f"[mycard_subscriber] Exception occurred while canceling ws task on shutdown: {e}")
         await log_message("[mycard_subscriber] MyCard monitor canceled on shutdown.")
 
 async def ws_status_check():
