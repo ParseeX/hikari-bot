@@ -1,6 +1,7 @@
 import json
 import os
-from hikari_bot.utils.constants import RESOURCES_DIR
+
+from hikari_bot.core.constants import *
 
 FLAGS_FILE = os.path.join(RESOURCES_DIR, "feature_flags.json")
 

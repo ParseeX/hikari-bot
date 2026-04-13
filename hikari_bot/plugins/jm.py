@@ -1,12 +1,15 @@
+import asyncio
+import os
+import shutil
+
+from jmcomic import create_option_by_file, download_album
+
 from nonebot import on_command
-from nonebot.adapters.onebot.v11 import Bot, MessageEvent, PrivateMessageEvent, Message
+from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
-from hikari_bot.utils.constants import RESOURCES_DIR, DATA_DIR
-import asyncio
-import shutil
-import os
-from jmcomic import download_album, create_option_by_file
+
+from hikari_bot.core.constants import *
 
 JM_DIR = os.path.join(DATA_DIR, "jm")
 

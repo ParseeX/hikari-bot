@@ -1,7 +1,7 @@
 import nonebot
 from nonebot import on_message
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
-from hikari_bot.utils.logger import new_log_file
+from hikari_bot.core.logger import new_log_file
 
 import sys
 import os

@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Request, Form, UploadFile, File
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 import os
 from pathlib import Path
-from werkzeug.utils import secure_filename
-from fastapi.responses import JSONResponse, StreamingResponse
-from hikari_bot.utils.constants import *
-from hikari_bot.utils.ygodeck import *
+
+from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.templating import Jinja2Templates
+
+from hikari_bot.core.constants import *
+from hikari_bot.services.ygodeck import *
 
 router = APIRouter()
 BASE_DIR = Path(WEB_DIR)
@@ -27,8 +26,6 @@ async def generate(
     deck_link: str = Form(None),
     ydk_file: UploadFile = File(None),
 ):
-    ydk_path = None
-
     if input_type == "link":
         if not is_deck_url(deck_link):
             return JSONResponse({"success": False, "message": "请上传正确的卡组链接。"})

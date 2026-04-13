@@ -1,5 +1,5 @@
-from nonebot import get_app
 from fastapi.staticfiles import StaticFiles
+from nonebot import get_app
 
 from .routes import routers
 
