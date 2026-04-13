@@ -11,7 +11,7 @@ from nonebot.permission import SUPERUSER
 from hikari_bot.core.feature_flags import get_notify_enabled, set_notify_enabled
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
-from hikari_bot.services.mycard import get_subscribe_list
+from hikari_bot.services.mycard import get_subscribe_list, fetch_latest_record
 
 WS_URL = "wss://tiramisu.moecube.com:8923/?filter=started"
 
