@@ -4,7 +4,20 @@ from datetime import datetime, timedelta
 
 import aiohttp
 
-from hikari_bot.core.constants import *
+from hikari_bot.core.constants import DATA_DIR
+
+JIHUANSHE_BASE_API = "https://api.jihuanshe.com/api/"
+API_NEW_TOURNAMENT = "tournaments?token="
+API_TOURNAMENT = "tournaments/{id}?tournament_code={code}&token="
+API_CONTESTANTS = "contestants?tournament_id={id}&page={page}&token="
+API_CHECK_IN = "contestants/verify?token="
+API_QUIT = "contestants/quit?token="
+API_PAIRING = "battles/all?tournament_id={id}&round={round}&token="
+TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjc4MDI2NSwiaXNzIjoiaHR0cDovL2FwaS5qaWh1YW5zaGUuY29tL2FwaS93ZWNoYXQvbG9naW4iLCJpYXQiOjE3NTA2NjQwODIsImV4cCI6MTc1NTg0ODA4MiwibmJmIjoxNzUwNjY0MDgyLCJqdGkiOiIzVXVzaERKTWw2clhaT1RwIn0.IX0E-qKOqKF2l9Me7NT6VomTR66erms1651qW7KC-xQ"
+
+WINDOENT_BASE_API = "https://yugiohmatchapi.windoent.com/"
+API_MATCH_SEARCH = "v1/match"
+API_MATCH_INFO = "v1/match/info/"
 
 match_state_file = os.path.join(DATA_DIR, 'match_state.json')
 

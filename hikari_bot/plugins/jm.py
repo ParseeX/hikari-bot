@@ -9,7 +9,7 @@ from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, PrivateMessa
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
-from hikari_bot.core.constants import *
+from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
 
 JM_DIR = os.path.join(DATA_DIR, "jm")
 

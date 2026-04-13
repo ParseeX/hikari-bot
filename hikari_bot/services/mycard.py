@@ -7,7 +7,13 @@ import aiohttp
 import pytz
 from nonebot import logger
 
-from hikari_bot.core.constants import *
+from hikari_bot.core.constants import DATA_DIR
+
+MC_BASE_API = "https://sapi.moecube.com:444/ygopro/"
+API_PLAYER_HISTORY = "arena/history"
+API_PLAYER_INFO = "arena/user"
+API_PLAYER_HISTORY_RANK = "arena/historyScore"
+API_FIRST_WIN = "arena/firstwin"
 
 mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
 mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')

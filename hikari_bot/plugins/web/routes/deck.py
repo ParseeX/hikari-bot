@@ -5,8 +5,14 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
-from hikari_bot.core.constants import *
-from hikari_bot.services.ygodeck import *
+from hikari_bot.core.constants import WEB_DIR
+from hikari_bot.services.ygodeck import (
+    generate_deck_list_pdf,
+    get_deck_text_from_url,
+    is_deck_code,
+    is_deck_url,
+    record_deck_usage,
+)
 
 router = APIRouter()
 BASE_DIR = Path(WEB_DIR)

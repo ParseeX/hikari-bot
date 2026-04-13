@@ -13,8 +13,13 @@ from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 
-from hikari_bot.core.constants import *
-from hikari_bot.services.ygodeck import *
+from hikari_bot.core.constants import DECK_DIR
+from hikari_bot.services.ygodeck import (
+    get_deck_text_from_url,
+    is_deck_code,
+    is_deck_url,
+    save_deck_text_as_ydk,
+)
 from hikari_bot.services.ygomatch import *
 
 ygomatch_search = on_command("比赛查询", priority=5)

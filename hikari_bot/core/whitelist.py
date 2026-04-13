@@ -4,7 +4,7 @@ import os
 from nonebot import get_bot, get_driver
 from nonebot.adapters.onebot.v11 import Bot
 
-from hikari_bot.core.constants import *
+from hikari_bot.core.constants import DATA_DIR
 
 whitelist_file = os.path.join(DATA_DIR, 'whitelist.json')
 

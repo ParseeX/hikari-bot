@@ -12,7 +12,8 @@ import cairosvg
 import fitz
 from PIL import Image, ImageDraw, ImageFont
 
-from hikari_bot.services.ygocard import *
+from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
+from hikari_bot.services.ygocard import get_card_info_by_id
 
 deck_icon_file = os.path.join(RESOURCES_DIR, 'deck_icon.svg')
 decklist_template = os.path.join(RESOURCES_DIR, 'deck_cn.pdf')

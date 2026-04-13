@@ -2,7 +2,7 @@ import os
 import re
 from datetime import datetime
 
-from hikari_bot.core.constants import *
+from hikari_bot.core.constants import DATA_DIR
 
 log_file = None
 

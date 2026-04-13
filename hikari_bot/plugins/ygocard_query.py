@@ -10,7 +10,7 @@ from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
 from hikari_bot.services.ygocard import *
-from hikari_bot.services.ygodeck import *
+from hikari_bot.services.ygodeck import generate_card_list_image
 
 ygo_random_card = on_command("随机一卡", priority=5, permission=SUPERUSER)
 @ygo_random_card.handle()

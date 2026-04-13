@@ -10,7 +10,12 @@ from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 from PIL import Image
 
-from hikari_bot.core.constants import *
+from hikari_bot.core.constants import DATA_DIR
+
+IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
+IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
+CARD_SEARCH = "https://ygocdb.com/api/v0/?search="
+FAQ = "https://ygocdb.com/faq/"
 
 YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
 MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
