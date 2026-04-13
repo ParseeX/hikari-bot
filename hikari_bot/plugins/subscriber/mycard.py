@@ -98,7 +98,7 @@ async def handle_delete_event(bot: Bot, room_id):
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
-        if get_notify_enabled():
+        if await get_notify_enabled():
             await message_superusers(f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
 
         if rec["isfirstwin"]:
@@ -199,9 +199,9 @@ async def ws_status_check():
 
 @notify_switch.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
-    if get_notify_enabled():
-        set_notify_enabled(False)
+    if await get_notify_enabled():
+        await set_notify_enabled(False)
         await notify_switch.finish("已关闭MyCard对局通知。")
     else:
-        set_notify_enabled(True)
+        await set_notify_enabled(True)
         await notify_switch.finish("已开启MyCard对局通知。")
