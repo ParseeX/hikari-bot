@@ -156,7 +156,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     else:
         await whitelist.finish("请提供需要添加到白名单的群号！")
     
-    if add_group_to_whitelist(group_id):
+    if await add_group_to_whitelist(group_id):
         await whitelist.finish(f"已添加群{group_id}至白名单。")
     else:
         await whitelist.finish(f"群{group_id}已经在白名单中。")
@@ -166,7 +166,7 @@ kill_all_whitelist = on_command("清空白名单", permission=SUPERUSER)
 @kill_all_whitelist.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
-        save_whitelist({"groups": [], "users": []})
+        await save_whitelist({"groups": [], "users": []})
         await kill_all_whitelist.finish("已清空白名单。")
     except Exception as e:
         await log_message(f"[kill_all_whitelist] Exception occurred while clearing whitelist: {e}")
@@ -176,7 +176,7 @@ whitelist_check = on_message(priority=1, block=False)
 
 @whitelist_check.handle()
 async def _(bot: Bot, event: MessageEvent, matcher: Matcher):
-    if isinstance(event, GroupMessageEvent) and not is_allowed_group(event.group_id):
+    if isinstance(event, GroupMessageEvent) and not await is_allowed_group(event.group_id):
         matcher.stop_propagation()
 
 
@@ -185,7 +185,8 @@ broadcast = on_command('广播', permission=SUPERUSER)
 @broadcast.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     message = args.extract_plain_text()
-    for group in get_whitelist()["groups"]:
+    whitelist = await get_whitelist()
+    for group in whitelist["groups"]:
         try:
             await bot.send_group_msg(group_id=group, message=message)
         except Exception as e:
