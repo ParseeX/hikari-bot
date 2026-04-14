@@ -44,11 +44,12 @@ def _extract_tokyo_slots_from_html(html: str) -> list[dict[str, str]]:
             
         # 第二个li包含日期时间信息
         date_li = li_elements[1]
-        date_text = date_li.get_text(strip=True)
+        # 直接从 HTML 解析，而不是转换为纯文本
+        html_content = str(date_li)
         
-        # 提取日期时间
-        datetime_match = re.search(r'日時\s*：\s*([^\n]+)', date_text)
-        place_match = re.search(r'場所\s*：\s*([^\n]+)', date_text)
+        # 使用更精确的正则表达式匹配
+        datetime_match = re.search(r'日時\s*：\s*([^<]+)', html_content)
+        place_match = re.search(r'場所\s*：\s*([^<]+)', html_content)
         
         datetime_str = datetime_match.group(1).strip() if datetime_match else ""
         place_str = place_match.group(1).strip() if place_match else ""
@@ -69,8 +70,8 @@ def _extract_tokyo_slots_from_html(html: str) -> list[dict[str, str]]:
         slot = {
             "pref": "東京都",
             "date": date_short,
-            "datetime": f"日時：{datetime_str}",
-            "place": f"場所：{place_str}",
+            "datetime": datetime_str,
+            "place": place_str,
             "status": status,
         }
         slots.append(slot)
