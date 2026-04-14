@@ -146,7 +146,7 @@ async def check_once(force_notify: bool = False) -> None:
         
         message_parts.append(f"\n共{len(slots)}个东京场次：")
         for slot in slots:
-            message_parts.append(f"{slot['datetime']}　-　{slot['status']}")
+            message_parts.append(f"{slot['datetime']} - {slot['status']}")
         
         await message_superusers("\n".join(message_parts))
 
@@ -180,18 +180,10 @@ mensa_check = on_command("检查门萨", aliases={"门萨检查"}, permission=SU
 @mensa_check.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
-        slots = await fetch_tokyo_slots()
+        await check_once(force_notify=True)
     except Exception as e:
         await log_message(f"[mensa_monitor] Manual check failed: {e}")
-        await mensa_check.finish(f"检查失败：{type(e).__name__}: {e}")
-        
-    message_parts = ["MENSA东京考场当前状态"]
-    message_parts.append(f"共{len(slots)}个东京场次：")
-    
-    for slot in slots:
-        message_parts.append(f"{slot['datetime']} - {slot['status']}")
-    
-    await mensa_check.finish("\n".join(message_parts))
+        await message_superusers(f"MENSA东京考场监控手动检查失败\n{type(e).__name__}: {e}")
 
 
 driver = get_driver()
