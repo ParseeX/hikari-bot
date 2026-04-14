@@ -5,6 +5,7 @@ import os
 
 import aiohttp
 from bs4 import BeautifulSoup
+from PIL import Image
 
 from nonebot import on_command, on_message
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment, PrivateMessageEvent
