@@ -13,8 +13,7 @@ from nonebot.permission import SUPERUSER
 from hikari_bot.core.constants import RESOURCES_DIR
 from hikari_bot.core.logger import get_bot_startup_info, log_message, log_read
 from hikari_bot.core.whitelist import *
-from hikari_bot.plugins.subscriber.cardrush import cr_status_check
-from hikari_bot.plugins.subscriber.mycard import ws_status_check
+from hikari_bot.plugins.monitors.mycard import ws_status_check
 
 driver = get_driver()
 
@@ -37,14 +36,12 @@ status = on_command("状态查询", permission=SUPERUSER)
 @status.handle()
 async def _(bot: Bot, event: MessageEvent):
     ws_status = ws_status_check()
-    cr_status = cr_status_check()
     startup_time, uptime = get_bot_startup_info()
     
     status_message = f"""服务器状态：
 - 启动时间：{startup_time}
 - 运行时长：{uptime}
-- MyCard监控：{'在线' if ws_status else '离线'}
-- CardRush监控：{'在线' if cr_status else '离线'}"""
+- MyCard监控：{'在线' if ws_status else '离线'}"""
     await status.finish(status_message)
 
 

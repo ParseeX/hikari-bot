@@ -2,20 +2,20 @@ import asyncio
 import re
 from datetime import datetime
 
-from nonebot import get_driver, on_command
+from nonebot import get_driver, on_command, require
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.exception import FinishedException
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
+
+require("nonebot_plugin_apscheduler")
+from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
 from hikari_bot.services.price import compare_prices, query_all, save_prices
 from hikari_bot.services.price import query as query_card_prices
 from hikari_bot.services.ygocard import get_card_info
-from hikari_bot.services.ygocard import get_card_info
-
-_cr_task: asyncio.Task | None = None
 
 # 稀有度映射表：日文名称 → 英文缩写 (支持多个日文对应同一个英文)
 RARITY_MAPPING = {
@@ -150,7 +150,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await card_price.finish(f"查询失败：{str(e)}")
 
 
-# 定时价格监控任务
 async def check_price_changes():
     """检查卡价变化并通知管理员"""
     # 获取最新价格
@@ -193,54 +192,39 @@ async def check_price_changes():
         # 保存新价格到数据库
         save_prices(new_prices)
 
-    await log_message("[cardrush_helper] Finish checking with %d change(s)." % len(changes))
+    await log_message("[cardrush_monitor] Finish checking with %d change(s)." % len(changes))
 
 
-async def schedule_price_monitor():
-    """定时价格监控调度器"""
-    while True:
-        now = datetime.now()
-        if now.minute in [5, 20, 35, 50] and now.second < 60:
-            while True:
-                try:
-                    await check_price_changes()
-                except Exception as e:
-                    await log_message(f"[cardrush_helper] check_price_changes error: {str(e)}")
-                    await asyncio.sleep(60)
-                else:
-                    break
-
-            await asyncio.sleep(600)
-        else:
-            await asyncio.sleep(60)
+async def scheduled_price_check():
+    retry_count = 0
+    max_retries = 5
+    
+    while retry_count < max_retries:
+        try:
+            await check_price_changes()
+            break
+        except Exception as e:
+            retry_count += 1
+            await log_message(f"[cardrush_monitor] check_price_changes error (attempt {retry_count}/{max_retries}): {str(e)}")
+            if retry_count < max_retries:
+                await asyncio.sleep(60)
+            else:
+                await log_message(f"[cardrush_monitor] Failed to check price changes after {max_retries} attempts")
 
 
-# 手动触发价格检查
+@scheduler.scheduled_job("cron", minute="5", id="cardrush_price_monitor", misfire_grace_time=1800)
+async def _scheduled_job():
+    await scheduled_price_check()
+
+
 price_check = on_command("检查卡价", permission=SUPERUSER)
-
 @price_check.handle()
 async def _(bot: Bot, event: MessageEvent):
-    await check_price_changes()
+    await scheduled_price_check()
 
 
-# 启动价格监控
 driver = get_driver()
-@driver.on_bot_connect
-async def _start_price_monitor(bot: Bot):
-    global _cr_task
-    if _cr_task and not _cr_task.done():
-        _cr_task.cancel()
-        try:
-            await _cr_task
-        except Exception as e:
-            await log_message(f"[cardrush] Exception occurred while canceling task: {e}")
-        await log_message("[cardrush_helper] CardRush monitor canceled old task.")
-
-    _cr_task = asyncio.create_task(schedule_price_monitor())
-    await log_message("[cardrush_helper] CardRush monitor started.")
-
-async def cr_status_check():
-    global _cr_task
-    if _cr_task and not _cr_task.done():
-        return True
-    return False
+@driver.on_startup
+async def _startup_price_check():
+    await log_message("[cardrush_monitor] CardRush monitor started.")
+    await scheduled_price_check()
