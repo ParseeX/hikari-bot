@@ -146,7 +146,7 @@ async def check_once(force_notify: bool = False) -> None:
         
         message_parts.append(f"\n共{len(slots)}个东京场次：")
         for slot in slots:
-            message_parts.append(f"{slot['datetime']} - {slot['status']}")
+            message_parts.append(f"{slot['datetime']}　-　{slot['status']}")
         
         await message_superusers("\n".join(message_parts))
 
