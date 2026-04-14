@@ -24,80 +24,58 @@ USER_AGENT = (
 )
 
 
-def _normalize_line(line: str) -> str:
-    line = re.sub(r"\s+", " ", line).strip()
-    line = line.replace("： ", "：").replace(" :", ":")
-    return line
-
-
-def _extract_status(lines: list[str], start: int, end: int) -> str | None:
-    for i in range(start, min(end, len(lines))):
-        text = lines[i]
-        if text in {"申し込む", "満員", "締切"}:
-            return text
-    return None
-
-
-def _extract_tokyo_slots_from_text(text: str) -> list[dict[str, str]]:
-    """
-    从页面纯文本里抓东京场次。
-    依赖官网当前文本模式：
-    東京都
-    5/02
-    日時：2026/05/02(土) 13:00~14:00
-    場所：東京都港区
-    ...
-    満員 / 申し込む / 締切
-    """
-    lines = [_normalize_line(x) for x in text.splitlines()]
-    lines = [x for x in lines if x]
-
+def _extract_tokyo_slots_from_html(html: str) -> list[dict[str, str]]:
+    """从HTML结构中解析东京场次信息"""
+    soup = BeautifulSoup(html, "html.parser")
     slots: list[dict[str, str]] = []
-
-    for i, line in enumerate(lines):
-        if line != "東京都":
+    
+    # 查找所有考试场次列表
+    exam_lists = soup.find_all('ul', class_='list')
+    
+    for ul in exam_lists:
+        li_elements = ul.find_all('li')
+        if len(li_elements) < 3:
             continue
-
-        window = lines[i : i + 10]
-
-        date_line = ""
-        datetime_line = ""
-        place_line = ""
-        status_line = ""
-
-        for item in window:
-            if re.fullmatch(r"\d{1,2}/\d{1,2}", item):
-                date_line = item
-            elif item.startswith("日時"):
-                datetime_line = item
-            elif item.startswith("場所"):
-                place_line = item
-
-        status_line = _extract_status(lines, i, i + 10) or "UNKNOWN"
-
-        # 保险：必须真的是东京地点
-        if "東京都" not in place_line and "東京都" not in datetime_line:
-            continue
-
+            
+        # 第一个li包含地区信息
+        pref_li = li_elements[0]
+        if not pref_li.get_text(strip=True).startswith('東京都'):
+            continue  # 跳过非东京场次
+            
+        # 第二个li包含日期时间信息
+        date_li = li_elements[1]
+        date_text = date_li.get_text(strip=True)
+        
+        # 提取日期时间
+        datetime_match = re.search(r'日時\s*：\s*([^\n]+)', date_text)
+        place_match = re.search(r'場所\s*：\s*([^\n]+)', date_text)
+        
+        datetime_str = datetime_match.group(1).strip() if datetime_match else ""
+        place_str = place_match.group(1).strip() if place_match else ""
+        
+        # 从日期时间字符串中提取简短日期
+        date_short_match = re.search(r'(\d{4})/(\d{1,2})/(\d{1,2})', datetime_str)
+        date_short = f"{date_short_match.group(2)}/{date_short_match.group(3)}" if date_short_match else ""
+        
+        # 第三个li包含状态信息（图片alt属性）
+        status_li = li_elements[2]
+        status = "UNKNOWN"
+        
+        # 查找图片的alt属性
+        img = status_li.find('img')
+        if img and img.get('alt'):
+            status = img.get('alt')
+            
         slot = {
             "pref": "東京都",
-            "date": date_line,
-            "datetime": datetime_line,
-            "place": place_line,
-            "status": status_line,
+            "date": date_short,
+            "datetime": f"日時：{datetime_str}",
+            "place": f"場所：{place_str}",
+            "status": status,
         }
         slots.append(slot)
-
-    # 去重
-    unique: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for slot in slots:
-        key = json.dumps(slot, ensure_ascii=False, sort_keys=True)
-        if key not in seen:
-            seen.add(key)
-            unique.append(slot)
-
-    return unique
+    
+    return slots
 
 
 async def fetch_tokyo_slots() -> list[dict[str, str]]:
@@ -114,10 +92,7 @@ async def fetch_tokyo_slots() -> list[dict[str, str]]:
         resp.raise_for_status()
 
     html = resp.text
-    soup = BeautifulSoup(html, "html.parser")
-    text = soup.get_text("\n", strip=True)
-
-    slots = _extract_tokyo_slots_from_text(text)
+    slots = _extract_tokyo_slots_from_html(html)
 
     if not slots:
         # 页面结构变了，别悄悄当没事发生
@@ -219,8 +194,8 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 driver = get_driver()
-@driver.on_startup
-async def _startup_mensa_check():
+@driver.on_bot_connect
+async def _startup_mensa_check(bot: Bot):
     await log_message("[mensa_monitor] MENSA monitor started.")
     try:
         await check_once(force_notify=True)

@@ -224,7 +224,7 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 driver = get_driver()
-@driver.on_startup
-async def _startup_price_check():
+@driver.on_bot_connect
+async def _startup_price_check(bot: Bot):
     await log_message("[cardrush_monitor] CardRush monitor started.")
     await scheduled_price_check()
