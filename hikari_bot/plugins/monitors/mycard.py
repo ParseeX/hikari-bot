@@ -1,17 +1,18 @@
 import asyncio
 import json
+import re
 
 import aiohttp
 
 from nonebot import get_driver, logger, on_command
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
+from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, ActionFailed
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.feature_flags import get_notify_enabled, set_notify_enabled
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
-from hikari_bot.services.mycard import get_subscribe_list, fetch_latest_record
+from hikari_bot.services.mycard import get_subscribe_list, fetch_latest_record, unsubscribe_all
 
 WS_URL = "wss://tiramisu.moecube.com:8923/?filter=started"
 
@@ -33,6 +34,13 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
                 await bot.send_group_msg(group_id=int(qq), message=message)
             else:
                 await bot.send_private_msg(user_id=int(qq), message=message)
+        except ActionFailed as e:
+            await log_message(f"[mycard_subscriber] _send_notifications ActionFailed: {e}")
+            if e.retcode == 1200:
+                match = re.search(r'"result":\s*(\d+)', e.message or "")
+                if match and int(match.group(1)) in (16, 110):
+                    unsubscribe_all(usertype, qq)
+                    await log_message(f"[mycard_subscriber] Auto-unsubscribed invalid subscription: {usertype} {qq}")
         except Exception as e:
             await log_message(f"[mycard_subscriber] _send_notifications error: {e}")
 

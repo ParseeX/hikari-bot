@@ -229,3 +229,17 @@ def unsubscribe(usertype, qq, id):
             save_subscribe_list(subscribe_list)
             return True
     return False
+
+def unsubscribe_all(usertype, qq):
+    """移除该订阅者的所有订阅"""
+    subscribe_list = get_subscribe_list()
+    changed = False
+    for id in list(subscribe_list.keys()):
+        if [usertype, qq] in subscribe_list[id]:
+            subscribe_list[id].remove([usertype, qq])
+            if not subscribe_list[id]:
+                del subscribe_list[id]
+            changed = True
+    if changed:
+        save_subscribe_list(subscribe_list)
+    return changed
