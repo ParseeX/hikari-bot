@@ -22,7 +22,7 @@ async def _on_bot_connect(bot: Bot):
     await log_message("QQ connected.")
     await message_superusers("早上好！")
 
-read_log = on_command("读取日志", permission=SUPERUSER)
+read_log = on_command("读取日志", aliases={"日志", "log"}, permission=SUPERUSER)
 @read_log.handle()
 async def _(bot: Bot, event: MessageEvent):
     log_content = await log_read()    
@@ -32,7 +32,7 @@ async def _(bot: Bot, event: MessageEvent):
         await read_log.send("".join(log_content[i:i+MAX_LINE]))
 
 
-status = on_command("状态查询", permission=SUPERUSER)
+status = on_command("状态查询", aliases={"状态", "status"}, permission=SUPERUSER)
 @status.handle()
 async def _(bot: Bot, event: MessageEvent):
     ws_status = ws_status_check()
@@ -46,7 +46,7 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 help_pic = os.path.join(RESOURCES_DIR, 'help.png')
-help = on_command("帮助", priority=5)
+help = on_command("帮助", aliases={"help"}, priority=5)
 @help.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     with open(help_pic, "rb") as f:
@@ -55,7 +55,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
-version = on_command("版本查询", permission=SUPERUSER)
+version = on_command("版本查询", aliases={"版本", "version"}, permission=SUPERUSER)
 @version.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
@@ -92,7 +92,7 @@ async def _(bot: Bot, event: MessageEvent):
         if not isinstance(e, FinishedException):
             await version.finish(f"版本信息查询失败：{e}")
 
-reload = on_command("重载插件", permission=SUPERUSER)
+reload = on_command("重载插件", aliases={"重载", "reload"}, permission=SUPERUSER)
 @reload.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
@@ -121,7 +121,7 @@ async def _(bot: Bot, event: MessageEvent):
         await log_message(f"[reload] Exception occurred while reloading plugins: {e}")
         await reload.finish(f"重载插件失败：{e}")
 
-reboot = on_command("重启服务器", permission=SUPERUSER)
+reboot = on_command("重启服务器", aliases={"reboot"}, permission=SUPERUSER)
 @reboot.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:

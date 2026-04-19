@@ -36,9 +36,11 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
                 await bot.send_private_msg(user_id=int(qq), message=message)
         except ActionFailed as e:
             await log_message(f"[mycard_subscriber] _send_notifications ActionFailed: {e}")
-            if e.retcode == 1200:
-                match = re.search(r'"result":\s*(\d+)', e.message or "")
-                if match and int(match.group(1)) in (16, 110):
+            retcode = e.info.get("retcode") if hasattr(e, "info") else getattr(e, "retcode", None)
+            message = e.info.get("message") if hasattr(e, "info") else getattr(e, "message", None)
+            if retcode == 1200:
+                m = re.search(r'"result":\s*(\d+)', message or "")
+                if m and int(m.group(1)) in (16, 110):
                     unsubscribe_all(usertype, qq)
                     await log_message(f"[mycard_subscriber] Auto-unsubscribed invalid subscription: {usertype} {qq}")
         except Exception as e:

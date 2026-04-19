@@ -175,7 +175,7 @@ async def _scheduled_mensa_job():
     await scheduled_mensa_check()
 
 
-mensa_check = on_command("检查门萨", aliases={"门萨检查"}, permission=SUPERUSER)
+mensa_check = on_command("门萨", aliases={"mensa"}, permission=SUPERUSER)
 
 @mensa_check.handle()
 async def _(bot: Bot, event: MessageEvent):
