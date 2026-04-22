@@ -1,7 +1,7 @@
 import asyncio
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -108,33 +108,12 @@ async def check_once(force_notify: bool = False) -> None:
     # 检查是否有需要通知的情况
     should_notify = False
     notify_reasons = []
-    current_time = datetime.now()
-    one_month_later = current_time + timedelta(days=30)
     
     # 检查是否有非满员场次  
     available_slots = [slot for slot in slots if slot["status"] not in {"満員", "締切"}]
     if available_slots:
         should_notify = True
         notify_reasons.append(f"发现{len(available_slots)}个可报名场次！")
-    
-    # 检查是否有远期场次（大于一个月）
-    far_future_slots = []
-    for slot in slots:
-        datetime_str = slot.get("datetime", "")
-        # 解析日期，如日時：2026/05/02(土) 13:00~14:00
-        match = re.search(r"(\d{4})/(\d{1,2})/(\d{1,2})", datetime_str)
-        if match:
-            try:
-                year, month, day = map(int, match.groups())
-                slot_date = datetime(year, month, day)
-                if slot_date > one_month_later:
-                    far_future_slots.append(slot)
-            except ValueError:
-                continue
-    
-    if far_future_slots:
-        should_notify = True
-        notify_reasons.append(f"发现{len(far_future_slots)}个远期场次！")
     
     # 只在有需要通知的情况时发送消息
     if should_notify or force_notify:
@@ -161,7 +140,7 @@ async def scheduled_mensa_check() -> None:
             break
         except Exception as e:
             retry_count += 1
-            await log_message(f"[mensa_monitor] 定时检查失败 (attempt {retry_count}/{max_retries}): {e}")
+            await log_message(f"[mensa_monitor] Failed to check mensa (attempt {retry_count}/{max_retries}): {e}")
             if retry_count < max_retries:
                 await asyncio.sleep(60)  # 重试前等待60秒
             else:
