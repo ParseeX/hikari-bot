@@ -230,7 +230,7 @@ async def _(bot: Bot, event: GroupMessageEvent):
     for member in member_list:
         card = member.get("card", "") or member.get("nickname", "")
         join_time = datetime.fromtimestamp(member.get("join_time", 0)).strftime("%Y-%m-%d")
-        result.append(f"{member['user_id']} {card} {join_time}")
+        result.append(f"{member['user_id']},{card},{join_time}")
 
     MAX_LINES = 100
     output = "\n".join(result[:MAX_LINES])
