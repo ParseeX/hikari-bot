@@ -2,6 +2,7 @@ import asyncio
 import base64
 import os
 import re
+from datetime import datetime
 
 from nonebot import get_driver, on_command, on_message, on_notice, on_request
 from nonebot.adapters.onebot.v11 import Bot, Event, FriendRequestEvent, GroupMessageEvent, GroupRequestEvent, Message, MessageEvent, MessageSegment, PrivateMessageEvent
@@ -217,9 +218,9 @@ async def _(bot: Bot, event: GroupRequestEvent):
         await log_message(f"[group_request] Failed to process group invite from user {event.user_id} in group {event.group_id}: {e}")
 
 
-srdslist = on_command('队员列表', permission=SUPERUSER)
+member_list = on_command('成员列表', permission=SUPERUSER)
 
-@srdslist.handle()
+@member_list.handle()
 async def _(bot: Bot, event: GroupMessageEvent):
     group_id = event.group_id
 
@@ -228,10 +229,9 @@ async def _(bot: Bot, event: GroupMessageEvent):
     result = []
     for member in member_list:
         card = member.get("card", "") or member.get("nickname", "")
-        if card.startswith("SRDS"):
-            new_card = re.sub(r"^SRDS\s*", "", card)
-            result.append(f"{new_card} {member['user_id']}")
+        join_time = datetime.fromtimestamp(member.get("join_time", 0)).strftime("%Y-%m-%d")
+        result.append(f"{member['user_id']} {card} {join_time}")
 
     MAX_LINES = 100
     output = "\n".join(result[:MAX_LINES])
-    await srdslist.finish(output)
+    await message_superusers(output)
