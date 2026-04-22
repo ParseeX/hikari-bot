@@ -232,6 +232,5 @@ async def _(bot: Bot, event: GroupMessageEvent):
         join_time = datetime.fromtimestamp(member.get("join_time", 0)).strftime("%Y-%m-%d")
         result.append(f"{member['user_id']},{card},{join_time}")
 
-    MAX_LINES = 100
-    output = "\n".join(result[:MAX_LINES])
+    output = "\n".join(result)
     await message_superusers(output)
