@@ -122,13 +122,14 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await card_price.finish(f"暂无 {name_jp} 的价格信息。")
             return
 
-        reply_text = f"【{input_text}】的价格信息："
+        reply_text = f"【{name_jp}】的价格信息："
         for card in results[:10]:
             card_rarity = translate_rarity_to_english(card.get("rarity") or "")
-            card_model = card.get("model_number") or "未知"
+            raw_model = card.get("model_number") or ""
+            card_model = raw_model.split("-")[0] if raw_model else "未知"
             changed_at = card.get("changed_at") or ""
             date_str = changed_at[:10] if changed_at else "未知"
-            reply_text += f"\n{card['name']}【{card_model}({card_rarity})】\n"
+            reply_text += f"\n{card_model}-{card_rarity}\n"
             reply_text += f"    买取价格：{card['price']}円\n"
             reply_text += f"    更新于 {date_str}"
 
