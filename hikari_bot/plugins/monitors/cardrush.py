@@ -181,7 +181,7 @@ async def check_price_changes():
             message += f"还有 {len(changes) - 100} 个变化未显示..."
         
         # 发送通知给管理员
-        await message_superusers(message)
+        # await message_superusers(message)
         # 保存新价格到数据库
         save_prices(new_prices)
 
@@ -198,7 +198,7 @@ async def scheduled_price_check():
             break
         except Exception as e:
             retry_count += 1
-            await log_message(f"[cardrush_monitor] check_price_changes error (attempt {retry_count}/{max_retries}): {str(e)}")
+            #await log_message(f"[cardrush_monitor] check_price_changes error (attempt {retry_count}/{max_retries}): {str(e)}")
             if retry_count < max_retries:
                 await asyncio.sleep(60)
             else:
