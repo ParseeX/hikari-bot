@@ -130,8 +130,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             changed_at = card.get("changed_at") or ""
             date_str = changed_at[:10] if changed_at else "未知"
             reply_text += f"\n{card_model}-{card_rarity}\n"
-            reply_text += f"    买取价格：{card['price']}円\n"
-            reply_text += f"    更新于 {date_str}"
+            reply_text += f"    买取价格：{card['price']}円({date_str})"
 
         if len(results) == 10:
             reply_text += "\n（最多显示10条，可附加稀有度或型号缩小范围）"
