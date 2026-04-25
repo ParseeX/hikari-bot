@@ -172,12 +172,12 @@ async def _(bot: Bot, event: MessageEvent):
                 id="mensa_tokyo_monitor",
                 misfire_grace_time=1800,
             )
-        await bot.send(event, "MENSA监控已开启")
+        await bot.send(event, "MENSA监控已开启。")
         await log_message("[mensa_monitor] MENSA monitor enabled.")
     else:
         if scheduler.get_job("mensa_tokyo_monitor"):
             scheduler.remove_job("mensa_tokyo_monitor")
-        await bot.send(event, "MENSA监控已关闭")
+        await bot.send(event, "MENSA监控已关闭。")
         await log_message("[mensa_monitor] MENSA monitor disabled.")
 
 
