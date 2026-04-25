@@ -12,9 +12,6 @@ from hikari_bot.core.constants import DATA_DIR
 CARD_RUSH_URL = "https://cardrush.media/yugioh/buying_prices"
 DB_PATH = os.path.join(DATA_DIR, "cardrush_prices.db")
 
-# 你现有数据库里的旧 card_prices 表，迁移时统一视为 2026-04-25 晚上 Cardrush 日终价格。
-MIGRATION_TIME = "2026-04-25T22:10:00+09:00"
-
 HEADERS = {
     "User-Agent": "Mozilla/5.0",
     "Accept": "text/html",
@@ -58,10 +55,12 @@ def query(name=None, rarity=None, model_number=None, limit=100):
     for p in prices:
         result.append(
             {
+                "product_id": p.get("yugioh_ocha_product_id"),
                 "name": p.get("name"),
                 "price": p.get("amount"),
                 "rarity": p.get("rarity"),
                 "model_number": p.get("model_number"),
+                "updated_at": p.get("updated_at"),
             }
         )
 
@@ -70,19 +69,6 @@ def query(name=None, rarity=None, model_number=None, limit=100):
 
 def query_all():
     return query(limit=100000)
-
-
-def _now_iso() -> str:
-    # 服务器如果是日本时区，这里就是 JST；如果不是，建议后续统一改成 zoneinfo。
-    return datetime.now().isoformat(timespec="seconds")
-
-
-def _card_key(card: dict[str, Any]) -> tuple[str, str, str]:
-    return (
-        card.get("name") or "",
-        card.get("rarity") or "",
-        card.get("model_number") or "",
-    )
 
 
 def init_database():
@@ -94,6 +80,7 @@ def init_database():
             """
             CREATE TABLE IF NOT EXISTS card_price_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 rarity TEXT,
                 model_number TEXT,
@@ -105,8 +92,8 @@ def init_database():
 
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_card_price_history_card_time
-            ON card_price_history(name, rarity, model_number, changed_at, id)
+            CREATE INDEX IF NOT EXISTS idx_card_price_history_product_time
+            ON card_price_history(product_id, changed_at, id)
             """
         )
 
@@ -117,114 +104,34 @@ def init_database():
             """
         )
 
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS schema_meta (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )
-            """
-        )
-
         conn.commit()
 
 
-def _has_migrated(cursor: sqlite3.Cursor) -> bool:
-    cursor.execute("SELECT value FROM schema_meta WHERE key = 'old_card_prices_migrated'")
-    row = cursor.fetchone()
-    return bool(row and row[0] == "1")
-
-
-def migrate_old_card_prices(migration_time: str = MIGRATION_TIME) -> int:
-    """
-    把旧版 card_prices 表里的当前价格，迁移成一批历史记录。
-
-    旧数据会被视为 migration_time 这个时间点的价格。
-    默认是 2026-04-25T22:10:00+09:00。
-
-    返回迁移条数。重复运行不会重复迁移。
-    """
+def reset_database() -> None:
+    """清空并重建数据库（架构变更后首次重建用）。"""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("DROP TABLE IF EXISTS card_price_history")
+        conn.commit()
     init_database()
 
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
 
-        if _has_migrated(cursor):
-            return 0
-
-        cursor.execute(
-            """
-            SELECT name FROM sqlite_master
-            WHERE type = 'table' AND name = 'card_prices'
-            """
-        )
-        if cursor.fetchone() is None:
-            cursor.execute(
-                "INSERT OR REPLACE INTO schema_meta(key, value) VALUES('old_card_prices_migrated', '1')"
-            )
-            conn.commit()
-            return 0
-
-        cursor.execute(
-            """
-            SELECT name, rarity, model_number, price
-            FROM card_prices
-            WHERE name IS NOT NULL AND price IS NOT NULL
-            """
-        )
-        rows = cursor.fetchall()
-
-        inserted = 0
-        for name, rarity, model_number, price in rows:
-            cursor.execute(
-                """
-                SELECT id FROM card_price_history
-                WHERE name = ?
-                  AND IFNULL(rarity, '') = IFNULL(?, '')
-                  AND IFNULL(model_number, '') = IFNULL(?, '')
-                  AND changed_at = ?
-                LIMIT 1
-                """,
-                (name, rarity, model_number, migration_time),
-            )
-            if cursor.fetchone():
-                continue
-
-            cursor.execute(
-                """
-                INSERT INTO card_price_history(name, rarity, model_number, price, changed_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (name, rarity, model_number, int(price), migration_time),
-            )
-            inserted += 1
-
-        cursor.execute(
-            "INSERT OR REPLACE INTO schema_meta(key, value) VALUES('old_card_prices_migrated', '1')"
-        )
-        conn.commit()
-        return inserted
-
-
-def get_latest_price(cursor: sqlite3.Cursor, name: str, rarity: Optional[str], model_number: Optional[str]) -> Optional[tuple[int, str]]:
-    """获取指定卡片当前最新记录价格及更新时间，返回 (price, changed_at) 或 None。"""
+def get_latest_price(cursor: sqlite3.Cursor, product_id: int) -> Optional[tuple[int, str]]:
+    """获取指定 product_id 的最新价格及更新时间，返回 (price, changed_at) 或 None。"""
     cursor.execute(
         """
         SELECT price, changed_at
         FROM card_price_history
-        WHERE name = ?
-          AND IFNULL(rarity, '') = IFNULL(?, '')
-          AND IFNULL(model_number, '') = IFNULL(?, '')
+        WHERE product_id = ?
         ORDER BY changed_at DESC, id DESC
         LIMIT 1
         """,
-        (name, rarity, model_number),
+        (product_id,),
     )
     row = cursor.fetchone()
     return (int(row[0]), row[1]) if row else None
 
 
-def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = None) -> list[dict[str, Any]]:
+def save_prices(prices_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     保存本次抓取结果。
 
@@ -232,13 +139,10 @@ def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = 
     1. 新卡第一次出现。
     2. 最新价格和上一条历史记录不同。
 
+    changed_at 使用 API 返回的 updated_at。
     返回本次新增的变化列表。
     """
     init_database()
-    migrate_old_card_prices()
-
-    if captured_at is None:
-        captured_at = _now_iso()
 
     changes = []
 
@@ -246,16 +150,18 @@ def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = 
         cursor = conn.cursor()
 
         for card in prices_data:
+            product_id = card.get("product_id")
             name = card.get("name")
             rarity = card.get("rarity")
             model_number = card.get("model_number")
             new_price = card.get("price")
+            updated_at = card.get("updated_at")
 
-            if not name or new_price is None:
+            if not product_id or not name or new_price is None:
                 continue
 
             new_price = int(new_price)
-            latest = get_latest_price(cursor, name, rarity, model_number)
+            latest = get_latest_price(cursor, product_id)
             old_price = latest[0] if latest else None
 
             if old_price == new_price:
@@ -263,14 +169,15 @@ def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = 
 
             cursor.execute(
                 """
-                INSERT INTO card_price_history(name, rarity, model_number, price, changed_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO card_price_history(product_id, name, rarity, model_number, price, changed_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (name, rarity, model_number, new_price, captured_at),
+                (product_id, name, rarity, model_number, new_price, updated_at),
             )
 
             changes.append(
                 {
+                    "product_id": product_id,
                     "name": name,
                     "rarity": rarity,
                     "model_number": model_number,
@@ -279,7 +186,7 @@ def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = 
                     "change_type": "new" if old_price is None else "changed",
                     "price_diff": None if old_price is None else new_price - old_price,
                     "percent_diff": None if not old_price else (new_price - old_price) / old_price * 100,
-                    "changed_at": captured_at,
+                    "changed_at": updated_at,
                 }
             )
 
@@ -288,10 +195,9 @@ def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = 
     return changes
 
 
-def get_latest_prices() -> dict[str, int]:
-    """获取所有卡片的最新价格，兼容你原来的 compare_prices 用法。"""
+def get_latest_prices() -> dict[int, int]:
+    """获取所有卡片的最新价格，返回 {product_id: price}。"""
     init_database()
-    migrate_old_card_prices()
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -299,25 +205,23 @@ def get_latest_prices() -> dict[str, int]:
             """
             WITH ranked AS (
                 SELECT
-                    name,
-                    rarity,
-                    model_number,
+                    product_id,
                     price,
                     ROW_NUMBER() OVER (
-                        PARTITION BY name, IFNULL(rarity, ''), IFNULL(model_number, '')
+                        PARTITION BY product_id
                         ORDER BY changed_at DESC, id DESC
                     ) AS rn
                 FROM card_price_history
             )
-            SELECT name, rarity, model_number, price
+            SELECT product_id, price
             FROM ranked
             WHERE rn = 1
             """
         )
 
         return {
-            f"{name}|{rarity or ''}|{model_number or ''}": int(price)
-            for name, rarity, model_number, price in cursor.fetchall()
+            product_id: int(price)
+            for product_id, price in cursor.fetchall()
         }
 
 
@@ -327,21 +231,22 @@ def compare_prices(new_prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
     changes = []
 
     for card in new_prices:
+        product_id = card.get("product_id")
         name = card.get("name")
         rarity = card.get("rarity")
         model_number = card.get("model_number")
         new_price = card.get("price")
 
-        if not name or new_price is None:
+        if not product_id or not name or new_price is None:
             continue
 
         new_price = int(new_price)
-        key = f"{name}|{rarity or ''}|{model_number or ''}"
-        old_price = old_prices.get(key)
+        old_price = old_prices.get(product_id)
 
         if old_price is None:
             changes.append(
                 {
+                    "product_id": product_id,
                     "name": name,
                     "rarity": rarity,
                     "model_number": model_number,
@@ -353,6 +258,7 @@ def compare_prices(new_prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
         elif old_price != new_price:
             changes.append(
                 {
+                    "product_id": product_id,
                     "name": name,
                     "rarity": rarity,
                     "model_number": model_number,
@@ -395,7 +301,6 @@ def get_daily_report_changes(
     include_new: 是否包含新出现的卡。
     """
     init_database()
-    migrate_old_card_prices()
 
     if date_str is None:
         date_str = date.today().isoformat()
@@ -408,13 +313,14 @@ def get_daily_report_changes(
             WITH history AS (
                 SELECT
                     id,
+                    product_id,
                     name,
                     rarity,
                     model_number,
                     price AS new_price,
                     changed_at,
                     LAG(price) OVER (
-                        PARTITION BY name, IFNULL(rarity, ''), IFNULL(model_number, '')
+                        PARTITION BY product_id
                         ORDER BY changed_at, id
                     ) AS old_price
                 FROM card_price_history
@@ -473,7 +379,6 @@ def get_daily_report_changes(
 def get_series_latest_prices(series_keywords: Iterable[str], limit: int = 100) -> list[dict[str, Any]]:
     """获取某个系列当前最新价格列表，适合新卡盒专题日报展示。"""
     init_database()
-    migrate_old_card_prices()
 
     series_where, series_params = _build_series_where(series_keywords)
     if not series_where:
@@ -490,7 +395,7 @@ def get_series_latest_prices(series_keywords: Iterable[str], limit: int = 100) -
                     price,
                     changed_at,
                     ROW_NUMBER() OVER (
-                        PARTITION BY name, IFNULL(rarity, ''), IFNULL(model_number, '')
+                        PARTITION BY product_id
                         ORDER BY changed_at DESC, id DESC
                     ) AS rn
                 FROM card_price_history
@@ -555,7 +460,7 @@ def search_local_prices(
                     price,
                     changed_at,
                     ROW_NUMBER() OVER (
-                        PARTITION BY name, IFNULL(rarity, ''), IFNULL(model_number, '')
+                        PARTITION BY product_id
                         ORDER BY changed_at DESC, id DESC
                     ) AS rn
                 FROM card_price_history
@@ -652,21 +557,3 @@ def build_daily_report_text(
 
     return "\n".join(lines).rstrip()
 
-
-# def migrate() -> str:
-#     """生成今日全站价格日报文本。"""
-#     migrated = migrate_old_card_prices()
-#     lines = [f"迁移旧价格记录：{migrated} 条"]
-
-#     # 示例1：抓取全站并只保存价格变动。
-#     # cards = query_all()
-#     # changes = save_prices(cards)
-#     # lines.append(f"本次新增变化：{len(changes)} 条")
-
-#     # 示例2：生成今日全站日报文字。
-#     # lines.append(build_daily_report_text())
-
-#     # 示例3：生成指定系列日报，例如 ALIN。
-#     # lines.append(build_daily_report_text(series_keywords=["ALIN"], min_abs_diff=100))
-
-#     return "\n".join(lines)

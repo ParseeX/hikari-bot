@@ -13,7 +13,7 @@ from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
-from hikari_bot.services.price import compare_prices, query_all, save_prices, migrate_old_card_prices
+from hikari_bot.services.price import compare_prices, query_all, save_prices, reset_database
 from hikari_bot.services.price import search_local_prices
 from hikari_bot.services.ygocard import get_card_info
 
@@ -215,11 +215,15 @@ price_check = on_command("检查卡价", permission=SUPERUSER)
 async def _(bot: Bot, event: MessageEvent):
     await scheduled_price_check()
 
-mirage = on_command("mirage", permission=SUPERUSER)
-@mirage.handle()
+
+reset_db = on_command("重置卡价数据库", permission=SUPERUSER)
+@reset_db.handle()
 async def _(bot: Bot, event: MessageEvent):
-    result = migrate_old_card_prices()
-    await mirage.finish(f"迁移完成，共迁移了 {result} 条记录。")
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, reset_database)
+    await bot.send(event, "数据库已清空重建，开始重新抓取全站数据…")
+    await scheduled_price_check()
+    await bot.send(event, "数据抓取完成。")
 
 driver = get_driver()
 @driver.on_bot_connect
