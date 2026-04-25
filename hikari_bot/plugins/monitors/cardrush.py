@@ -127,10 +127,10 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             card_rarity = translate_rarity_to_english(card.get("rarity") or "")
             card_model = card.get("model_number") or "未知"
             changed_at = card.get("changed_at") or ""
-            # 只取日期部分显示
             date_str = changed_at[:10] if changed_at else "未知"
             reply_text += f"\n{card['name']}【{card_model}({card_rarity})】\n"
-            reply_text += f"    买取价格：{card['price']}円（更新于 {date_str}）"
+            reply_text += f"    买取价格：{card['price']}円\n"
+            reply_text += f"    更新于 {date_str}"
 
         if len(results) == 10:
             reply_text += "\n（最多显示10条，可附加稀有度或型号缩小范围）"
