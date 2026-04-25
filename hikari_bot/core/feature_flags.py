@@ -27,3 +27,12 @@ async def set_notify_enabled(value: bool) -> None:
     flags = await _load_flags()
     flags["mycard_notify"] = bool(value)
     await _save_flags(flags)
+
+async def get_mensa_enabled() -> bool:
+    flags = await _load_flags()
+    return flags.get("mensa_monitor", True)
+
+async def set_mensa_enabled(value: bool) -> None:
+    flags = await _load_flags()
+    flags["mensa_monitor"] = bool(value)
+    await _save_flags(flags)

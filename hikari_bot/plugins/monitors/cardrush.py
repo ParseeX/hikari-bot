@@ -226,7 +226,7 @@ mirage = on_command("mirage", permission=SUPERUSER)
 @mirage.handle()
 async def _(bot: Bot, event: MessageEvent):
     result = migrate_old_card_prices()
-    await mirage.finish(f"迁移完成，共迁移了 {result['migrated']} 条记录，跳过了 {result['skipped']} 条记录。")
+    await mirage.finish(f"迁移完成，共迁移了 {result} 条记录。")
 
 driver = get_driver()
 @driver.on_bot_connect

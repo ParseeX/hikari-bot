@@ -13,6 +13,7 @@ from nonebot.permission import SUPERUSER
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
+from hikari_bot.core.feature_flags import get_mensa_enabled, set_mensa_enabled
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
 
@@ -154,6 +155,32 @@ async def _scheduled_mensa_job():
     await scheduled_mensa_check()
 
 
+mensa_toggle = on_command("切换门萨", aliases={"切换mensa"}, permission=SUPERUSER)
+
+@mensa_toggle.handle()
+async def _(bot: Bot, event: MessageEvent):
+    current = await get_mensa_enabled()
+    new_value = not current
+    await set_mensa_enabled(new_value)
+    if new_value:
+        # 重新添加定时任务（若已被移除）
+        if not scheduler.get_job("mensa_tokyo_monitor"):
+            scheduler.add_job(
+                scheduled_mensa_check,
+                "interval",
+                minutes=3,
+                id="mensa_tokyo_monitor",
+                misfire_grace_time=1800,
+            )
+        await bot.send(event, "MENSA监控已开启")
+        await log_message("[mensa_monitor] MENSA monitor enabled.")
+    else:
+        if scheduler.get_job("mensa_tokyo_monitor"):
+            scheduler.remove_job("mensa_tokyo_monitor")
+        await bot.send(event, "MENSA监控已关闭")
+        await log_message("[mensa_monitor] MENSA monitor disabled.")
+
+
 mensa_check = on_command("门萨", aliases={"mensa"}, permission=SUPERUSER)
 
 @mensa_check.handle()
@@ -168,6 +195,9 @@ async def _(bot: Bot, event: MessageEvent):
 driver = get_driver()
 @driver.on_bot_connect
 async def _startup_mensa_check(bot: Bot):
+    if not await get_mensa_enabled():
+        scheduler.remove_job("mensa_tokyo_monitor")
+        return
     await log_message("[mensa_monitor] MENSA monitor started.")
     try:
         await check_once(force_notify=True)
