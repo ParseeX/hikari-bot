@@ -12,9 +12,6 @@ from hikari_bot.core.constants import DATA_DIR
 CARD_RUSH_URL = "https://cardrush.media/yugioh/buying_prices"
 DB_PATH = os.path.join(DATA_DIR, "cardrush_prices.db")
 
-# 全站首次入库的基准时间（新卡第一条记录使用此时间）
-BASELINE_TIME = "2026-04-25T22:10:00+09:00"
-
 HEADERS = {
     "User-Agent": "Mozilla/5.0",
     "Accept": "text/html",
@@ -170,15 +167,12 @@ def save_prices(prices_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if old_price == new_price:
                 continue
 
-            # 新卡第一次入库用基准时间，价格变化用 API 的 updated_at
-            record_time = BASELINE_TIME if old_price is None else updated_at
-
             cursor.execute(
                 """
                 INSERT INTO card_price_history(product_id, name, rarity, model_number, price, changed_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (product_id, name, rarity, model_number, new_price, record_time),
+                (product_id, name, rarity, model_number, new_price, updated_at),
             )
 
             changes.append(
@@ -192,7 +186,7 @@ def save_prices(prices_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "change_type": "new" if old_price is None else "changed",
                     "price_diff": None if old_price is None else new_price - old_price,
                     "percent_diff": None if not old_price else (new_price - old_price) / old_price * 100,
-                    "changed_at": record_time,
+                    "changed_at": updated_at,
                 }
             )
 
