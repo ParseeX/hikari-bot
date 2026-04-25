@@ -206,11 +206,11 @@ def migrate_old_card_prices(migration_time: str = MIGRATION_TIME) -> int:
         return inserted
 
 
-def get_latest_price(cursor: sqlite3.Cursor, name: str, rarity: Optional[str], model_number: Optional[str]) -> Optional[int]:
-    """获取指定卡片当前最新记录价格。"""
+def get_latest_price(cursor: sqlite3.Cursor, name: str, rarity: Optional[str], model_number: Optional[str]) -> Optional[tuple[int, str]]:
+    """获取指定卡片当前最新记录价格及更新时间，返回 (price, changed_at) 或 None。"""
     cursor.execute(
         """
-        SELECT price
+        SELECT price, changed_at
         FROM card_price_history
         WHERE name = ?
           AND IFNULL(rarity, '') = IFNULL(?, '')
@@ -221,7 +221,7 @@ def get_latest_price(cursor: sqlite3.Cursor, name: str, rarity: Optional[str], m
         (name, rarity, model_number),
     )
     row = cursor.fetchone()
-    return int(row[0]) if row else None
+    return (int(row[0]), row[1]) if row else None
 
 
 def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = None) -> list[dict[str, Any]]:
@@ -255,7 +255,8 @@ def save_prices(prices_data: list[dict[str, Any]], captured_at: Optional[str] = 
                 continue
 
             new_price = int(new_price)
-            old_price = get_latest_price(cursor, name, rarity, model_number)
+            latest = get_latest_price(cursor, name, rarity, model_number)
+            old_price = latest[0] if latest else None
 
             if old_price == new_price:
                 continue
@@ -502,6 +503,71 @@ def get_series_latest_prices(series_keywords: Iterable[str], limit: int = 100) -
             LIMIT ?
         """
         cursor.execute(sql, [*series_params, limit])
+        rows = cursor.fetchall()
+
+    return [
+        {
+            "name": name,
+            "rarity": rarity,
+            "model_number": model_number,
+            "price": int(price),
+            "changed_at": changed_at,
+        }
+        for name, rarity, model_number, price, changed_at in rows
+    ]
+
+
+def search_local_prices(
+    name: str,
+    rarity: Optional[str] = None,
+    model_number: Optional[str] = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """
+    在本地数据库中按卡名（模糊）、稀有度、型号查询最新价格。
+
+    name: 支持模糊匹配（LIKE %name%）。
+    rarity / model_number: 若传入则精确匹配（IFNULL 兼容 NULL）。
+    返回列表按价格倒序，包含 name / rarity / model_number / price / changed_at。
+    """
+    init_database()
+
+    conditions = ["name LIKE ?"]
+    params: list[Any] = [f"%{name}%"]
+
+    if rarity is not None:
+        conditions.append("IFNULL(rarity, '') = IFNULL(?, '')")
+        params.append(rarity)
+    if model_number is not None:
+        conditions.append("IFNULL(model_number, '') = IFNULL(?, '')")
+        params.append(model_number)
+
+    where = " AND ".join(conditions)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        sql = f"""
+            WITH ranked AS (
+                SELECT
+                    name,
+                    rarity,
+                    model_number,
+                    price,
+                    changed_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY name, IFNULL(rarity, ''), IFNULL(model_number, '')
+                        ORDER BY changed_at DESC, id DESC
+                    ) AS rn
+                FROM card_price_history
+                WHERE {where}
+            )
+            SELECT name, rarity, model_number, price, changed_at
+            FROM ranked
+            WHERE rn = 1
+            ORDER BY price DESC
+            LIMIT ?
+        """
+        cursor.execute(sql, [*params, limit])
         rows = cursor.fetchall()
 
     return [

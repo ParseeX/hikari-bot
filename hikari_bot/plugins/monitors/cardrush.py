@@ -14,7 +14,7 @@ from nonebot_plugin_apscheduler import scheduler
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
 from hikari_bot.services.price import compare_prices, query_all, save_prices, migrate_old_card_prices
-from hikari_bot.services.price import query as query_card_prices
+from hikari_bot.services.price import search_local_prices
 from hikari_bot.services.ygocard import get_card_info
 
 # 稀有度映射表：日文名称 → 英文缩写 (支持多个日文对应同一个英文)
@@ -99,10 +99,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         return
     
     try:
-        # 解析输入参数，支持多种格式
-        # 格式1: 卡片名称
-        # 格式2: 卡片名称 稀有度
-        # 格式3: 卡片名称 稀有度 型号
         parts = input_text.split()
         name = parts[0]
         rarity = parts[1] if len(parts) > 1 else None
@@ -115,35 +111,32 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             return
 
         name_jp = clean_card_name(card_info["jp_name"])
-        
         rarity_jp = translate_rarity_to_japanese(rarity)
-        
+
         loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(None, query_card_prices, name_jp, rarity_jp, model_number)
-        
+        results = await loop.run_in_executor(
+            None, search_local_prices, name_jp, rarity_jp, model_number
+        )
+
         if not results:
-            await card_price.finish(f"没有 {name_jp} 的价格信息！")
+            await card_price.finish(f"暂无 {name_jp} 的价格信息。")
             return
-        
-        # 格式化查询结果
+
         reply_text = f"【{input_text}】的价格信息："
-        
-        for i, card in enumerate(results[:10]):  # 限制显示前10个结果
-            card_name = card.get("name", "未知")
-            card_price_val = card.get("price", "暂无")
-            card_rarity_jp = card.get("rarity", "")
-            card_model = card.get("model_number", "未知")
-            
-            card_rarity = translate_rarity_to_english(card_rarity_jp)
-            
-            reply_text += f"\n{card_name}【{card_model}({card_rarity})】\n"
-            reply_text += f"    买取价格：{card_price_val}円"
-        
-        if len(results) > 10:
-            reply_text += f"\n还有 {len(results) - 10} 个结果未显示..."
-        
+        for card in results[:10]:
+            card_rarity = translate_rarity_to_english(card.get("rarity") or "")
+            card_model = card.get("model_number") or "未知"
+            changed_at = card.get("changed_at") or ""
+            # 只取日期部分显示
+            date_str = changed_at[:10] if changed_at else "未知"
+            reply_text += f"\n{card['name']}【{card_model}({card_rarity})】\n"
+            reply_text += f"    买取价格：{card['price']}円（更新于 {date_str}）"
+
+        if len(results) == 10:
+            reply_text += "\n（最多显示10条，可附加稀有度或型号缩小范围）"
+
         await card_price.finish(reply_text)
-        
+
     except Exception as e:
         if not isinstance(e, FinishedException):
             await log_message(f"[cardrush] Exception occurred in card_price: {e}")
