@@ -587,20 +587,20 @@ def build_daily_report_text(
     return "\n".join(lines).rstrip()
 
 
-def migrate() -> str:
-    """生成今日全站价格日报文本。"""
-    migrated = migrate_old_card_prices()
-    lines = [f"迁移旧价格记录：{migrated} 条"]
+# def migrate() -> str:
+#     """生成今日全站价格日报文本。"""
+#     migrated = migrate_old_card_prices()
+#     lines = [f"迁移旧价格记录：{migrated} 条"]
 
-    # 示例1：抓取全站并只保存价格变动。
-    # cards = query_all()
-    # changes = save_prices(cards)
-    # lines.append(f"本次新增变化：{len(changes)} 条")
+#     # 示例1：抓取全站并只保存价格变动。
+#     # cards = query_all()
+#     # changes = save_prices(cards)
+#     # lines.append(f"本次新增变化：{len(changes)} 条")
 
-    # 示例2：生成今日全站日报文字。
-    # lines.append(build_daily_report_text())
+#     # 示例2：生成今日全站日报文字。
+#     # lines.append(build_daily_report_text())
 
-    # 示例3：生成指定系列日报，例如 ALIN。
-    # lines.append(build_daily_report_text(series_keywords=["ALIN"], min_abs_diff=100))
+#     # 示例3：生成指定系列日报，例如 ALIN。
+#     # lines.append(build_daily_report_text(series_keywords=["ALIN"], min_abs_diff=100))
 
-    return "\n".join(lines)
+#     return "\n".join(lines)
