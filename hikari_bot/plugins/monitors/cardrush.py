@@ -13,7 +13,7 @@ from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
-from hikari_bot.services.price import compare_prices, query_all, save_prices
+from hikari_bot.services.price import compare_prices, query_all, save_prices, migrate_old_card_prices
 from hikari_bot.services.price import query as query_card_prices
 from hikari_bot.services.ygocard import get_card_info
 
@@ -212,7 +212,7 @@ async def scheduled_price_check():
                 await log_message(f"[cardrush_monitor] Failed to check price changes after {max_retries} attempts")
 
 
-@scheduler.scheduled_job("cron", minute="5", id="cardrush_price_monitor", misfire_grace_time=1800)
+@scheduler.scheduled_job("interval", minutes=5, id="cardrush_price_monitor", misfire_grace_time=300)
 async def _scheduled_job():
     await scheduled_price_check()
 
@@ -222,6 +222,11 @@ price_check = on_command("检查卡价", permission=SUPERUSER)
 async def _(bot: Bot, event: MessageEvent):
     await scheduled_price_check()
 
+mirage = on_command("mirage", permission=SUPERUSER)
+@mirage.handle()
+async def _(bot: Bot, event: MessageEvent):
+    result = migrate_old_card_prices()
+    await mirage.finish(f"迁移完成，共迁移了 {result['migrated']} 条记录，跳过了 {result['skipped']} 条记录。")
 
 driver = get_driver()
 @driver.on_bot_connect
