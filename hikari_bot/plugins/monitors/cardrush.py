@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from nonebot import get_driver, on_command, require
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.exception import FinishedException
-from nonebot.params import Arg, CommandArg, State
+from nonebot.params import Arg, CommandArg
 from nonebot.typing import T_State
 from nonebot.permission import SUPERUSER
 
@@ -251,7 +251,7 @@ price_curve = on_command("卡价曲线", aliases={"历史卡价", "卡价历史"
 async def price_curve_start(
     bot: Bot, event: MessageEvent,
     args: Message = CommandArg(),
-    state: T_State = State(),
+    state: T_State = ...,
 ):
     if not (input_text := args.extract_plain_text().strip()):
         await price_curve.finish("请输入卡片名称！例如：卡价曲线 青眼白龙")
@@ -305,7 +305,7 @@ async def price_curve_start(
 @price_curve.got("_choice")
 async def price_curve_draw(
     bot: Bot, event: MessageEvent,
-    state: T_State = State(),
+    state: T_State = ...,
     choice: Message = Arg("_choice"),
 ):
     try:
