@@ -130,6 +130,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         if p_effect != "":
             result = result + p_effect + "\n"
         
+        if effect == "":
+            effect = "※公式のデュエルでは使用できません。"
         result = result + effect
 
         await ygo_card_effect.finish(result)
