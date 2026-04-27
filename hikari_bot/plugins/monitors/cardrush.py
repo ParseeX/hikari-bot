@@ -130,7 +130,7 @@ def parse_price_query(input_text: str) -> tuple[str, str | None, str | None]:
 
 
 def _draw_price_chart(history: list[dict]) -> bytes:
-    """将价格历史列表绘制成折线图，返回 PNG 字节。"""
+    """将价格历史列表按真实时间间距绘制成折线图，返回 PNG 字节。"""
     dates = []
     prices = []
     for record in history:
@@ -147,15 +147,15 @@ def _draw_price_chart(history: list[dict]) -> bytes:
     fig, ax = plt.subplots(figsize=(8, 4))
 
     if len(dates) == 1:
-        # 只有一个数据点：画散点+水平虚线
         ax.scatter(dates, prices, color="#e74c3c", zorder=5, s=40)
         ax.axhline(y=prices[0], color="#e74c3c", linestyle="--", linewidth=0.8, alpha=0.6)
     else:
         ax.plot(dates, prices, marker="o", linestyle="-", color="#e74c3c",
-                linewidth=1.5, markersize=5)
+                linewidth=1.5, markersize=5, drawstyle="steps-post")
 
-    # X 轴日期格式
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+    # X 轴：按实际时间，自动选合适的刻度粒度
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
     fig.autofmt_xdate(rotation=30, ha="right")
 
     # Y 轴千分位
