@@ -279,7 +279,7 @@ def get_daily_report_changes(
             FROM history
             WHERE DATE(changed_at) = DATE(?)
             {series_where}
-            ORDER BY changed_at DESC, name
+            ORDER BY product_id DESC, name
         """
 
         cursor.execute(sql, [date_str, *series_params])
