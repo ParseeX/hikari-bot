@@ -277,7 +277,7 @@ async def price_curve_start(
         loop = asyncio.get_event_loop()
         # 多查一条，用于判断是否"过多"
         results = await loop.run_in_executor(
-            None, search_local_prices, name_jp, rarity_jp, model_prefix, 11
+            None, search_local_prices, name_jp, rarity_jp_list, model_prefix, 11
         )
 
         if not results:
