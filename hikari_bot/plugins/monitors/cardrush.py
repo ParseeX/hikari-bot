@@ -314,6 +314,11 @@ async def price_curve_draw(
     choice: Message = Arg("_choice"),
 ):
     try:
+        if "_selected" not in state and "_candidates" not in state:
+            # 会话已被 finish() 终止但 got() 仍被触发，静默丢弃
+            await price_curve.finish()
+            return
+
         if "_selected" in state:
             selected = state["_selected"]
         else:
