@@ -1,17 +1,30 @@
+"""
+ygocard_query.py — 游戏王卡片查询插件
+
+功能：
+  - 随机一卡、每日一卡（按用户 ID + 日期生成确定种子）
+  - 卡图、卡密、效果文本、FAQ 裁定查询
+  - 本地卡片数据库更新
+  - 共界计算器（Metaltronus）
+"""
+
 import asyncio
 import base64
 import re
 from datetime import datetime
 from io import BytesIO
 
-from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
+from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import log_message
 from hikari_bot.services.ygocard import *
 from hikari_bot.services.ygodeck import generate_card_list_image
+
+
+# ── 随机 / 每日卡片 ────────────────────────────────────────────────────────────────────
 
 ygo_random_card = on_cmd("随机一卡", priority=5, permission=SUPERUSER)
 @ygo_random_card.handle()
@@ -178,6 +191,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             return
 
 
+# ── 数据库维护 ─────────────────────────────────────────────────────────────────────────
+# 用法：更新数据库
 
 ygo_update_database = on_cmd("更新数据库", priority=5)
 @ygo_update_database.handle()
@@ -190,6 +205,9 @@ async def _(bot: Bot, event: MessageEvent):
         await log_message(f"[ygo_update_database] Failed to update database: {e}")
         await ygo_update_database.finish("更新失败！")
 
+
+# ── 共界计算 ─────────────────────────────────────────────────────────────────────────
+# 用法：共界计算 卡名
 
 ygo_metaltronus_calc = on_cmd("共界计算", priority=5)
 @ygo_metaltronus_calc.handle()

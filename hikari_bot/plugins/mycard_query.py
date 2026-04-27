@@ -1,3 +1,13 @@
+"""
+mycard_query.py — MyCard 竹马平台查询插件
+
+功能：
+  - 历史战绩查询：通过》X月历史「触发，支持@某人/自己/指定用户名
+  - 帐号绑定、订阅/退订对戰通知
+  - 首胜查询、绑定查询、月度胜率统计图表
+  - 用户标签管理
+"""
+
 import base64
 import html
 import re
@@ -9,23 +19,19 @@ import pytz
 from matplotlib.ticker import MaxNLocator
 
 from nonebot import on_regex
-from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg, EventMessage
 
+from hikari_bot.core.commands import on_cmd
 from hikari_bot.services.mycard import *
 
+
+# ── 历史战绩查询 ───────────────────────────────────────────────────────────────────
+# 用法：直接发送》X月历史「或》X月历史 用户名「
+
+# 触发正则：X月历史 / XX年X月历史 / X月历史 用户名
 mycard_regex = r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))?$"
 mycard_query = on_regex(r".*历史.*", priority=5)
-mycard_bind = on_cmd("绑定", priority=5)
-mycard_subscribe = on_cmd("订阅", priority=5)
-mycard_unsubscribe = on_cmd("退订", priority=5)
-mycard_firstwin = on_cmd("首胜查询", aliases={"首赢查询"}, priority=5)
-mycard_whois = on_cmd("查询绑定", aliases={"绑定查询"}, priority=5)
-mycard_winrate = on_cmd("胜率查询", aliases={"胜率统计"}, priority=5)
-mycard_addtag = on_cmd("添加标签", priority=5)
-mycard_deltag = on_cmd("删除标签", priority=5)
-mycard_taglist = on_cmd("查看标签", priority=5)
 
 @mycard_query.handle()
 async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
@@ -137,60 +143,66 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
     await mycard_query.finish(result_message)
 
 
-@mycard_bind.handle()
-async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
-    qq = str(event.user_id)
-    if str(msg).startswith("绑定 "):
-        raw_id = str(msg)[len("绑定 "):].strip()
-        id = html.unescape(raw_id)
-        if not id:
-            await mycard_bind.finish("请提供要绑定的用户名！")  
-        add_mycard_user(qq, id)
-        await mycard_bind.finish("绑定成功！")
+# ── 帐号绑定与订阅管理 ────────────────────────────────────────────────────────────
+# 绑定 用户名 | 订阅 用户名 | 退订 用户名
 
+mycard_bind = on_cmd("绑定", priority=5)
+
+@mycard_bind.handle()
+async def _(event: MessageEvent, args: Message = CommandArg()):
+    qq = str(event.user_id)
+    id = html.unescape(args.extract_plain_text().strip())
+    if not id:
+        await mycard_bind.finish("请提供要绑定的用户名！")
+    add_mycard_user(qq, id)
+    await mycard_bind.finish("绑定成功！")
+
+
+mycard_subscribe = on_cmd("订阅", priority=5)
 
 @mycard_subscribe.handle()
-async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
-    if str(msg).startswith("订阅 "):
-        raw_id = str(msg)[len("订阅 "):].strip()
-        id = html.unescape(raw_id)
-        if not id:
-            await mycard_bind.finish("请提供要订阅的用户名！")
-            return
-        record = await fetch_player_history(id, 1)
-        if not record or record == []:
-            await mycard_bind.finish("用户不存在！")
-            return
-        if isinstance(event, GroupMessageEvent):
-            usertype = "group"
-            qq = str(event.group_id)
-        else:
-            usertype = "private"
-            qq = str(event.user_id)
-        subscribe(usertype, qq, id)
-        await mycard_subscribe.finish("订阅成功！")
+async def _(event: MessageEvent, args: Message = CommandArg()):
+    id = html.unescape(args.extract_plain_text().strip())
+    if not id:
+        await mycard_subscribe.finish("请提供要订阅的用户名！")
+    record = await fetch_player_history(id, 1)
+    if not record or record == []:
+        await mycard_subscribe.finish("用户不存在！")
+    if isinstance(event, GroupMessageEvent):
+        usertype = "group"
+        qq = str(event.group_id)
+    else:
+        usertype = "private"
+        qq = str(event.user_id)
+    subscribe(usertype, qq, id)
+    await mycard_subscribe.finish("订阅成功！")
 
+
+mycard_unsubscribe = on_cmd("退订", priority=5)
 
 @mycard_unsubscribe.handle()
-async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
-    if str(msg).startswith("退订 "):
-        raw_id = str(msg)[len("退订 "):].strip()
-        id = html.unescape(raw_id)
-        if not id:
-            await mycard_bind.finish("请提供要退订的用户名！")
-        if isinstance(event, GroupMessageEvent):
-            role = getattr(event.sender, "role", None)
-            # if not role in ("owner", "admin"):
-            #     await mycard_unsubscribe.finish("只有群主或管理员可以退订！")
-            #     return
-            usertype = "group"
-            qq = str(event.group_id)
-        else:
-            usertype = "private"
-            qq = str(event.user_id)
-        unsubscribe(usertype, qq, id)
-        await mycard_unsubscribe.finish("退订成功！")
+async def _(event: MessageEvent, args: Message = CommandArg()):
+    id = html.unescape(args.extract_plain_text().strip())
+    if not id:
+        await mycard_unsubscribe.finish("请提供要退订的用户名！")
+    if isinstance(event, GroupMessageEvent):
+        role = getattr(event.sender, "role", None)
+        # if not role in ("owner", "admin"):
+        #     await mycard_unsubscribe.finish("只有群主或管理员可以退订！")
+        #     return
+        usertype = "group"
+        qq = str(event.group_id)
+    else:
+        usertype = "private"
+        qq = str(event.user_id)
+    unsubscribe(usertype, qq, id)
+    await mycard_unsubscribe.finish("退订成功！")
 
+
+# ── 首胜查询 ────────────────────────────────────────────────────────────────────────
+# 首胜查询 [用户名]
+
+mycard_firstwin = on_cmd("首胜查询", aliases={"首赢查询"}, priority=5)
 
 @mycard_firstwin.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -207,6 +219,11 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     else:
         await mycard_firstwin.finish(f"{user_id}还未完成今日首赢！")
 
+
+# ── 绑定查询 ────────────────────────────────────────────────────────────────────────
+# 查询绑定 [@某人] / 查询绑定 [用户名]
+
+mycard_whois = on_cmd("查询绑定", aliases={"绑定查询"}, priority=5)
 
 @mycard_whois.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message: Message = EventMessage()):
@@ -249,6 +266,11 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
         else:
             await mycard_whois.finish(f"你还未绑定 MyCard 用户名！")
 
+
+# ── 胜率统计 ────────────────────────────────────────────────────────────────────────
+# 胜率查询 [用户名]
+
+mycard_winrate = on_cmd("胜率查询", aliases={"胜率统计"}, priority=5)
 
 @mycard_winrate.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -348,3 +370,11 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         ]))
     
     await mycard_winrate.finish(result_message)
+
+
+# ── 标签管理（待实现） ───────────────────────────────────────────────────────────────
+# 添加标签 标签名 | 删除标签 标签名 | 查看标签
+
+mycard_addtag = on_cmd("添加标签", priority=5)
+mycard_deltag = on_cmd("删除标签", priority=5)
+mycard_taglist = on_cmd("查看标签", priority=5)

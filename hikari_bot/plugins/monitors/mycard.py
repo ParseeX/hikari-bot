@@ -1,3 +1,13 @@
+"""
+mycard.py — MyCard 对局实时监控插件
+
+功能：
+  - 通过 WebSocket 监听对局创建/结束事件
+  - 对局结束后自动查询战绩并推送订阅通知
+  - 连接断开时指数退避重连
+  - 支持运行时开关对局结果通知
+"""
+
 import asyncio
 import json
 import re
@@ -5,25 +15,25 @@ import re
 import aiohttp
 
 from nonebot import get_driver, logger
-from hikari_bot.core.commands import on_cmd
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, ActionFailed
+from nonebot.adapters.onebot.v11 import ActionFailed, Bot, Message, MessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
+from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.feature_flags import get_notify_enabled, set_notify_enabled
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
-from hikari_bot.services.mycard import get_subscribe_list, fetch_latest_record, unsubscribe_all
+from hikari_bot.services.mycard import fetch_latest_record, get_subscribe_list, unsubscribe_all
+
+
+# ── 常量与状态 ───────────────────────────────────────────────────────────────────────
 
 WS_URL = "wss://tiramisu.moecube.com:8923/?filter=started"
 
-_stop_event = asyncio.Event()
-
 _ws_task: asyncio.Task | None = None
+room_list: dict = {}
 
-room_list = {}
-
-notify_switch = on_cmd("切换通知", permission=SUPERUSER)
+# ── 通知推送 ─────────────────────────────────────────────────────────────────────────
 
 async def _send_notifications(bot: Bot, subscribers: list, message: str, message_type: str):
     for subscriber in subscribers:
@@ -48,6 +58,8 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
             await log_message(f"[mycard_subscriber] _send_notifications error: {e}")
 
 
+# ── 对局事件处理 ─────────────────────────────────────────────────────────────────────
+
 async def handle_create_event(bot: Bot, player_ids: list):
     try:
         subscribe_list = get_subscribe_list()
@@ -55,7 +67,7 @@ async def handle_create_event(bot: Bot, player_ids: list):
             if player_id in subscribe_list:
                 message = f"您关注的{player_id}已开始对局，对手id：{player_ids[1-i]}。"
                 asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message, "private"))
-        if player_id[0] in subscribe_list and player_id[1] in subscribe_list:
+        if player_ids[0] in subscribe_list and player_ids[1] in subscribe_list:
             subscribers_0 = set(subscribe_list.get(player_ids[0], []))
             subscribers_1 = set(subscribe_list.get(player_ids[1], []))
             common_subscribers = subscribers_0 & subscribers_1
@@ -148,10 +160,12 @@ async def process_mycard_event(bot: Bot, payload: dict):
         asyncio.create_task(handle_delete_event(bot, room_id))
 
 
+# ── WebSocket 监控 ────────────────────────────────────────────────────────────────────
+
 async def ws_runner(bot: Bot):
+    """带指数退避重连的 WS 监听循环。"""
     backoff = 1
     max_backoff = 60
-    import random
     while True:
         try:
             async with aiohttp.ClientSession() as session:
@@ -175,6 +189,13 @@ async def ws_runner(bot: Bot):
         await asyncio.sleep(backoff)
         backoff = min(backoff * 2, max_backoff)
 
+
+def ws_status_check() -> bool:
+    """返回 WS 任务是否正在运行（供 base.py 状态查询使用）。"""
+    return bool(_ws_task and not _ws_task.done())
+
+
+# ── 启动与关闭钉子 ───────────────────────────────────────────────────────────────────
 
 driver = get_driver()
 @driver.on_bot_connect
@@ -202,11 +223,11 @@ async def _on_shutdown():
             await log_message(f"[mycard_subscriber] Exception occurred while canceling ws task on shutdown: {e}")
         await log_message("[mycard_subscriber] MyCard monitor canceled on shutdown.")
 
-async def ws_status_check():
-    global _ws_task
-    if _ws_task and not _ws_task.done():
-        return True
-    return False
+
+# ── 管理员命令 ─────────────────────────────────────────────────────────────────────
+# 用法：切换通知
+
+notify_switch = on_cmd("切换通知", permission=SUPERUSER)
 
 @notify_switch.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):

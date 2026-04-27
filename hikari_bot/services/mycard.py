@@ -1,7 +1,15 @@
-import asyncio
+"""
+mycard.py — MyCard API 访问与本地数据管理服务
+
+功能：
+  - 竞技场历史战绩、玩家信息、月度排名、首胜查询（API 层）
+  - QQ ↔ MyCard 用户名绑定（JSON 文件持久化）
+  - 对局通知订阅管理（内存缓存 + JSON 文件持久化）
+"""
+
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 
 import aiohttp
 import pytz
@@ -9,237 +17,177 @@ from nonebot import logger
 
 from hikari_bot.core.constants import DATA_DIR
 
-MC_BASE_API = "https://sapi.moecube.com:444/ygopro/"
-API_PLAYER_HISTORY = "arena/history"
-API_PLAYER_INFO = "arena/user"
-API_PLAYER_HISTORY_RANK = "arena/historyScore"
-API_FIRST_WIN = "arena/firstwin"
 
-mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
-mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')
+# ── 常量 ──────────────────────────────────────────────────────────────────────────────
 
-# 内存缓存
-_subscribe_cache = None
+_BASE = "https://sapi.moecube.com:444/ygopro/"
 
-async def is_first_win(username: str) -> bool:
-    """检查用户今日是否首胜"""
-    url = f"{MC_BASE_API}{API_FIRST_WIN}"
-    param = {
-        "username": username
-    }
+mycard_user_file      = os.path.join(DATA_DIR, "mycard_user.json")
+mycard_subscribe_file = os.path.join(DATA_DIR, "subscribe.json")
+
+_subscribe_cache: dict | None = None
+
+
+# ── 内部工具 ──────────────────────────────────────────────────────────────────────────
+
+async def _api_get(path: str, params: dict) -> dict | None:
+    """向 MC API 发起 GET 请求，返回响应 JSON；失败返回 None。"""
+    url = _BASE + path
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, params=param) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get("today", "0") == "1"
-                else:
-                    logger.exception(f"Failed to fetch data: {response.status}")
-                    return False
+            async with session.get(url, params=params) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                logger.error(f"[mycard] API {path} returned {resp.status}")
+                return None
         except Exception:
-            logger.exception(f"Exception occurred while fetching data")
-            return False
+            logger.exception(f"[mycard] Exception fetching {path}")
+            return None
 
-async def fetch_latest_record(username: str, delay: float = 0):
-    """获取玩家最新的对战记录"""
-    if delay > 0:
-        await asyncio.sleep(delay)
-    history = await fetch_player_history(username, page_num=1)
-    if history:
-        return history[0]
-    else:
-        return None
+
+def _to_shanghai(utc_str: str) -> datetime:
+    """将 UTC 字符串解析并转换为上海时区 datetime。"""
+    dt = datetime.strptime(utc_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+    return dt.replace(tzinfo=pytz.utc).astimezone(pytz.timezone("Asia/Shanghai"))
+
+
+def _read_json(path: str, default):
+    """读取 JSON 文件；文件不存在或格式错误时返回 default。"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+
+def _write_json(path: str, data) -> None:
+    """将数据写入 JSON 文件。"""
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+
+# ── API 端点 ──────────────────────────────────────────────────────────────────────────
 
 async def fetch_player_history(username: str, page_num: int = 999999):
-    """
-        https://sapi.moecube.com:444/ygopro/arena/history
-        获取玩家历史对战记录
-        数据格式：
-        [{
-			"usernamea": "3133223461",
-			"usernameb": "水橋パルスィ",
-			"userscorea": 1,
-			"userscoreb": 2,
-			"expa": 1646,
-			"expb": 1801.5,
-			"expa_ex": 1645.5,
-			"expb_ex": 1800.5,
-			"pta": 1350.78405124773,
-			"ptb": 1551.09307262336,
-			"pta_ex": 1358.78405124773,
-			"ptb_ex": 1543.09307262336,
-			"type": "athletic",
-			"start_time": "2025-12-16T22:41:34.000Z",
-			"end_time": "2025-12-16T22:48:04.000Z",
-			"winner": "水橋パルスィ",
-			"isfirstwin": false,
-			"decka": null,
-			"deckb": null
-		},...]
-    """
-    url = f"{MC_BASE_API}{API_PLAYER_HISTORY}"
-    params = {
-        "username": username,
-        "type": 0,
-        "page_num": page_num
-    }
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get('data', [])
-                else:
-                    logger.exception(f"Failed to fetch data: {response.status}")
-                    return None
-        except Exception:
-            logger.exception("Exception occurred while fetching data")
-            return None
+    """获取玩家历史对战记录列表。"""
+    data = await _api_get("arena/history", {"username": username, "type": 0, "page_num": page_num})
+    return data.get("data", []) if data else None
+
 
 async def fetch_player_info(username: str):
-    """获取玩家基本信息"""
-    url = f"{MC_BASE_API}{API_PLAYER_INFO}"
-    params = {
-        "username": username
-    }
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data
-                else:
-                    logger.exception(f"Failed to fetch data: {response.status}")
-                    return None
-        except Exception:
-            logger.exception(f"Exception occurred while fetching data")
-            return None
-        
+    """获取玩家基本信息。"""
+    return await _api_get("arena/user", {"username": username})
+
+
 async def fetch_player_history_rank(username: str, year: int, month: int):
-    """获取玩家指定月份的历史排名"""
-    url = f"{MC_BASE_API}{API_PLAYER_HISTORY_RANK}"
-    params = {
-        "username": username,
-        "season": f"{year}-{month:02}"
-    }
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get("rank")
-                else:
-                    logger.exception(f"Failed to fetch data: {response.status}")
-                    return None
-        except Exception:
-            logger.exception(f"Exception occurred while fetching data")
-            return None
+    """获取玩家指定月份的历史排名。"""
+    data = await _api_get("arena/historyScore", {"username": username, "season": f"{year}-{month:02}"})
+    return data.get("rank") if data else None
 
-def is_specific_month(match, month: int, year: int):
-    """判断对战记录是否属于指定月份"""
-    start_time_utc = datetime.strptime(match["start_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
-    
-    utc_zone = pytz.utc
-    start_time_utc = utc_zone.localize(start_time_utc)
-    start_time_bj = start_time_utc.astimezone(pytz.timezone("Asia/Shanghai"))
 
-    return start_time_bj.year == year and start_time_bj.month == month
+async def fetch_latest_record(username: str):
+    """获取玩家最新的一条对战记录。"""
+    history = await fetch_player_history(username, page_num=1)
+    return history[0] if history else None
+
+
+async def is_first_win(username: str) -> bool:
+    """检查用户今日是否已完成首胜。"""
+    data = await _api_get("arena/firstwin", {"username": username})
+    return bool(data and data.get("today") == "1")
+
+
+# ── 数据处理工具 ──────────────────────────────────────────────────────────────────────
+
+def is_specific_month(match: dict, month: int, year: int) -> bool:
+    """判断对战记录是否属于指定月份（上海时区）。"""
+    dt = _to_shanghai(match["start_time"])
+    return dt.year == year and dt.month == month
+
 
 async def mycard_get_records(player_id: str, month: int, year: int):
-    """获取玩家指定月份的对战记录"""
+    """获取玩家指定月份的对战记录。"""
     history = await fetch_player_history(player_id)
-    if history == None:
+    if history is None:
         return None
-    
-    filtered_history = [match for match in history if is_specific_month(match, month, year)]
-    return filtered_history
+    return [m for m in history if is_specific_month(m, month, year)]
+
 
 async def mycard_get_player_rank(player_id: str):
-    """获取玩家当前竞技场排名"""
+    """获取玩家当前竞技场排名。"""
     info = await fetch_player_info(player_id)
-    if info == None:
-        return None
-    
-    return info.get("arena_rank")
-
-def get_mycard_user():
-    """读取本地存储的MyCard用户列表"""
-    try:
-        with open(mycard_user_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError:
-        return {}
-    
-def save_mycard_user(user_list):
-    """保存MyCard用户列表到本地文件"""
-    with open(mycard_user_file, 'w', encoding='utf-8') as f:
-        json.dump(user_list, f, indent=4, ensure_ascii=False)
-
-def add_mycard_user(qq, id):
-    """添加QQ号与MyCard用户ID的绑定关系"""
-    user_list = get_mycard_user()
-    user_list[qq] = id
-    save_mycard_user(user_list)
+    return info.get("arena_rank") if info else None
 
 
-def _load_subscribe_list_from_file():
-    """从文件加载订阅列表到内存"""
-    try:
-        with open(mycard_subscribe_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError:
-        logger.error("文件格式错误，无法解析")
-        return {}
+# ── 本地用户绑定 ──────────────────────────────────────────────────────────────────────
 
-def get_subscribe_list():
-    """读取订阅列表（从内存缓存）"""
+def get_mycard_user() -> dict:
+    """读取本地存储的 QQ 对应 MyCard 用户名绑定表。"""
+    return _read_json(mycard_user_file, {})
+
+
+def save_mycard_user(user_list: dict) -> None:
+    """保存绑定表到文件。"""
+    _write_json(mycard_user_file, user_list)
+
+
+def add_mycard_user(qq: str, mycard_id: str) -> None:
+    """添加或更新 QQ 与 MyCard 用户名的绑定。"""
+    users = get_mycard_user()
+    users[qq] = mycard_id
+    save_mycard_user(users)
+
+
+# ── 订阅管理 ──────────────────────────────────────────────────────────────────────────
+
+def get_subscribe_list() -> dict:
+    """读取订阅列表（内存缓存，首次访问时从文件加载）。"""
     global _subscribe_cache
     if _subscribe_cache is None:
-        _subscribe_cache = _load_subscribe_list_from_file()
+        _subscribe_cache = _read_json(mycard_subscribe_file, {})
     return _subscribe_cache
 
-def save_subscribe_list(subscribe_list):
-    """保存订阅列表到文件并更新内存缓存"""
+
+def save_subscribe_list(subscribe_list: dict) -> None:
+    """持久化订阅列表并更新内存缓存。"""
     global _subscribe_cache
-    with open(mycard_subscribe_file, 'w', encoding='utf-8') as f:
-        json.dump(subscribe_list, f, indent=4, ensure_ascii=False)
+    _write_json(mycard_subscribe_file, subscribe_list)
     _subscribe_cache = subscribe_list
 
-def subscribe(usertype, qq, id):
-    """添加用户订阅"""
-    subscribe_list = get_subscribe_list()
-    if id not in subscribe_list:
-        subscribe_list[id] = []
-    if [usertype, qq] not in subscribe_list[id]:
-        subscribe_list[id].append([usertype, qq])
-        save_subscribe_list(subscribe_list)
 
-def unsubscribe(usertype, qq, id):
-    """取消用户订阅"""
-    subscribe_list = get_subscribe_list()
-    if id in subscribe_list:
-        if [usertype, qq] in subscribe_list[id]:
-            subscribe_list[id].remove([usertype, qq])
-            if not subscribe_list[id]:  # Remove the ID if the list is empty
-                del subscribe_list[id]
-            save_subscribe_list(subscribe_list)
-            return True
+def subscribe(usertype: str, qq: str, mycard_id: str) -> None:
+    """添加订阅：将 (usertype, qq) 加入 mycard_id 的订阅者列表。"""
+    subs = get_subscribe_list()
+    subs.setdefault(mycard_id, [])
+    if [usertype, qq] not in subs[mycard_id]:
+        subs[mycard_id].append([usertype, qq])
+        save_subscribe_list(subs)
+
+
+def unsubscribe(usertype: str, qq: str, mycard_id: str) -> bool:
+    """取消订阅；若订阅不存在则返回 False。"""
+    subs = get_subscribe_list()
+    entry = [usertype, qq]
+    if mycard_id in subs and entry in subs[mycard_id]:
+        subs[mycard_id].remove(entry)
+        if not subs[mycard_id]:
+            del subs[mycard_id]
+        save_subscribe_list(subs)
+        return True
     return False
 
-def unsubscribe_all(usertype, qq):
-    """移除该订阅者的所有订阅"""
-    subscribe_list = get_subscribe_list()
+
+def unsubscribe_all(usertype: str, qq: str) -> bool:
+    """移除该订阅者的全部订阅；有变更则返回 True。"""
+    subs = get_subscribe_list()
+    entry = [usertype, qq]
     changed = False
-    for id in list(subscribe_list.keys()):
-        if [usertype, qq] in subscribe_list[id]:
-            subscribe_list[id].remove([usertype, qq])
-            if not subscribe_list[id]:
-                del subscribe_list[id]
+    for mid in list(subs):
+        if entry in subs[mid]:
+            subs[mid].remove(entry)
+            if not subs[mid]:
+                del subs[mid]
             changed = True
     if changed:
-        save_subscribe_list(subscribe_list)
+        save_subscribe_list(subs)
     return changed

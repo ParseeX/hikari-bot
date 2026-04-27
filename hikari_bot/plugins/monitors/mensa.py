@@ -1,22 +1,32 @@
+﻿"""
+mensa.py — MENSA 东京考场监控插件
+
+功能：
+  - 定时（每3分钟）爬取 MENSA 官网，检测东京场次空位
+  - 发现可报名场次时主动通知管理员
+  - 支持运行时开启/关闭监控、手动触发一次性检查
+"""
+
 import asyncio
-import json
 import re
-from datetime import datetime
-from pathlib import Path
 
 import httpx
 from bs4 import BeautifulSoup
-from nonebot import get_bot, get_driver, require
-from hikari_bot.core.commands import on_cmd
+
+from nonebot import get_driver, require
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.permission import SUPERUSER
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
+from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.feature_flags import get_mensa_enabled, set_mensa_enabled
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
+
+
+# ── 常量 ──────────────────────────────────────────────────────────────────────────────
 
 EXAM_URL = "https://mensa.jp/exam/"
 USER_AGENT = (
@@ -26,135 +36,107 @@ USER_AGENT = (
 )
 
 
+# ── HTML 解析 ─────────────────────────────────────────────────────────────────────────
+
 def _extract_tokyo_slots_from_html(html: str) -> list[dict[str, str]]:
-    """从HTML结构中解析东京场次信息"""
+    """从 HTML 结构中解析东京场次信息。"""
     soup = BeautifulSoup(html, "html.parser")
     slots: list[dict[str, str]] = []
-    
-    # 查找所有考试场次列表
-    exam_lists = soup.find_all('ul', class_='list')
-    
-    for ul in exam_lists:
-        li_elements = ul.find_all('li')
+
+    for ul in soup.find_all("ul", class_="list"):
+        li_elements = ul.find_all("li")
         if len(li_elements) < 3:
             continue
-            
-        # 第一个li包含地区信息
+
         pref_li = li_elements[0]
-        if not pref_li.get_text(strip=True).startswith('東京都'):
-            continue  # 跳过非东京场次
-            
-        # 第二个li包含日期时间信息
-        date_li = li_elements[1]
-        # 直接从 HTML 解析，而不是转换为纯文本
-        html_content = str(date_li)
-        
-        # 使用更精确的正则表达式匹配
-        datetime_match = re.search(r'日時\s*：\s*([^<]+)', html_content)
-        place_match = re.search(r'場所\s*：\s*([^<]+)', html_content)
-        
+        if not pref_li.get_text(strip=True).startswith("東京都"):
+            continue
+
+        html_content = str(li_elements[1])
+        datetime_match = re.search(r"日時\s*：\s*([^<]+)", html_content)
+        place_match    = re.search(r"場所\s*：\s*([^<]+)", html_content)
+
         datetime_str = datetime_match.group(1).strip() if datetime_match else ""
-        place_str = place_match.group(1).strip() if place_match else ""
-        
-        # 从日期时间字符串中提取简短日期
-        date_short_match = re.search(r'(\d{4})/(\d{1,2})/(\d{1,2})', datetime_str)
-        date_short = f"{date_short_match.group(2)}/{date_short_match.group(3)}" if date_short_match else ""
-        
-        # 第三个li包含状态信息（图片alt属性）
-        status_li = li_elements[2]
-        status = "UNKNOWN"
-        
-        # 查找图片的alt属性
-        img = status_li.find('img')
-        if img and img.get('alt'):
-            status = img.get('alt')
-            
-        slot = {
-            "pref": "東京都",
-            "date": date_short,
+        place_str    = place_match.group(1).strip()    if place_match    else ""
+
+        date_short_match = re.search(r"(\d{4})/(\d{1,2})/(\d{1,2})", datetime_str)
+        date_short = (
+            f"{date_short_match.group(2)}/{date_short_match.group(3)}"
+            if date_short_match else ""
+        )
+
+        img = li_elements[2].find("img")
+        status = img.get("alt", "UNKNOWN") if img else "UNKNOWN"
+
+        slots.append({
+            "pref":     "東京都",
+            "date":     date_short,
             "datetime": datetime_str,
-            "place": place_str,
-            "status": status,
-        }
-        slots.append(slot)
-    
+            "place":    place_str,
+            "status":   status,
+        })
+
     return slots
 
 
-async def fetch_tokyo_slots() -> list[dict[str, str]]:
-    headers = {
-        "User-Agent": USER_AGENT,
-        "Accept-Language": "ja,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-    }
-    timeout = httpx.Timeout(20.0, connect=10.0)
+# ── 数据获取 ──────────────────────────────────────────────────────────────────────────
 
-    async with httpx.AsyncClient(follow_redirects=True, timeout=timeout, headers=headers) as client:
+async def fetch_tokyo_slots() -> list[dict[str, str]]:
+    """从 MENSA 官网抓取并解析东京场次列表。"""
+    headers = {
+        "User-Agent":      USER_AGENT,
+        "Accept-Language": "ja,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+        "Cache-Control":   "no-cache",
+        "Pragma":          "no-cache",
+    }
+    async with httpx.AsyncClient(follow_redirects=True, timeout=httpx.Timeout(20.0, connect=10.0), headers=headers) as client:
         resp = await client.get(EXAM_URL)
         resp.raise_for_status()
 
-    html = resp.text
-    slots = _extract_tokyo_slots_from_html(html)
-
+    slots = _extract_tokyo_slots_from_html(resp.text)
     if not slots:
-        # 页面结构变了，别悄悄当没事发生
         raise RuntimeError("没有从官网页面解析到任何东京场次，可能是页面结构发生变化。")
-
     return slots
 
 
-async def check_once(force_notify: bool = False) -> None:
-    slots = await fetch_tokyo_slots()
-    
-    # 检查是否有需要通知的情况
-    should_notify = False
-    notify_reasons = []
-    
-    # 检查是否有非满员场次  
-    available_slots = [slot for slot in slots if slot["status"] not in {"満員", "締切"}]
-    if available_slots:
-        should_notify = True
-        notify_reasons.append(f"发现{len(available_slots)}个可报名场次！")
-    
-    # 只在有需要通知的情况时发送消息
-    if should_notify or force_notify:
-        message_parts = []
-        if force_notify:
-            message_parts.append("MENSA东京考场检查结果")
-        else:
-            message_parts.extend(notify_reasons)
-        
-        message_parts.append(f"\n共{len(slots)}个东京场次：")
-        for slot in slots:
-            message_parts.append(f"{slot['datetime']} - {slot['status']}")
-        
-        await message_superusers("\n".join(message_parts))
+# ── 检查逻辑 ──────────────────────────────────────────────────────────────────────────
 
+async def check_once(force_notify: bool = False) -> None:
+    """检查一次场次状态，有空位或 force_notify=True 时通知管理员。"""
+    slots = await fetch_tokyo_slots()
+    available = [s for s in slots if s["status"] not in {"満員", "締切"}]
+
+    if not available and not force_notify:
+        return
+
+    header = "MENSA东京考场检查结果" if force_notify else f"发现{len(available)}个可报名场次！"
+    lines = [header, f"\n共{len(slots)}个东京场次："]
+    lines += [f"{s['datetime']} - {s['status']}" for s in slots]
+    await message_superusers("\n".join(lines))
+
+
+# ── 定时任务 ──────────────────────────────────────────────────────────────────────────
 
 async def scheduled_mensa_check() -> None:
-    retry_count = 0
-    max_retries = 5
-    
-    while retry_count < max_retries:
+    """带重试的定时检查任务（最多重试5次，每次间隔60秒）。"""
+    for attempt in range(1, 6):
         try:
             await check_once(force_notify=False)
-            break
+            return
         except Exception as e:
-            retry_count += 1
-            await log_message(f"[mensa_monitor] Failed to check mensa (attempt {retry_count}/{max_retries}): {e}")
-            if retry_count < max_retries:
-                await asyncio.sleep(60)  # 重试前等待60秒
-            else:
-                await log_message(f"[mensa_monitor] Failed to check mensa after {max_retries} attempts")
-                # 监控异常时通知
-                await message_superusers(f"MENSA东京考场监控异常\n{type(e).__name__}: {e}")
+            await log_message(f"[mensa_monitor] 检查失败 ({attempt}/5): {e}")
+            if attempt < 5:
+                await asyncio.sleep(60)
+    await message_superusers(f"MENSA东京考场监控持续异常，已重试5次，请检查。")
 
 
 @scheduler.scheduled_job("interval", minutes=3, id="mensa_tokyo_monitor", misfire_grace_time=1800)
 async def _scheduled_mensa_job():
     await scheduled_mensa_check()
 
+
+# ── 管理员命令 ────────────────────────────────────────────────────────────────────────
+# 用法：切换门萨 | 门萨
 
 mensa_toggle = on_cmd("切换门萨", aliases={"切换mensa"}, permission=SUPERUSER)
 
@@ -164,7 +146,6 @@ async def _(bot: Bot, event: MessageEvent):
     new_value = not current
     await set_mensa_enabled(new_value)
     if new_value:
-        # 重新添加定时任务（若已被移除）
         if not scheduler.get_job("mensa_tokyo_monitor"):
             scheduler.add_job(
                 scheduled_mensa_check,
@@ -193,7 +174,10 @@ async def _(bot: Bot, event: MessageEvent):
         await message_superusers(f"MENSA东京考场监控手动检查失败\n{type(e).__name__}: {e}")
 
 
+# ── 启动钩子 ──────────────────────────────────────────────────────────────────────────
+
 driver = get_driver()
+
 @driver.on_bot_connect
 async def _startup_mensa_check(bot: Bot):
     if not await get_mensa_enabled():
@@ -205,3 +189,5 @@ async def _startup_mensa_check(bot: Bot):
     except Exception as e:
         await log_message(f"[mensa_monitor] Startup check failed: {e}")
         await message_superusers(f"MENSA东京考场监控启动失败\n{type(e).__name__}: {e}")
+
+

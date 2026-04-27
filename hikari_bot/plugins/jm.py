@@ -1,17 +1,31 @@
+"""
+jm.py — JMComic 漫画下载插件
+
+功能：
+  - 通过禁漫本子 ID 下载并转换为 PDF，发送给用户
+  - 支持私聊（上传好友文件）与群聊（上传群文件）
+"""
+
 import asyncio
 import os
 import shutil
 
 from jmcomic import create_option_by_file, download_album
 
-from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
+from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
+from hikari_bot.core.logger import log_message
+
 
 JM_DIR = os.path.join(DATA_DIR, "jm")
+
+
+# ── 下载工具 ──────────────────────────────────────────────────────────────────────────
+# 用法：jm <ID>
 
 jmcomic_download = on_cmd('jm', priority=5, permission=SUPERUSER)
 

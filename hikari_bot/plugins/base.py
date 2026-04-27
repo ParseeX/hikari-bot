@@ -1,3 +1,14 @@
+"""
+base.py — Bot 基础功能插件
+
+功能：
+  - 日志读取、服务状态查询、帮助图片
+  - 版本查询、插件重载（git pull + 重启）、服务器重启
+  - 白名单管理（添加/清空）、群消息广播
+  - 好友/入群请求自动处理
+  - 群成员列表查询
+"""
+
 import asyncio
 import base64
 import os
@@ -5,7 +16,10 @@ import re
 from datetime import datetime
 
 from nonebot import get_driver, on_message, on_notice, on_request
-from nonebot.adapters.onebot.v11 import Bot, Event, FriendRequestEvent, GroupMessageEvent, GroupRequestEvent, Message, MessageEvent, MessageSegment, PrivateMessageEvent
+from nonebot.adapters.onebot.v11 import (
+    Bot, Event, FriendRequestEvent, GroupMessageEvent, GroupRequestEvent,
+    Message, MessageEvent, MessageSegment, PrivateMessageEvent,
+)
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
@@ -17,12 +31,17 @@ from hikari_bot.core.logger import get_bot_startup_info, log_message, log_read
 from hikari_bot.core.whitelist import *
 from hikari_bot.plugins.monitors.mycard import ws_status_check
 
+
+# ── 启动钉子 ────────────────────────────────────────────────────────────────────────────
+
 driver = get_driver()
 
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
     await log_message("QQ connected.")
     await message_superusers("早上好！")
+
+# ── 日志与状态查询 ─────────────────────────────────────────────────────────────────────
 
 read_log = on_cmd("读取日志", aliases={"日志", "log"}, permission=SUPERUSER)
 @read_log.handle()
@@ -47,6 +66,8 @@ async def _(bot: Bot, event: MessageEvent):
     await status.finish(status_message)
 
 
+# ── 帮助 ────────────────────────────────────────────────────────────────────────────
+
 help_pic = os.path.join(RESOURCES_DIR, 'help.png')
 help = on_cmd("帮助", aliases={"help"}, priority=5)
 @help.handle()
@@ -56,6 +77,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     image_base64 = base64.b64encode(image_data).decode("utf-8")
     await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
+
+# ── 版本与插件维护 ────────────────────────────────────────────────────────────────────
 
 version = on_cmd("版本查询", aliases={"版本", "version"}, permission=SUPERUSER)
 @version.handle()
@@ -145,6 +168,8 @@ async def _(bot: Bot, event: MessageEvent):
         await log_message(f"[reboot] Exception occurred while rebooting server: {e}")
         await reboot.finish(f"重启服务器失败：{e}")
 
+# ── 白名单管理 ─────────────────────────────────────────────────────────────────────────
+
 whitelist = on_cmd("添加至白名单", aliases={"白名单"}, permission=SUPERUSER)
 @whitelist.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -171,6 +196,7 @@ async def _(bot: Bot, event: MessageEvent):
         await log_message(f"[kill_all_whitelist] Exception occurred while clearing whitelist: {e}")
         await kill_all_whitelist.finish(f"清空白名单失败：{e}")
 
+# 白名单校验：拦止非允许群的消息传播
 whitelist_check = on_message(priority=1, block=False)
 
 @whitelist_check.handle()
@@ -178,6 +204,8 @@ async def _(bot: Bot, event: MessageEvent, matcher: Matcher):
     if isinstance(event, GroupMessageEvent) and not await is_allowed_group(event.group_id):
         matcher.stop_propagation()
 
+
+# ── 消息广播 ───────────────────────────────────────────────────────────────────────
 
 broadcast = on_cmd('广播', permission=SUPERUSER)
 
@@ -191,6 +219,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         except Exception as e:
             await log_message(f"[broadcast] Failed to send message to group {group}: {e}")
 
+
+# ── 好友与入群请求处理 ──────────────────────────────────────────────────────────────
 
 request_handler = on_request(priority=1)
 
@@ -218,6 +248,8 @@ async def _(bot: Bot, event: GroupRequestEvent):
     except Exception as e:
         await log_message(f"[group_request] Failed to process group invite from user {event.user_id} in group {event.group_id}: {e}")
 
+
+# ── 成员列表 ──────────────────────────────────────────────────────────────────────────
 
 member_list = on_cmd('成员列表', permission=SUPERUSER)
 

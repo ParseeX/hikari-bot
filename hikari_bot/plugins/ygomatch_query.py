@@ -1,3 +1,14 @@
+"""
+ygomatch_query.py — 游戏王线上赛事查询与签到插件
+
+功能：
+  - 赛事信息查询（按关键词或"神人杯"快捷查询）
+  - 头像图片自动压缩为 150×150
+  - 比赛签到与退赛（私聊 bot）
+  - 卡组收集与确认（支持链接/ydk 文本）
+  - 卡表生成、卡组图片导出、配对信息查询
+"""
+
 import base64
 import html
 import io
@@ -8,13 +19,13 @@ from bs4 import BeautifulSoup
 from PIL import Image
 
 from nonebot import on_message
-from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment, PrivateMessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 
+from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.constants import DECK_DIR, ADMIN
 from hikari_bot.services.ygodeck import (
     get_deck_text_from_url,
@@ -23,6 +34,10 @@ from hikari_bot.services.ygodeck import (
     save_deck_text_as_ydk,
 )
 from hikari_bot.services.ygomatch import *
+
+
+# ── 比赛信息查询 ────────────────────────────────────────────────────────────────────────
+# 用法：比赛查询 神人杯 | 比赛查询 关键词
 
 ygomatch_search = on_cmd("比赛查询", priority=5)
 @ygomatch_search.handle()
@@ -65,6 +80,9 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 {parsed_prize}""")
 
 
+
+# ── 头像压缩 ────────────────────────────────────────────────────────────────────────────
+# 用法：发送》头像压缩「并附加正方形图片，或不附图片来压缩導遊户头像
 
 ygomatch_avatar = on_cmd("头像压缩", priority=5)
 @ygomatch_avatar.handle()
@@ -120,6 +138,9 @@ async def _(bot: Bot, event: MessageEvent):
     await bot.send(event, MessageSegment.image(buffer))
 
 
+
+# ── 比赛签到与退赛 ────────────────────────────────────────────────────────────────────
+# 用法：私聊》签到 XXX「 | 私聊》退赛「
 
 check_in = on_cmd("比赛签到", aliases={"签到"}, priority=5)
 @check_in.handle()
@@ -224,6 +245,9 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 
 
+# ── 卡组收集 ───────────────────────────────────────────────────────────────────────────
+# 监听私聊消息，收集签到后御用户提交的卡组（链接/ydk）
+
 collect_deck = on_message(priority=10)
 
 @collect_deck.handle()
@@ -299,6 +323,9 @@ async def _(bot: Bot, event: PrivateMessageEvent):
 
 
 
+# ── 卡组确认与环境统计 ───────────────────────────────────────────────────────────────────
+# 用法：卡组确认 [卡组主人] [卡组名] [成绩]
+
 confirm_deck = on_cmd("比赛卡组确认", aliases={"卡组确认"}, priority=5)
 
 @confirm_deck.handle()
@@ -370,6 +397,9 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 
+# ── 配对信息 ──────────────────────────────────────────────────────────────────────────
+# 用法：对阵信息（管理员权限）
+
 pairing_info = on_cmd("对阵信息", priority=5, permission=SUPERUSER)
 @pairing_info.handle()
 async def _(bot: Bot, event: MessageEvent):
@@ -424,6 +454,9 @@ async def _(bot: Bot, event: MessageEvent):
     await pairing_info.finish(Message(result_message))
 
 
+
+# ── 卡表与卡组图片 ────────────────────────────────────────────────────────────────────
+# 用法：卡表 [卡组链接]
 
 deck_list = on_cmd("卡表", aliases={"中文卡表", "简中卡表", "日文卡表", "英文卡表"}, priority=5)
 @deck_list.handle()
