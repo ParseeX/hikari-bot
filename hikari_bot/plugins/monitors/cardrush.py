@@ -11,7 +11,7 @@ cardrush.py — CardRush 买取价格监控与查询插件
 import asyncio
 import base64
 import re
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
 
 import matplotlib.dates as mdates
@@ -29,6 +29,7 @@ from nonebot_plugin_apscheduler import scheduler
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import log_message
 from hikari_bot.services.price import (
+    get_daily_report_changes,
     get_price_history,
     query_all,
     reset_database,
@@ -217,9 +218,9 @@ def _draw_price_chart(history: list[dict]) -> bytes:
 
 # ── 卡价查询 ──────────────────────────────────────────────────────────────────
 # 用法：卡价查询 <卡名> [稀有度] [盒子编号]
-# 示例：查卡价 青眼白龙 UR ALIN
+# 示例：卡价查询 青眼白龙 UR ALIN
 
-card_price = on_cmd("卡价查询", aliases={"查卡价"}, priority=5)
+card_price = on_cmd("卡价查询", aliases={"卡价"}, priority=5)
 
 @card_price.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -382,6 +383,97 @@ async def price_curve_draw(
         if not isinstance(e, (FinishedException, RejectedException)):
             await log_message(f"[cardrush] price_curve_draw error: {e}")
             await price_curve.finish(f"绘制失败：{e}")
+
+
+# ── 卡价日报 ──────────────────────────────────────────────────────────────────
+# 用法：卡价日报 [M.D]   例：卡价日报 4.27
+
+def _parse_date_arg(arg: str) -> str:
+    """
+    将 'M.D' 或 'MM.DD' 格式转为 'YYYY-MM-DD'。
+    若月日晚于今天则视为上一年。
+    """
+    m = re.match(r"^(\d{1,2})\.(\d{1,2})$", arg.strip())
+    if not m:
+        raise ValueError("日期格式不正确，请使用 M.D 格式，如 4.27")
+    month, day = int(m.group(1)), int(m.group(2))
+    today = date.today()
+    try:
+        d = date(today.year, month, day)
+    except ValueError:
+        raise ValueError(f"无效日期：{month}.{day}")
+    if d > today:
+        d = date(today.year - 1, month, day)
+    return d.isoformat()
+
+
+def _format_daily_report(changes: list[dict], date_str: str) -> list[str]:
+    """将日报变化列表格式化为文字消息，每条最多 50 条变化。"""
+    if not changes:
+        return [f"【卡价日报 {date_str}】\n当日无价格变化记录。"]
+
+    PAGE_SIZE = 50
+    total_pages = (len(changes) + PAGE_SIZE - 1) // PAGE_SIZE
+    messages = []
+
+    for page_idx in range(total_pages):
+        page = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
+        header = f"【卡价日报 {date_str}】共 {len(changes)} 条变化"
+        if total_pages > 1:
+            header += f"（{page_idx + 1}/{total_pages}）"
+
+        lines = [header]
+        for c in page:
+            box = (c.get("model_number") or "").split("-")[0] or "?"
+            rarity = rarity_jp_to_en(c.get("rarity") or "")
+            name = c["name"]
+            new_price = c["new_price"]
+
+            if c["change_type"] == "new":
+                lines.append(f"[新] {name} {box}-{rarity}：{new_price:,}円")
+            else:
+                old_price = c["old_price"]
+                diff = c["price_diff"]
+                pct = c["percent_diff"]
+                sign = "+" if diff > 0 else ""
+                arrow = "↑" if diff > 0 else "↓"
+                pct_str = f" {sign}{pct:.1f}%" if pct is not None else ""
+                lines.append(
+                    f"{arrow} {name} {box}-{rarity}："
+                    f"{old_price:,} → {new_price:,}（{sign}{diff:,}円{pct_str}）"
+                )
+
+        messages.append("\n".join(lines))
+
+    return messages
+
+
+daily_report = on_cmd("卡价日报", priority=5)
+
+@daily_report.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    arg_text = args.extract_plain_text().strip()
+
+    try:
+        if arg_text:
+            date_str = _parse_date_arg(arg_text)
+        else:
+            date_str = date.today().isoformat()
+
+        loop = asyncio.get_event_loop()
+        changes = await loop.run_in_executor(None, get_daily_report_changes, date_str)
+        messages = _format_daily_report(changes, date_str)
+
+        for msg in messages:
+            await bot.send(event, msg)
+        await daily_report.finish()
+
+    except ValueError as e:
+        await daily_report.finish(str(e))
+    except Exception as e:
+        if not isinstance(e, FinishedException):
+            await log_message(f"[cardrush] daily_report error: {e}")
+            await daily_report.finish(f"查询失败：{e}")
 
 
 # ── 定时任务：价格监控 ────────────────────────────────────────────────────────
