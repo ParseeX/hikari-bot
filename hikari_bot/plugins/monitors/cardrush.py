@@ -209,7 +209,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         if card_info:
             name_jp = clean_card_name(card_info["jp_name"])
         else:
-            name_jp = name
+            name_jp = clean_card_name(name)
         rarity_jp_list = (
             [jp for jp, en in RARITY_MAPPING.items() if en.upper().startswith(rarity_en)]
             if rarity_en else None
@@ -266,7 +266,7 @@ async def price_curve_start(
         if card_info:
             name_jp = clean_card_name(card_info["jp_name"])
         else:
-            name_jp = name
+            name_jp = clean_card_name(name)
         rarity_jp_list = (
             [jp for jp, en in RARITY_MAPPING.items() if en.upper().startswith(rarity_en)]
             if rarity_en else None
