@@ -4,7 +4,7 @@ import shutil
 
 from jmcomic import create_option_by_file, download_album
 
-from nonebot import on_command
+from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
@@ -13,7 +13,7 @@ from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
 
 JM_DIR = os.path.join(DATA_DIR, "jm")
 
-jmcomic_download = on_command('jm', priority=5, permission=SUPERUSER)
+jmcomic_download = on_cmd('jm', priority=5, permission=SUPERUSER)
 
 async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
     if isinstance(event, PrivateMessageEvent):

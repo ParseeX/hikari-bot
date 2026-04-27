@@ -7,7 +7,8 @@ import aiohttp
 from bs4 import BeautifulSoup
 from PIL import Image
 
-from nonebot import on_command, on_message
+from nonebot import on_message
+from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment, PrivateMessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
@@ -23,7 +24,7 @@ from hikari_bot.services.ygodeck import (
 )
 from hikari_bot.services.ygomatch import *
 
-ygomatch_search = on_command("比赛查询", priority=5)
+ygomatch_search = on_cmd("比赛查询", priority=5)
 @ygomatch_search.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if "神人杯" in args.extract_plain_text().strip():
@@ -65,7 +66,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
 
 
-ygomatch_avatar = on_command("头像压缩", priority=5)
+ygomatch_avatar = on_cmd("头像压缩", priority=5)
 @ygomatch_avatar.handle()
 async def _(bot: Bot, event: MessageEvent):
     async def fetch_image(url: str):
@@ -120,7 +121,7 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 
-check_in = on_command("比赛签到", aliases={"签到"}, priority=5)
+check_in = on_cmd("比赛签到", aliases={"签到"}, priority=5)
 @check_in.handle()
 async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Matcher, arg: Message = CommandArg()):
     user_id = str(event.user_id)
@@ -178,7 +179,7 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
 
 
 
-quit = on_command("退赛", priority=5)
+quit = on_cmd("退赛", priority=5)
 @quit.handle()
 async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Matcher):
     user_id = str(event.user_id)
@@ -212,7 +213,7 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
 
 
 
-ygo_match_refresh = on_command("新建比赛", priority=5, permission=SUPERUSER)
+ygo_match_refresh = on_cmd("新建比赛", priority=5, permission=SUPERUSER)
 @ygo_match_refresh.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     match_name = str(arg).strip()
@@ -298,7 +299,7 @@ async def _(bot: Bot, event: PrivateMessageEvent):
 
 
 
-confirm_deck = on_command("比赛卡组确认", aliases={"卡组确认"}, priority=5)
+confirm_deck = on_cmd("比赛卡组确认", aliases={"卡组确认"}, priority=5)
 
 @confirm_deck.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -350,7 +351,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
 
 
-generate_all_deck_image = on_command("环境统计", priority=5, permission=SUPERUSER)
+generate_all_deck_image = on_cmd("环境统计", priority=5, permission=SUPERUSER)
 @generate_all_deck_image.handle()
 async def _(bot: Bot, event: MessageEvent):
     match_state = get_match_state()
@@ -369,7 +370,7 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 
-pairing_info = on_command("对阵信息", priority=5, permission=SUPERUSER)
+pairing_info = on_cmd("对阵信息", priority=5, permission=SUPERUSER)
 @pairing_info.handle()
 async def _(bot: Bot, event: MessageEvent):
     match_state = get_match_state()
@@ -424,7 +425,7 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 
-deck_list = on_command("卡表", aliases={"中文卡表", "简中卡表", "日文卡表", "英文卡表"}, priority=5)
+deck_list = on_cmd("卡表", aliases={"中文卡表", "简中卡表", "日文卡表", "英文卡表"}, priority=5)
 @deck_list.handle()
 async def _(bot: Bot, event: PrivateMessageEvent):
     await deck_list.finish("请访问最新网页版 http://ygo.xyk.one/deck")
@@ -497,7 +498,7 @@ async def _(bot: Bot, event: PrivateMessageEvent):
 
 
 
-deck_pic = on_command("生成卡组图片", aliases={"卡组图片", "卡组"}, priority=5)
+deck_pic = on_cmd("生成卡组图片", aliases={"卡组图片", "卡组"}, priority=5)
 # 卡组 http xxx 比赛 卡组名称 成绩
 @deck_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):

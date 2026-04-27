@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from io import BytesIO
 
-from nonebot import on_command
+from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
@@ -13,7 +13,7 @@ from hikari_bot.core.logger import log_message
 from hikari_bot.services.ygocard import *
 from hikari_bot.services.ygodeck import generate_card_list_image
 
-ygo_random_card = on_command("随机一卡", priority=5, permission=SUPERUSER)
+ygo_random_card = on_cmd("随机一卡", priority=5, permission=SUPERUSER)
 @ygo_random_card.handle()
 async def _(bot: Bot, event: MessageEvent):
     image = await get_ygopic(random_card(), half=False)
@@ -24,7 +24,7 @@ async def _(bot: Bot, event: MessageEvent):
     image_base64 = base64.b64encode(image).decode('utf-8')
     await ygo_random_card.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
-ygo_daily_card = on_command("每日一卡", priority=5)
+ygo_daily_card = on_cmd("每日一卡", priority=5)
 @ygo_daily_card.handle()
 async def _(bot: Bot, event: MessageEvent):
     today = datetime.now().strftime("%Y-%m-%d")
@@ -39,7 +39,7 @@ async def _(bot: Bot, event: MessageEvent):
     await ygo_daily_card.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
-ygo_card_pic = on_command("查卡图", aliases={"游戏王卡图", "卡图"}, priority=5)
+ygo_card_pic = on_cmd("查卡图", aliases={"游戏王卡图", "卡图"}, priority=5)
 @ygo_card_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -81,7 +81,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
-ygo_card_id = on_command("查卡密", aliases={"游戏王卡密", "卡密"}, priority=5)
+ygo_card_id = on_cmd("查卡密", aliases={"游戏王卡密", "卡密"}, priority=5)
 @ygo_card_id.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -94,7 +94,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         await ygo_card_id.finish(str(card_info["id"]))
 
 
-ygo_card_effect = on_command("查效果", aliases={"游戏王效果", "效果"}, priority=5)
+ygo_card_effect = on_cmd("查效果", aliases={"游戏王效果", "效果"}, priority=5)
 @ygo_card_effect.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -119,7 +119,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         await ygo_card_effect.finish(result)
 
 
-ygo_card_faq = on_command("查裁定", aliases={"游戏王裁定", "裁定"}, priority=5)
+ygo_card_faq = on_cmd("查裁定", aliases={"游戏王裁定", "裁定"}, priority=5)
 @ygo_card_faq.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip().split():
@@ -179,7 +179,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
 
 
-ygo_update_database = on_command("更新数据库", priority=5)
+ygo_update_database = on_cmd("更新数据库", priority=5)
 @ygo_update_database.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
@@ -191,7 +191,7 @@ async def _(bot: Bot, event: MessageEvent):
         await ygo_update_database.finish("更新失败！")
 
 
-ygo_metaltronus_calc = on_command("共界计算", priority=5)
+ygo_metaltronus_calc = on_cmd("共界计算", priority=5)
 @ygo_metaltronus_calc.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():

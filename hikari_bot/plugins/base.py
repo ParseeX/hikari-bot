@@ -4,13 +4,14 @@ import os
 import re
 from datetime import datetime
 
-from nonebot import get_driver, on_command, on_message, on_notice, on_request
+from nonebot import get_driver, on_message, on_notice, on_request
 from nonebot.adapters.onebot.v11 import Bot, Event, FriendRequestEvent, GroupMessageEvent, GroupRequestEvent, Message, MessageEvent, MessageSegment, PrivateMessageEvent
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
+from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.constants import RESOURCES_DIR
 from hikari_bot.core.logger import get_bot_startup_info, log_message, log_read
 from hikari_bot.core.whitelist import *
@@ -23,7 +24,7 @@ async def _on_bot_connect(bot: Bot):
     await log_message("QQ connected.")
     await message_superusers("早上好！")
 
-read_log = on_command("读取日志", aliases={"日志", "log"}, permission=SUPERUSER)
+read_log = on_cmd("读取日志", aliases={"日志", "log"}, permission=SUPERUSER)
 @read_log.handle()
 async def _(bot: Bot, event: MessageEvent):
     log_content = await log_read()    
@@ -33,7 +34,7 @@ async def _(bot: Bot, event: MessageEvent):
         await read_log.send("".join(log_content[i:i+MAX_LINE]))
 
 
-status = on_command("状态查询", aliases={"状态", "status"}, permission=SUPERUSER)
+status = on_cmd("状态查询", aliases={"状态", "status"}, permission=SUPERUSER)
 @status.handle()
 async def _(bot: Bot, event: MessageEvent):
     ws_status = ws_status_check()
@@ -47,7 +48,7 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 help_pic = os.path.join(RESOURCES_DIR, 'help.png')
-help = on_command("帮助", aliases={"help"}, priority=5)
+help = on_cmd("帮助", aliases={"help"}, priority=5)
 @help.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     with open(help_pic, "rb") as f:
@@ -56,7 +57,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
-version = on_command("版本查询", aliases={"版本", "version"}, permission=SUPERUSER)
+version = on_cmd("版本查询", aliases={"版本", "version"}, permission=SUPERUSER)
 @version.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
@@ -93,7 +94,7 @@ async def _(bot: Bot, event: MessageEvent):
         if not isinstance(e, FinishedException):
             await version.finish(f"版本信息查询失败：{e}")
 
-reload = on_command("重载插件", aliases={"重载", "reload"}, permission=SUPERUSER)
+reload = on_cmd("重载插件", aliases={"重载", "reload"}, permission=SUPERUSER)
 @reload.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
@@ -122,7 +123,7 @@ async def _(bot: Bot, event: MessageEvent):
         await log_message(f"[reload] Exception occurred while reloading plugins: {e}")
         await reload.finish(f"重载插件失败：{e}")
 
-reboot = on_command("重启服务器", aliases={"reboot"}, permission=SUPERUSER)
+reboot = on_cmd("重启服务器", aliases={"reboot"}, permission=SUPERUSER)
 @reboot.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
@@ -144,7 +145,7 @@ async def _(bot: Bot, event: MessageEvent):
         await log_message(f"[reboot] Exception occurred while rebooting server: {e}")
         await reboot.finish(f"重启服务器失败：{e}")
 
-whitelist = on_command("添加至白名单", aliases={"白名单"}, permission=SUPERUSER)
+whitelist = on_cmd("添加至白名单", aliases={"白名单"}, permission=SUPERUSER)
 @whitelist.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if args:
@@ -159,7 +160,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     else:
         await whitelist.finish(f"群{group_id}已经在白名单中。")
 
-kill_all_whitelist = on_command("清空白名单", permission=SUPERUSER)
+kill_all_whitelist = on_cmd("清空白名单", permission=SUPERUSER)
 
 @kill_all_whitelist.handle()
 async def _(bot: Bot, event: MessageEvent):
@@ -178,7 +179,7 @@ async def _(bot: Bot, event: MessageEvent, matcher: Matcher):
         matcher.stop_propagation()
 
 
-broadcast = on_command('广播', permission=SUPERUSER)
+broadcast = on_cmd('广播', permission=SUPERUSER)
 
 @broadcast.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -218,7 +219,7 @@ async def _(bot: Bot, event: GroupRequestEvent):
         await log_message(f"[group_request] Failed to process group invite from user {event.user_id} in group {event.group_id}: {e}")
 
 
-member_list = on_command('成员列表', permission=SUPERUSER)
+member_list = on_cmd('成员列表', permission=SUPERUSER)
 
 @member_list.handle()
 async def _(bot: Bot, event: GroupMessageEvent):

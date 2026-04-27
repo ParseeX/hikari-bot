@@ -6,7 +6,8 @@ from pathlib import Path
 
 import httpx
 from bs4 import BeautifulSoup
-from nonebot import get_bot, get_driver, on_command, require
+from nonebot import get_bot, get_driver, require
+from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.permission import SUPERUSER
 
@@ -155,7 +156,7 @@ async def _scheduled_mensa_job():
     await scheduled_mensa_check()
 
 
-mensa_toggle = on_command("切换门萨", aliases={"切换mensa"}, permission=SUPERUSER)
+mensa_toggle = on_cmd("切换门萨", aliases={"切换mensa"}, permission=SUPERUSER)
 
 @mensa_toggle.handle()
 async def _(bot: Bot, event: MessageEvent):
@@ -181,7 +182,7 @@ async def _(bot: Bot, event: MessageEvent):
         await log_message("[mensa_monitor] MENSA monitor disabled.")
 
 
-mensa_check = on_command("门萨", aliases={"mensa"}, permission=SUPERUSER)
+mensa_check = on_cmd("门萨", aliases={"mensa"}, permission=SUPERUSER)
 
 @mensa_check.handle()
 async def _(bot: Bot, event: MessageEvent):

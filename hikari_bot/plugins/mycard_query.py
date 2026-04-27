@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import pytz
 from matplotlib.ticker import MaxNLocator
 
-from nonebot import on_command, on_regex
+from nonebot import on_regex
+from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg, EventMessage
 
@@ -16,15 +17,15 @@ from hikari_bot.services.mycard import *
 
 mycard_regex = r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))?$"
 mycard_query = on_regex(r".*历史.*", priority=5)
-mycard_bind = on_command("绑定", priority=5)
-mycard_subscribe = on_command("订阅", priority=5)
-mycard_unsubscribe = on_command("退订", priority=5)
-mycard_firstwin = on_command("首胜查询", aliases={"首赢查询"}, priority=5)
-mycard_whois = on_command("查询绑定", aliases={"绑定查询"}, priority=5)
-mycard_winrate = on_command("胜率查询", aliases={"胜率统计"}, priority=5)
-mycard_addtag = on_command("添加标签", priority=5)
-mycard_deltag = on_command("删除标签", priority=5)
-mycard_taglist = on_command("查看标签", priority=5)
+mycard_bind = on_cmd("绑定", priority=5)
+mycard_subscribe = on_cmd("订阅", priority=5)
+mycard_unsubscribe = on_cmd("退订", priority=5)
+mycard_firstwin = on_cmd("首胜查询", aliases={"首赢查询"}, priority=5)
+mycard_whois = on_cmd("查询绑定", aliases={"绑定查询"}, priority=5)
+mycard_winrate = on_cmd("胜率查询", aliases={"胜率统计"}, priority=5)
+mycard_addtag = on_cmd("添加标签", priority=5)
+mycard_deltag = on_cmd("删除标签", priority=5)
+mycard_taglist = on_cmd("查看标签", priority=5)
 
 @mycard_query.handle()
 async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):

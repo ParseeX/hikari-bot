@@ -131,7 +131,7 @@ def get_latest_price(cursor: sqlite3.Cursor, product_id: int) -> Optional[tuple[
     return (int(row[0]), row[1]) if row else None
 
 
-def save_prices(prices_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def save_prices(prices_data: list[dict[str, Any]]) -> int:
     """
     保存本次抓取结果。
 
@@ -140,11 +140,11 @@ def save_prices(prices_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     2. 最新价格和上一条历史记录不同。
 
     changed_at 使用 API 返回的 updated_at。
-    返回本次新增的变化列表。
+    返回本次新增的记录数量。
     """
     init_database()
 
-    changes = []
+    count = 0
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -174,103 +174,11 @@ def save_prices(prices_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 """,
                 (product_id, name, rarity, model_number, new_price, updated_at),
             )
-
-            changes.append(
-                {
-                    "product_id": product_id,
-                    "name": name,
-                    "rarity": rarity,
-                    "model_number": model_number,
-                    "old_price": old_price,
-                    "new_price": new_price,
-                    "change_type": "new" if old_price is None else "changed",
-                    "price_diff": None if old_price is None else new_price - old_price,
-                    "percent_diff": None if not old_price else (new_price - old_price) / old_price * 100,
-                    "changed_at": updated_at,
-                }
-            )
+            count += 1
 
         conn.commit()
 
-    return changes
-
-
-def get_latest_prices() -> dict[int, int]:
-    """获取所有卡片的最新价格，返回 {product_id: price}。"""
-    init_database()
-
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            WITH ranked AS (
-                SELECT
-                    product_id,
-                    price,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY product_id
-                        ORDER BY changed_at DESC, id DESC
-                    ) AS rn
-                FROM card_price_history
-            )
-            SELECT product_id, price
-            FROM ranked
-            WHERE rn = 1
-            """
-        )
-
-        return {
-            product_id: int(price)
-            for product_id, price in cursor.fetchall()
-        }
-
-
-def compare_prices(new_prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """只比较，不写入数据库。"""
-    old_prices = get_latest_prices()
-    changes = []
-
-    for card in new_prices:
-        product_id = card.get("product_id")
-        name = card.get("name")
-        rarity = card.get("rarity")
-        model_number = card.get("model_number")
-        new_price = card.get("price")
-
-        if not product_id or not name or new_price is None:
-            continue
-
-        new_price = int(new_price)
-        old_price = old_prices.get(product_id)
-
-        if old_price is None:
-            changes.append(
-                {
-                    "product_id": product_id,
-                    "name": name,
-                    "rarity": rarity,
-                    "model_number": model_number,
-                    "old_price": None,
-                    "new_price": new_price,
-                    "change_type": "new",
-                }
-            )
-        elif old_price != new_price:
-            changes.append(
-                {
-                    "product_id": product_id,
-                    "name": name,
-                    "rarity": rarity,
-                    "model_number": model_number,
-                    "old_price": old_price,
-                    "new_price": new_price,
-                    "change_type": "changed",
-                    "price_diff": new_price - old_price,
-                    "percent_diff": (new_price - old_price) / old_price * 100 if old_price else None,
-                }
-            )
-
-    return changes
+    return count
 
 
 def _build_series_where(series_keywords: Optional[Iterable[str]]) -> tuple[str, list[str]]:

@@ -4,7 +4,8 @@ import re
 
 import aiohttp
 
-from nonebot import get_driver, logger, on_command
+from nonebot import get_driver, logger
+from hikari_bot.core.commands import on_cmd
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, ActionFailed
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
@@ -22,7 +23,7 @@ _ws_task: asyncio.Task | None = None
 
 room_list = {}
 
-notify_switch = on_command("切换通知", permission=SUPERUSER)
+notify_switch = on_cmd("切换通知", permission=SUPERUSER)
 
 async def _send_notifications(bot: Bot, subscribers: list, message: str, message_type: str):
     for subscriber in subscribers:
