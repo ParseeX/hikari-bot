@@ -138,17 +138,21 @@ def save_prices(prices_data: list[dict[str, Any]]) -> int:
     只在以下情况新增历史记录：
     1. 新卡第一次出现。
     2. 最新价格和上一条历史记录不同。
+    3. 本次响应中消失（不再收购）的卡，写入 price=0 记录。
 
-    changed_at 使用 API 返回的 updated_at。
+    changed_at 使用 API 返回的 updated_at（消失的卡用当前时间）。
     返回本次新增的记录数量。
     """
     init_database()
 
+    now_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    seen_product_ids: set[int] = set()
     count = 0
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
 
+        # ── 处理 API 返回的卡 ──────────────────────────────────────────────
         for card in prices_data:
             product_id = card.get("product_id")
             name = card.get("name")
@@ -160,7 +164,10 @@ def save_prices(prices_data: list[dict[str, Any]]) -> int:
             if not product_id or not name or new_price is None:
                 continue
 
+            product_id = int(product_id)
             new_price = int(new_price)
+            seen_product_ids.add(product_id)
+
             latest = get_latest_price(cursor, product_id)
             old_price = latest[0] if latest else None
 
@@ -175,6 +182,35 @@ def save_prices(prices_data: list[dict[str, Any]]) -> int:
                 (product_id, name, rarity, model_number, new_price, updated_at),
             )
             count += 1
+
+        # ── 检测消失的卡（不再收购 → 写入 price=0）────────────────────────
+        # 取出所有最新价格不为 0 的卡（即还"在收"的卡）
+        cursor.execute(
+            """
+            WITH ranked AS (
+                SELECT product_id, name, rarity, model_number, price,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY product_id ORDER BY changed_at DESC, id DESC
+                       ) AS rn
+                FROM card_price_history
+            )
+            SELECT product_id, name, rarity, model_number
+            FROM ranked
+            WHERE rn = 1 AND price != 0
+            """
+        )
+        active_cards = cursor.fetchall()
+
+        for product_id, name, rarity, model_number in active_cards:
+            if product_id not in seen_product_ids:
+                cursor.execute(
+                    """
+                    INSERT INTO card_price_history(product_id, name, rarity, model_number, price, changed_at)
+                    VALUES (?, ?, ?, ?, 0, ?)
+                    """,
+                    (product_id, name, rarity, model_number, now_str),
+                )
+                count += 1
 
         conn.commit()
 

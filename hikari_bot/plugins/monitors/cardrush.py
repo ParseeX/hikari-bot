@@ -408,42 +408,69 @@ def _parse_date_arg(arg: str) -> str:
 
 
 def _format_daily_report(changes: list[dict], date_str: str) -> list[str]:
-    """将日报变化列表格式化为文字消息，每条最多 50 条变化。"""
+    """将日报变化列表分三类（涨价/降价/新增）格式化为文字消息，每类最多 50 条。"""
     if not changes:
         return [f"【卡价日报 {date_str}】\n当日无价格变化记录。"]
 
+    up:      list[dict] = []
+    down:    list[dict] = []
+    new:     list[dict] = []
+
+    for c in changes:
+        if c["change_type"] == "new":
+            new.append(c)
+        elif c["price_diff"] > 0:
+            up.append(c)
+        else:
+            down.append(c)
+
+    def _card_line(c: dict, kind: str) -> str:
+        box    = (c.get("model_number") or "").split("-")[0] or "?"
+        rarity = rarity_jp_to_en(c.get("rarity") or "")
+        name   = c["name"]
+        new_p  = c["new_price"]
+
+        if kind == "new":
+            return f"[新] {name} {box}-{rarity}：{new_p:,}円"
+
+        old_p = c["old_price"]
+        diff  = c["price_diff"]
+        pct   = c["percent_diff"]
+        sign  = "+" if diff > 0 else ""
+        pct_str = f" {sign}{pct:.1f}%" if pct is not None else ""
+
+        if new_p == 0:
+            return f"✕ {name} {box}-{rarity}：{old_p:,} → 停收"
+        return (
+            f"{'↑' if diff > 0 else '↓'} {name} {box}-{rarity}："
+            f"{old_p:,} → {new_p:,}（{sign}{diff:,}円{pct_str}）"
+        )
+
     PAGE_SIZE = 50
-    total_pages = (len(changes) + PAGE_SIZE - 1) // PAGE_SIZE
-    messages = []
+    messages: list[str] = []
 
-    for page_idx in range(total_pages):
-        page = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
-        header = f"【卡价日报 {date_str}】共 {len(changes)} 条变化"
-        if total_pages > 1:
-            header += f"（{page_idx + 1}/{total_pages}）"
+    total = len(changes)
+    summary = f"【卡价日报 {date_str}】共 {total} 条变化（涨价 {len(up)} / 降价 {len(down)} / 新增 {len(new)}）"
 
-        lines = [header]
-        for c in page:
-            box = (c.get("model_number") or "").split("-")[0] or "?"
-            rarity = rarity_jp_to_en(c.get("rarity") or "")
-            name = c["name"]
-            new_price = c["new_price"]
+    sections = [
+        ("📈 涨价", up,   "up"),
+        ("📉 降价/停收", down, "down"),
+        ("🆕 新增", new,  "new"),
+    ]
 
-            if c["change_type"] == "new":
-                lines.append(f"[新] {name} {box}-{rarity}：{new_price:,}円")
-            else:
-                old_price = c["old_price"]
-                diff = c["price_diff"]
-                pct = c["percent_diff"]
-                sign = "+" if diff > 0 else ""
-                arrow = "↑" if diff > 0 else "↓"
-                pct_str = f" {sign}{pct:.1f}%" if pct is not None else ""
-                lines.append(
-                    f"{arrow} {name} {box}-{rarity}："
-                    f"{old_price:,} → {new_price:,}（{sign}{diff:,}円{pct_str}）"
-                )
-
-        messages.append("\n".join(lines))
+    for section_title, items, kind in sections:
+        if not items:
+            continue
+        for page_idx in range(0, len(items), PAGE_SIZE):
+            page = items[page_idx : page_idx + PAGE_SIZE]
+            header_parts = [summary, f"\n{section_title}（{len(items)} 条）"]
+            if len(items) > PAGE_SIZE:
+                current = page_idx // PAGE_SIZE + 1
+                total_pages = (len(items) + PAGE_SIZE - 1) // PAGE_SIZE
+                header_parts.append(f"（{current}/{total_pages}）")
+            lines = ["".join(header_parts)]
+            lines.extend(_card_line(c, kind) for c in page)
+            messages.append("\n".join(lines))
 
     return messages
 
