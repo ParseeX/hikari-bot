@@ -424,15 +424,15 @@ def get_series_latest_prices(series_keywords: Iterable[str], limit: int = 100) -
 
 def search_local_prices(
     name: str,
-    rarity: Optional[str] = None,
+    rarity: Optional[str | list[str]] = None,
     model_number: Optional[str] = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
     """
-    在本地数据库中按卡名（模糊）、稀有度（精确）、型号前缀（模糊）查询最新价格。
+    在本地数据库中按卡名（模糊）、稀有度、型号前缀（模糊）查询最新价格。
 
     name: 支持模糊匹配（LIKE %name%）。
-    rarity: 精确匹配日文稀有度名称。
+    rarity: 日文稀有度名称，str 则精确匹配，list 则 IN 匹配（支持前缀展开）。
     model_number: 模糊匹配（LIKE %model_number%），支持只输入盒子编号如 "ALIN"。
     返回列表按价格倒序，包含 product_id / name / rarity / model_number / price / changed_at。
     """
@@ -442,8 +442,17 @@ def search_local_prices(
     params: list[Any] = [f"%{name}%"]
 
     if rarity is not None:
-        conditions.append("IFNULL(rarity, '') = IFNULL(?, '')")
-        params.append(rarity)
+        if isinstance(rarity, list):
+            if rarity:
+                placeholders = ",".join("?" * len(rarity))
+                conditions.append(f"rarity IN ({placeholders})")
+                params.extend(rarity)
+            # 空列表意味着没有任何日文名匹配，结果必为空，加个永假条件
+            else:
+                conditions.append("0")
+        else:
+            conditions.append("IFNULL(rarity, '') = IFNULL(?, '')")
+            params.append(rarity)
     if model_number is not None:
         conditions.append("model_number LIKE ?")
         params.append(f"%{model_number}%")

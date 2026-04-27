@@ -103,18 +103,17 @@ def parse_price_query(input_text: str) -> tuple[str, str | None, str | None]:
       Blue-Eyes White Dragon UR ALIN → name=Blue-Eyes White Dragon, rarity=UR, model=ALIN
     """
     tokens = input_text.split()
-    rarity_jp: str | None = None
+    rarity_en: str | None = None
     model_prefix: str | None = None
 
     while len(tokens) > 1:
         last = tokens[-1]
         last_upper = last.upper()
 
-        # 稀有度：大小写不敏感匹配
-        if rarity_jp is None:
-            found_jp = next((jp for jp, en in RARITY_MAPPING.items() if en == last_upper), None)
-            if found_jp:
-                rarity_jp = found_jp
+        # 稀有度：大小写不敏感，只要有任意一个已知英文缩写以此为前缀即视为稀有度词
+        if rarity_en is None:
+            if any(en.upper().startswith(last_upper) for en in RARITY_MAPPING.values()):
+                rarity_en = last_upper
                 tokens.pop()
                 continue
 
@@ -126,7 +125,7 @@ def parse_price_query(input_text: str) -> tuple[str, str | None, str | None]:
 
         break
 
-    return ' '.join(tokens), rarity_jp, model_prefix
+    return ' '.join(tokens), rarity_en, model_prefix
 
 
 def _draw_price_chart(history: list[dict]) -> bytes:
@@ -204,7 +203,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         return
 
     try:
-        name, rarity_jp, model_prefix = parse_price_query(input_text)
+        name, rarity_en, model_prefix = parse_price_query(input_text)
 
         card_info = await get_card_info(name)
         if not card_info:
@@ -212,10 +211,14 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             return
 
         name_jp = clean_card_name(card_info["jp_name"])
+        rarity_jp_list = (
+            [jp for jp, en in RARITY_MAPPING.items() if en.upper().startswith(rarity_en)]
+            if rarity_en else None
+        )
 
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
-            None, search_local_prices, name_jp, rarity_jp, model_prefix
+            None, search_local_prices, name_jp, rarity_jp_list, model_prefix
         )
 
         if not results:
@@ -258,7 +261,7 @@ async def price_curve_start(
         return
 
     try:
-        name, rarity_jp, model_prefix = parse_price_query(input_text)
+        name, rarity_en, model_prefix = parse_price_query(input_text)
 
         card_info = await get_card_info(name)
         if not card_info:
@@ -266,6 +269,10 @@ async def price_curve_start(
             return
 
         name_jp = clean_card_name(card_info["jp_name"])
+        rarity_jp_list = (
+            [jp for jp, en in RARITY_MAPPING.items() if en.upper().startswith(rarity_en)]
+            if rarity_en else None
+        )
 
         loop = asyncio.get_event_loop()
         # 多查一条，用于判断是否"过多"
