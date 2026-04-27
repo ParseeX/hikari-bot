@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from nonebot import get_driver, on_command, require
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
-from nonebot.exception import FinishedException
+from nonebot.exception import FinishedException, RejectedException
 from nonebot.params import Arg, CommandArg
 from nonebot.typing import T_State
 from nonebot.permission import SUPERUSER
@@ -363,7 +363,7 @@ async def price_curve_draw(
         ]))
 
     except Exception as e:
-        if not isinstance(e, FinishedException):
+        if not isinstance(e, (FinishedException, RejectedException)):
             await log_message(f"[cardrush] price_curve_draw error: {e}")
             await price_curve.finish(f"绘制失败：{str(e)}")
 
