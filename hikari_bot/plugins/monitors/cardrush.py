@@ -434,17 +434,9 @@ def _format_daily_report(changes: list[dict], date_str: str) -> list[str]:
             return f"[新] {name} {box}-{rarity}：{new_p:,}円"
 
         old_p = c["old_price"]
-        diff  = c["price_diff"]
-        pct   = c["percent_diff"]
-        sign  = "+" if diff > 0 else ""
-        pct_str = f" {sign}{pct:.1f}%" if pct is not None else ""
-
-        if new_p == 0:
-            return f"✕ {name} {box}-{rarity}：{old_p:,} → 停收"
-        return (
-            f"{'↑' if diff > 0 else '↓'} {name} {box}-{rarity}："
-            f"{old_p:,} → {new_p:,}（{sign}{diff:,}円{pct_str}）"
-        )
+        arrow = "↑" if c["price_diff"] > 0 else "↓"
+        new_str = "0" if new_p == 0 else f"{new_p:,}円"
+        return f"{arrow} {name} {box}-{rarity}：{old_p:,}円 → {new_str}"
 
     PAGE_SIZE = 50
     messages: list[str] = []
