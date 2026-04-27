@@ -117,16 +117,16 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await ygo_card_effect.finish("未找到对应卡片！")
             return
 
-        jp_name = card_info.get("jp_name") or card_info.get("en_name", "")
-        cn_name = card_info.get("cn_name") or card_info.get("en_name", "")
+        official_name = card_info.get("jp_name") or card_info.get("en_name", "")
+        cn_name = card_info.get("cn_name", "")
         type = card_info["text"]["types"]
         p_effect = card_info["text"]["pdesc"]
         effect = card_info["text"]["desc"]
 
-        if jp_name == cn_name:
-            result = f"{cn_name}\n{type}\n"
+        if cn_name:
+            result = f"{cn_name}（{official_name}）\n{type}\n"
         else:
-            result = f"{cn_name}（{jp_name}）\n{type}\n"
+            result = f"{official_name}\n{type}\n"
         if p_effect != "":
             result = result + p_effect + "\n"
         
