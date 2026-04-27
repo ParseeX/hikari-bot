@@ -429,11 +429,12 @@ def search_local_prices(
     limit: int = 10,
 ) -> list[dict[str, Any]]:
     """
-    在本地数据库中按卡名（模糊）、稀有度、型号查询最新价格。
+    在本地数据库中按卡名（模糊）、稀有度（精确）、型号前缀（模糊）查询最新价格。
 
     name: 支持模糊匹配（LIKE %name%）。
-    rarity / model_number: 若传入则精确匹配（IFNULL 兼容 NULL）。
-    返回列表按价格倒序，包含 name / rarity / model_number / price / changed_at。
+    rarity: 精确匹配日文稀有度名称。
+    model_number: 模糊匹配（LIKE %model_number%），支持只输入盒子编号如 "ALIN"。
+    返回列表按价格倒序，包含 product_id / name / rarity / model_number / price / changed_at。
     """
     init_database()
 
@@ -444,8 +445,8 @@ def search_local_prices(
         conditions.append("IFNULL(rarity, '') = IFNULL(?, '')")
         params.append(rarity)
     if model_number is not None:
-        conditions.append("IFNULL(model_number, '') = IFNULL(?, '')")
-        params.append(model_number)
+        conditions.append("model_number LIKE ?")
+        params.append(f"%{model_number}%")
 
     where = " AND ".join(conditions)
 
@@ -454,6 +455,7 @@ def search_local_prices(
         sql = f"""
             WITH ranked AS (
                 SELECT
+                    product_id,
                     name,
                     rarity,
                     model_number,
@@ -466,7 +468,7 @@ def search_local_prices(
                 FROM card_price_history
                 WHERE {where}
             )
-            SELECT name, rarity, model_number, price, changed_at
+            SELECT product_id, name, rarity, model_number, price, changed_at
             FROM ranked
             WHERE rn = 1
             ORDER BY price DESC
@@ -477,14 +479,33 @@ def search_local_prices(
 
     return [
         {
+            "product_id": product_id,
             "name": name,
             "rarity": rarity,
             "model_number": model_number,
             "price": int(price),
             "changed_at": changed_at,
         }
-        for name, rarity, model_number, price, changed_at in rows
+        for product_id, name, rarity, model_number, price, changed_at in rows
     ]
+
+
+def get_price_history(product_id: int) -> list[dict[str, Any]]:
+    """获取指定 product_id 的完整价格历史（按时间升序）。"""
+    init_database()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT price, changed_at
+            FROM card_price_history
+            WHERE product_id = ?
+            ORDER BY changed_at ASC, id ASC
+            """,
+            (product_id,),
+        )
+        rows = cursor.fetchall()
+    return [{"price": int(price), "changed_at": changed_at} for price, changed_at in rows]
 
 
 def split_changes(changes: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
