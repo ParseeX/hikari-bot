@@ -206,11 +206,10 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         name, rarity_en, model_prefix = parse_price_query(input_text)
 
         card_info = await get_card_info(name)
-        if not card_info:
-            await card_price.finish("未找到对应卡片！")
-            return
-
-        name_jp = clean_card_name(card_info["jp_name"])
+        if card_info:
+            name_jp = clean_card_name(card_info["jp_name"])
+        else:
+            name_jp = name
         rarity_jp_list = (
             [jp for jp, en in RARITY_MAPPING.items() if en.upper().startswith(rarity_en)]
             if rarity_en else None
@@ -264,11 +263,10 @@ async def price_curve_start(
         name, rarity_en, model_prefix = parse_price_query(input_text)
 
         card_info = await get_card_info(name)
-        if not card_info:
-            await price_curve.finish("未找到对应卡片！")
-            return
-
-        name_jp = clean_card_name(card_info["jp_name"])
+        if card_info:
+            name_jp = clean_card_name(card_info["jp_name"])
+        else:
+            name_jp = name
         rarity_jp_list = (
             [jp for jp, en in RARITY_MAPPING.items() if en.upper().startswith(rarity_en)]
             if rarity_en else None
