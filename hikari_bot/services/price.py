@@ -266,37 +266,47 @@ def get_daily_report_changes(
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         sql = f"""
-            WITH history AS (
-                SELECT
-                    id,
-                    product_id,
-                    name,
-                    rarity,
-                    model_number,
-                    price AS new_price,
-                    changed_at,
-                    LAG(price) OVER (
-                        PARTITION BY product_id
-                        ORDER BY changed_at, id
-                    ) AS old_price
-                FROM card_price_history
+            WITH
+            -- 当天每张卡的最后一条记录（即当天最终价格）
+            day_last AS (
+                SELECT product_id, name, rarity, model_number, price AS new_price, changed_at
+                FROM card_price_history h1
+                WHERE DATE(h1.changed_at) = DATE(?)
+                  AND h1.id = (
+                      SELECT MAX(id) FROM card_price_history h2
+                      WHERE h2.product_id = h1.product_id
+                        AND DATE(h2.changed_at) = DATE(?)
+                  )
+            ),
+            -- 当天之前每张卡的最后一条记录（昨日及以前最终价格）
+            prev_last AS (
+                SELECT product_id, price AS old_price
+                FROM card_price_history h3
+                WHERE DATE(h3.changed_at) < DATE(?)
+                  AND h3.id = (
+                      SELECT MAX(id) FROM card_price_history h4
+                      WHERE h4.product_id = h3.product_id
+                        AND DATE(h4.changed_at) < DATE(?)
+                  )
             )
             SELECT
-                product_id,
-                name,
-                rarity,
-                model_number,
-                old_price,
-                new_price,
-                changed_at
-            FROM history
-            WHERE DATE(changed_at) = DATE(?)
+                d.product_id,
+                d.name,
+                d.rarity,
+                d.model_number,
+                p.old_price,
+                d.new_price,
+                d.changed_at
+            FROM day_last d
+            LEFT JOIN prev_last p ON p.product_id = d.product_id
+            WHERE 1=1
             {series_where}
             {exclude_where}
-            ORDER BY product_id DESC, name
+            ORDER BY d.product_id DESC, d.name
         """
 
-        cursor.execute(sql, [date_str, *series_params, *exclude_params])
+        cursor.execute(sql, [date_str, date_str, date_str, date_str,
+                              *series_params, *exclude_params])
         rows = cursor.fetchall()
 
     results = []
