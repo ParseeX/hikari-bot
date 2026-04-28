@@ -32,7 +32,7 @@ require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.commands import on_cmd
-from hikari_bot.core.constants import DATA_DIR
+from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
 from hikari_bot.core.logger import log_message
 from hikari_bot.services.price import (
     get_daily_report_changes,
@@ -396,61 +396,122 @@ async def price_curve_draw(
 
 _CARD_IMAGE_URL = "https://files.cardrush.media/yugioh/ocha_products/{product_id}.webp"
 
-_HTML_CSS = """
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
+
+def _load_bg_image_b64() -> str | None:
+    """尝试加载 resources/bg_daily_report.{jpg/png/webp}，返回 CSS data URL，不存在则返回 None。"""
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        path = os.path.join(RESOURCES_DIR, f"bg_daily_report.{ext}")
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode()
+            mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+            return f"data:{mime};base64,{data}"
+    return None
+
+
+def _build_html_css(bg_url: str | None) -> str:
+    """生成页面 CSS，bg_url 为背景图 data URL 或 None（使用渐变背景）。"""
+    if bg_url:
+        bg_css = f"background-image: url('{bg_url}'); background-size: cover; background-position: center;"
+    else:
+        bg_css = "background: linear-gradient(160deg, #07091a 0%, #0c1528 40%, #07091a 100%);"
+    return f"""
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{
     font-family: "Noto Sans CJK JP", "Source Han Sans JP", "Yu Gothic", "Meiryo",
                  "Microsoft YaHei", sans-serif;
-    background: #1a1a2e;
+    {bg_css}
     color: #e0e0e0;
-    padding: 20px;
+    padding: 24px 24px 54px;
     min-width: 1300px;
-}
-h1 {
+    position: relative;
+}}
+body::before {{
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 8, 22, 0.74);
+    z-index: 0;
+    pointer-events: none;
+}}
+.content-wrap {{
+    position: relative;
+    z-index: 1;
+}}
+/* ── 标题区域 ── */
+.header {{
     text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    color: #f0f0f0;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-}
-.subtitle {
-    text-align: center;
+    margin-bottom: 22px;
+    padding: 18px 0 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}}
+.header-eyebrow {{
+    font-size: 11px;
+    letter-spacing: 5px;
+    color: #6a8aaa;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}}
+.header-title {{
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #90bcff 0%, #ffffff 45%, #ffd060 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+    line-height: 1.2;
+}}
+.header-rule {{
+    width: 70px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #4a9eff, transparent);
+    margin: 0 auto 10px;
+}}
+.header-date {{
+    font-size: 14px;
+    color: #b8cce4;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}}
+.header-stats {{
+    display: inline-flex;
+    gap: 18px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 5px 20px;
     font-size: 13px;
-    color: #aaa;
-    margin-bottom: 4px;
-}
-.summary {
-    text-align: center;
-    font-size: 12px;
-    color: #888;
-    margin-bottom: 16px;
-}
-.grid {
+}}
+.stat-up   {{ color: #ff8080; }}
+.stat-down {{ color: #60b8f8; }}
+.stat-new  {{ color: #5cf0a0; }}
+.stat-sep  {{ color: #3a4a5a; }}
+/* ── 卡片网格 ── */
+.grid {{
     display: grid;
     grid-template-columns: repeat(10, 1fr);
     gap: 8px;
-}
-.card {
-    background: #16213e;
-    border-radius: 6px;
+}}
+.card {{
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid #0f3460;
-}
-.card {
-    background: #0a0a16;
-    border-radius: 6px;
-    overflow: hidden;
-    border: 1px solid #0f3460;
     position: relative;
-}
-.card-img {
+    border: 2px solid #3a6090;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    background: #080c18;
+}}
+.up   {{ border-color: #ff5252; box-shadow: 0 0 10px rgba(255,82,82,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
+.down {{ border-color: #3aacf0; box-shadow: 0 0 10px rgba(58,172,240,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
+.new  {{ border-color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
+.card-img {{
     width: 100%;
     display: block;
-    background: #0f3460;
-}
+    background: #0c1428;
+}}
 /* 渐变遮罩 + 文字叠加在卡图下半部 */
-.card-overlay {
+.card-overlay {{
     position: absolute;
     bottom: 0;
     left: 0;
@@ -458,67 +519,75 @@ h1 {
     background: linear-gradient(
         to bottom,
         transparent 0%,
-        rgba(6, 8, 20, 0.60) 22%,
-        rgba(6, 8, 20, 0.86) 50%,
-        rgba(6, 8, 20, 0.96) 100%
+        rgba(4, 6, 18, 0.58) 20%,
+        rgba(4, 6, 18, 0.88) 48%,
+        rgba(4, 6, 18, 0.97) 100%
     );
     padding: 28px 7px 8px;
-}
-.card-name {
-    font-size: 12px;
-    font-weight: bold;
-    color: #f2f2f2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 3px;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
-}
-.card-meta {
+}}
+.card-name {{
     font-size: 11px;
-    color: #c0c0c0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: bold;
+    color: #f5f5f5;
+    word-break: break-all;
+    white-space: normal;
+    line-height: 1.35;
+    margin-bottom: 3px;
+    text-shadow: 0 1px 5px rgba(0,0,0,0.95);
+}}
+.card-meta {{
+    font-size: 10px;
+    color: #a8bcd8;
+    word-break: break-all;
+    white-space: normal;
+    line-height: 1.3;
     margin-bottom: 5px;
     text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-}
-.price-row {
+}}
+.price-row {{
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 3px;
-}
-.price-block { flex: 1; min-width: 0; }
-.new-price {
+}}
+.price-block {{ flex: 1; min-width: 0; }}
+.new-price {{
     font-size: 13px;
     font-weight: bold;
     white-space: nowrap;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.95);
-}
-.old-price {
-    font-size: 11px;
-    color: #aaa;
+    text-shadow: 0 1px 5px rgba(0,0,0,0.95);
+}}
+.old-price {{
+    font-size: 10px;
+    color: #7a8fa0;
     text-decoration: line-through;
     white-space: nowrap;
     margin-top: 2px;
     text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-}
-.badge {
-    font-size: 12px;
+}}
+.badge {{
+    font-size: 11px;
     font-weight: bold;
     padding: 2px 5px;
     border-radius: 3px;
     flex-shrink: 0;
     line-height: 1.4;
-}
-/* 颜色主题 */
-.up   .new-price { color: #ff6b6b; }
-.down .new-price { color: #5dade2; }
-.new  .new-price { color: #2ecc71; }
-.up   .badge { background: rgba(74,26,26,0.85); color: #ff6b6b; }
-.down .badge { background: rgba(26,42,74,0.85); color: #5dade2; }
-.new  .badge { background: rgba(26,58,42,0.85); color: #2ecc71; }
+}}
+.up   .new-price {{ color: #ff8080; }}
+.down .new-price {{ color: #60b8f8; }}
+.new  .new-price {{ color: #5cf0a0; }}
+.up   .badge {{ background: rgba(255,82,82,0.2); color: #ff8080; border: 1px solid rgba(255,82,82,0.45); }}
+.down .badge {{ background: rgba(58,172,240,0.2); color: #60b8f8; border: 1px solid rgba(58,172,240,0.45); }}
+.new  .badge {{ background: rgba(0,230,118,0.2); color: #5cf0a0; border: 1px solid rgba(0,230,118,0.45); }}
+/* ── 水印 ── */
+.watermark {{
+    text-align: right;
+    font-size: 11px;
+    color: rgba(255,255,255,0.22);
+    letter-spacing: 1px;
+    margin-top: 14px;
+    padding-right: 2px;
+}}
 """
 
 def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
@@ -529,18 +598,20 @@ def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
     if not changes:
         return []
 
-    PAGE_SIZE = 50
+    bg_url     = _load_bg_image_b64()
+    css        = _build_html_css(bg_url)
+
+    PAGE_SIZE  = 50
     up_count   = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) > 0)
     down_count = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) <= 0)
     new_count  = sum(1 for c in changes if c["change_type"] == "new")
-    summary    = f"共 {len(changes)} 条变化  涨价 {up_count} · 降价/停收 {down_count} · 新增 {new_count}"
 
     total_pages = (len(changes) + PAGE_SIZE - 1) // PAGE_SIZE
     pages = []
 
     for page_idx in range(total_pages):
-        page = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
-        page_label = f"（{page_idx + 1}/{total_pages}）" if total_pages > 1 else ""
+        page       = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
+        page_label = f"&nbsp;&nbsp;<span style='font-size:12px;color:#556677'>（{page_idx + 1}/{total_pages}）</span>" if total_pages > 1 else ""
 
         cards_html_parts = []
         for c in page:
@@ -575,7 +646,7 @@ def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
     <div class="card {css_cls}">
       <img class="card-img" src="{img_url}" loading="lazy">
       <div class="card-overlay">
-        <div class="card-name" title="{name}">{name}</div>
+        <div class="card-name">{name}</div>
         <div class="card-meta">{model_no} {rarity_en}</div>
         <div class="price-row">
           <div class="price-block">
@@ -593,14 +664,27 @@ def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<style>{_HTML_CSS}</style>
+<style>{css}</style>
 </head>
 <body>
-  <h1>Cardrush 买取価格変動日報</h1>
-  <div class="subtitle">{date_str}{page_label}</div>
-  <div class="summary">{summary}</div>
+<div class="content-wrap">
+  <div class="header">
+    <div class="header-eyebrow">CardRush · Daily Report</div>
+    <div class="header-title">买取価格変動日報{page_label}</div>
+    <div class="header-rule"></div>
+    <div class="header-date">{date_str}</div>
+    <div class="header-stats">
+      <span class="stat-up">↑ 涨价 {up_count}</span>
+      <span class="stat-sep">·</span>
+      <span class="stat-down">↓ 降价 {down_count}</span>
+      <span class="stat-sep">·</span>
+      <span class="stat-new">★ 新增 {new_count}</span>
+    </div>
+  </div>
   <div class="grid">{cards_html}
   </div>
+  <div class="watermark">Generated by 神人不神</div>
+</div>
 </body>
 </html>"""
         pages.append(html_page)
