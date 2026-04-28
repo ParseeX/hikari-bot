@@ -414,7 +414,7 @@ def _load_bg_image_b64() -> str | None:
 def _build_html_css(bg_url: str | None) -> str:
     """生成页面 CSS，bg_url 为背景图 data URL 或 None（使用渐变背景）。"""
     if bg_url:
-        bg_css = f"background-image: url('{bg_url}'); background-size: auto; background-repeat: repeat;"
+        bg_css = f"background-image: url('{bg_url}'); background-size: auto; background-repeat: no-repeat; background-position: center center;"
     else:
         bg_css = "background: linear-gradient(160deg, #07091a 0%, #0c1528 40%, #07091a 100%);"
     return f"""
@@ -424,7 +424,7 @@ body {{
                  "Microsoft YaHei", sans-serif;
     {bg_css}
     color: #e0e0e0;
-    padding: 24px 24px 54px;
+    padding: 16px 20px 20px;
     min-width: 1300px;
     position: relative;
 }}
@@ -442,49 +442,55 @@ body::before {{
 }}
 /* ── 标题区域 ── */
 .header {{
-    text-align: center;
-    margin-bottom: 22px;
-    padding: 18px 0 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 8px 0 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }}
-.header-eyebrow {{
-    font-size: 11px;
-    letter-spacing: 5px;
-    color: #6a8aaa;
-    text-transform: uppercase;
-    margin-bottom: 8px;
+.header-left {{
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-left: 12px;
+    border-left: 3px solid #4a9eff;
 }}
 .header-title {{
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 900;
     letter-spacing: 2px;
     background: linear-gradient(90deg, #90bcff 0%, #ffffff 45%, #ffd060 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: 10px;
     line-height: 1.2;
 }}
-.header-rule {{
-    width: 70px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #4a9eff, transparent);
-    margin: 0 auto 10px;
+.header-eyebrow {{
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: #6a8aaa;
+    text-transform: uppercase;
+}}
+.header-right {{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
 }}
 .header-date {{
-    font-size: 14px;
+    font-size: 12px;
     color: #b8cce4;
     letter-spacing: 2px;
-    margin-bottom: 10px;
 }}
 .header-stats {{
     display: inline-flex;
-    gap: 18px;
+    gap: 14px;
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 20px;
-    padding: 5px 20px;
-    font-size: 13px;
+    padding: 4px 16px;
+    font-size: 12px;
 }}
 .stat-up   {{ color: #ff8080; }}
 .stat-down {{ color: #60b8f8; }}
@@ -505,9 +511,9 @@ body::before {{
     box-shadow: 0 2px 10px rgba(0,0,0,0.7);
     background: #080c18;
 }}
-.up   {{ border-color: #ff5252; box-shadow: 0 0 10px rgba(255,82,82,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
-.down {{ border-color: #3aacf0; box-shadow: 0 0 10px rgba(58,172,240,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
-.new  {{ border-color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
+.up   {{ box-shadow: 0 0 10px rgba(255,82,82,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
+.down {{ box-shadow: 0 0 10px rgba(58,172,240,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
+.new  {{ box-shadow: 0 0 10px rgba(0,230,118,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
 .card-img {{
     position: absolute;
     inset: 0;
@@ -531,7 +537,7 @@ body::before {{
         rgba(4, 6, 18, 0.88) 48%,
         rgba(4, 6, 18, 0.97) 100%
     );
-    padding: 28px 7px 8px;
+    padding: 20px 6px 6px;
 }}
 .card-name {{
     font-size: 11px;
@@ -539,8 +545,8 @@ body::before {{
     color: #f5f5f5;
     word-break: break-all;
     white-space: normal;
-    line-height: 1.35;
-    margin-bottom: 3px;
+    line-height: 1.3;
+    margin-bottom: 2px;
     text-shadow: 0 1px 5px rgba(0,0,0,0.95);
 }}
 .card-meta {{
@@ -548,8 +554,8 @@ body::before {{
     color: #a8bcd8;
     word-break: break-all;
     white-space: normal;
-    line-height: 1.3;
-    margin-bottom: 5px;
+    line-height: 1.25;
+    margin-bottom: 3px;
     text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }}
 .price-row {{
@@ -693,7 +699,7 @@ def _render_daily_report_html(
 
             if change_type == "new":
                 css_cls  = "new"
-                badge    = "NEW"
+                badge    = "新"
                 new_str  = f"{new_price:,}円"
                 old_html = ""
             elif price_diff > 0:
@@ -704,7 +710,7 @@ def _render_daily_report_html(
             else:
                 css_cls  = "down"
                 badge    = "↓"
-                new_str  = "0" if new_price == 0 else f"{new_price:,}円"
+                new_str  = f"{new_price:,}円"
                 old_html = f'<div class="old-price">{old_price:,}円</div>' if old_price else ""
 
             cards_html_parts.append(f"""
@@ -734,16 +740,19 @@ def _render_daily_report_html(
 <body>
 <div class="content-wrap">
   <div class="header">
-    <div class="header-eyebrow">CardRush · Daily Report</div>
-    <div class="header-title">买取価格変動日報{page_label}</div>
-    <div class="header-rule"></div>
-    <div class="header-date">{date_str}</div>
-    <div class="header-stats">
-      <span class="stat-up">↑ 涨价 {up_count}</span>
-      <span class="stat-sep">·</span>
-      <span class="stat-down">↓ 降价 {down_count}</span>
-      <span class="stat-sep">·</span>
-      <span class="stat-new">★ 新增 {new_count}</span>
+    <div class="header-left">
+      <div class="header-title">买取価格変動日報{page_label}</div>
+      <div class="header-eyebrow">CardRush · Daily Report</div>
+    </div>
+    <div class="header-right">
+      <div class="header-date">{date_str}</div>
+      <div class="header-stats">
+        <span class="stat-up">↑ 涨价 {up_count}</span>
+        <span class="stat-sep">·</span>
+        <span class="stat-down">↓ 降价 {down_count}</span>
+        <span class="stat-sep">·</span>
+        <span class="stat-new">★ 新增 {new_count}</span>
+      </div>
     </div>
   </div>
   <div class="grid">{cards_html}
