@@ -654,70 +654,45 @@ body::before {{
          1px  1px 0 rgba(0,0,0,0.8),
          0    0   6px rgba(0,0,0,0.9);
 }}
-/* ── 概述页统计栏 ── */
-.overview-stats {{
+/* ── 概述页文字区 ── */
+.overview-desc {{
+    min-height: 300px;
+    padding: 28px 36px;
     display: flex;
-    align-items: stretch;
-    gap: 0;
-    margin-bottom: 12px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+    background: rgba(6,10,24,0.70);
     border-radius: 8px;
-    overflow: hidden;
-    background: rgba(8,14,32,0.72);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(80,130,200,0.18);
+    border: 1px solid rgba(80,130,200,0.15);
+    backdrop-filter: blur(8px);
 }}
-.stat-desc {{
-    flex: 1;
-    padding: 14px 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    border-right: 1px solid rgba(80,130,200,0.15);
-}}
-.stat-desc-title {{
-    font-size: 11px;
+.overview-desc-zh {{
+    font-size: 20px;
     font-weight: 700;
-    letter-spacing: 4px;
-    color: #5a8aaa;
-    text-transform: uppercase;
-    margin-bottom: 2px;
-}}
-.stat-desc-body {{
-    font-size: 13px;
-    font-weight: 500;
-    color: #c8dff0;
-    line-height: 1.7;
-    letter-spacing: 0.5px;
-}}
-.stat-desc-body em {{
-    font-style: normal;
-    font-weight: 800;
-    color: #eef6ff;
-}}
-.stat-pills {{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 6px;
-    padding: 14px 20px;
-}}
-.stat-pill {{
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
+    color: #ddeeff;
+    line-height: 1.8;
     letter-spacing: 1px;
-    white-space: nowrap;
 }}
-.stat-pill.up   {{ background: rgba(160,20,20,0.35); color: #ffe066; border: 1px solid rgba(200,50,50,0.3); }}
-.stat-pill.down {{ background: rgba(10,110,40,0.35); color: #afffce; border: 1px solid rgba(40,200,90,0.3); }}
-.stat-pill.new  {{ background: rgba(60,60,160,0.35); color: #b8d0ff; border: 1px solid rgba(100,140,240,0.3); }}
-.stat-pill-icon {{ font-size: 14px; }}
-/* 概述页标题 */
+.overview-desc-ja {{
+    font-size: 16px;
+    font-weight: 500;
+    color: #7aabcc;
+    line-height: 1.8;
+    letter-spacing: 0.5px;
+    border-top: 1px solid rgba(80,130,200,0.15);
+    padding-top: 14px;
+}}
+.overview-desc-zh em,
+.overview-desc-ja em {{
+    font-style: normal;
+    font-weight: 900;
+    color: #ffffff;
+}}
+.num-up   {{ color: #ffe066 !important; }}
+.num-down {{ color: #afffce !important; }}
+.num-new  {{ color: #b8d0ff !important; }}
+/* 概述页标题分隔线 */
 .overview-section-title {{
     display: flex;
     align-items: center;
@@ -740,10 +715,10 @@ body::before {{
     white-space: nowrap;
     padding: 0 4px;
 }}
-/* 概述页卡片网格：5列 */
+/* 概述页卡片网格：10列（与正文页相同） */
 .grid-overview {{
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(10, 1fr);
     gap: 6px;
 }}
 }}
@@ -912,9 +887,9 @@ def _render_daily_report_html(
     pages         = []
 
     # ── 概述页（PAGE 1） ──────────────────────────────────────────────────────
-    OVERVIEW_COLS = 5
-    OVERVIEW_ROWS = 4
-    OVERVIEW_SIZE = OVERVIEW_COLS * OVERVIEW_ROWS  # 20
+    OVERVIEW_COLS = 10
+    OVERVIEW_ROWS = 3
+    OVERVIEW_SIZE = OVERVIEW_COLS * OVERVIEW_ROWS  # 30
 
     # 涨幅/跌幅/新增分别取 Top N，合并去重，按分数降序
     up_cards   = sorted(
@@ -950,28 +925,32 @@ def _render_daily_report_html(
     if ph > 0:
         overview_cards_html += '<div class="card card-placeholder"></div>' * ph
 
-    # 统计文案
-    date_display = f"{date_str[:4]}年{date_str[5:7]}月{date_str[8:10]}日"
-    threshold_note = f"买取价 <em>{min_price:,}円</em> 以上的" if min_price > 0 else ""
-    desc_html = (
-        f"统计了 <em>{date_display}</em> CardRush 平台"
-        f"{threshold_note}单卡价格变动情况，"
+    # 统计文案（中日双语）
+    date_display    = f"{date_str[:4]}年{date_str[5:7]}月{date_str[8:10]}日"
+    date_display_ja = f"{date_str[:4]}年{int(date_str[5:7])}月{int(date_str[8:10])}日"
+    zh_html = (
+        f"统计了 <em>{date_display}</em> CardRush 平台买取价"
+        f"<em>500～100,000円</em>范围内单卡价格变动情况，"
         f"共 <em>{len(changes)}</em> 张卡发生变化。"
+        f"涨价 <em class='num-up'>{up_count}</em> 张　·　"
+        f"降价 <em class='num-down'>{down_count}</em> 张　·　"
+        f"新增 <em class='num-new'>{new_count}</em> 张"
+    )
+    ja_html = (
+        f"<em>{date_display_ja}</em>のCardRushプラットフォームにおける"
+        f"買取価格<em>500〜100,000円</em>の単カード価格変動情報。"
+        f"変動計 <em>{len(changes)}</em> 枚。"
+        f"値上がり <em class='num-up'>{up_count}</em> 枚　·　"
+        f"値下がり <em class='num-down'>{down_count}</em> 枚　·　"
+        f"新規 <em class='num-new'>{new_count}</em> 枚"
     )
 
     overview_body = f"""
-  <div class="overview-stats">
-    <div class="stat-desc">
-      <div class="stat-desc-title">Daily Summary</div>
-      <div class="stat-desc-body">{desc_html}</div>
-    </div>
-    <div class="stat-pills">
-      <div class="stat-pill up">  <span class="stat-pill-icon">↑</span> 涨价 {up_count} 张</div>
-      <div class="stat-pill down"><span class="stat-pill-icon">↓</span> 降价 {down_count} 张</div>
-      <div class="stat-pill new"> <span class="stat-pill-icon">★</span> 新增 {new_count} 张</div>
-    </div>
+  <div class="overview-desc">
+    <div class="overview-desc-zh">{zh_html}</div>
+    <div class="overview-desc-ja">{ja_html}</div>
   </div>
-  <div class="overview-section-title"><span>異動 TOP 20</span></div>
+  <div class="overview-section-title"><span>異動 TOP {OVERVIEW_SIZE}</span></div>
   <div class="grid grid-overview">{overview_cards_html}
   </div>"""
 
@@ -980,8 +959,13 @@ def _render_daily_report_html(
                                  overview_body))
 
     # ── 正文页（PAGE 2…） ────────────────────────────────────────────────────
+    # 概述页已展示的卡不再重复出现
+    content_changes = [c for c in changes if c.get("product_id") not in seen_ids]
+    content_pages   = (len(content_changes) + PAGE_SIZE - 1) // PAGE_SIZE
+    total_pages     = content_pages + 1  # 重新计算（概述页已固定为1页）
+
     for page_idx in range(content_pages):
-        page = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
+        page = content_changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
         page_num_html = f'<div class="header-page-num">PAGE {page_idx + 2}/{total_pages}</div>'
 
         cards_html = "".join(_card_html(c, image_map) for c in page)
@@ -1002,36 +986,31 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     arg_text = args.extract_plain_text().strip()
 
     try:
-        # 解析参数：支持 "4.27"、"500"、"4.27 500" 三种格式
+        # 解析参数：仅支持日期（如 4.27）
         date_str = date.today().isoformat()
-        min_price = 0
         if arg_text:
             parts = arg_text.split()
             for part in parts:
                 if re.match(r'^\d{1,2}\.\d{1,2}$', part):
                     date_str = _parse_date_arg(part)
-                elif re.match(r'^\d+$', part):
-                    min_price = int(part)
                 else:
-                    raise ValueError(f"无法识别的参数：{part}，支持格式：日期(4.27) 或 价格阈值(500)")
+                    raise ValueError(f"无法识别的参数：{part}，支持格式：日期(4.27)")
 
         loop = asyncio.get_event_loop()
         _query = functools.partial(get_daily_report_changes, date_str,
-                                   exclude_prefixes=["RD/"], min_price=min_price)
+                                   exclude_prefixes=["RD/"])
         changes = await loop.run_in_executor(None, _query)
 
         if not changes:
-            threshold_note = f"（价格阈值 ≥ {min_price} 円）" if min_price > 0 else ""
-            await daily_report_html.finish(f"【{date_str}】{threshold_note}当日无价格变化记录。")
+            await daily_report_html.finish(f"【{date_str}】当日无价格变化记录。")
             return
 
         total_cards = len(changes)
-        threshold_note = f"，价格阈值 ≥ {min_price} 円" if min_price > 0 else ""
-        await bot.send(event, f"正在下载 {total_cards} 张卡图{threshold_note}，请稍候…")
+        await bot.send(event, f"正在下载 {total_cards} 张卡图，请稍候…")
         img_dir = os.path.join(DATA_DIR, "card_images")
         image_map = await _fetch_card_images(changes, img_dir)
 
-        pages = _render_daily_report_html(changes, date_str, image_map=image_map, min_price=min_price)
+        pages = _render_daily_report_html(changes, date_str, image_map=image_map)
         out_dir = os.path.join(DATA_DIR, "daily_report_html")
         os.makedirs(out_dir, exist_ok=True)
 

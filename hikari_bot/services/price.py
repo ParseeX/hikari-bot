@@ -236,7 +236,6 @@ def get_daily_report_changes(
     min_abs_diff: int = 0,
     include_new: bool = True,
     exclude_prefixes: Optional[Iterable[str]] = None,
-    min_price: int = 0,
 ) -> list[dict[str, Any]]:
     """
     获取某一天新增的价格变化记录，可按系列编号筛选。
@@ -246,7 +245,7 @@ def get_daily_report_changes(
     min_abs_diff: 过滤小变动，例如 100 表示只看变动幅度 >= 100 円。
     include_new: 是否包含新出现的卡。
     exclude_prefixes: 排除 model_number 以这些前缀开头的卡，例如 ['RD/']。
-    min_price: 当前价格低于此值的卡不统计（0 表示不过滤）。
+    价格固定在 500～100000 日元范围内。
     """
     init_database()
 
@@ -304,14 +303,12 @@ def get_daily_report_changes(
     WHERE 1=1
             {series_where}
             {exclude_where}
-            {'AND d.new_price >= ?' if min_price > 0 else ''}
+            AND d.new_price BETWEEN 500 AND 100000
             ORDER BY d.product_id DESC, d.name
         """
 
         params = [date_str, date_str, date_str, date_str,
                   *series_params, *exclude_params]
-        if min_price > 0:
-            params.append(min_price)
         cursor.execute(sql, params)
         rows = cursor.fetchall()
 
