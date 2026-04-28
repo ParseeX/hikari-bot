@@ -414,7 +414,7 @@ def _load_bg_image_b64() -> str | None:
 def _build_html_css(bg_url: str | None) -> str:
     """生成页面 CSS，bg_url 为背景图 data URL 或 None（使用渐变背景）。"""
     if bg_url:
-        bg_css = f"background-image: url('{bg_url}'); background-size: auto; background-repeat: no-repeat; background-position: center center;"
+        bg_css = f"background-image: url('{bg_url}'); background-size: cover; background-position: center center; background-repeat: no-repeat;"
     else:
         bg_css = "background: linear-gradient(160deg, #07091a 0%, #0c1528 40%, #07091a 100%);"
     return f"""
@@ -476,26 +476,30 @@ body::before {{
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 6px;
+    justify-content: center;
+    gap: 2px;
+    padding-right: 4px;
 }}
-.header-date {{
-    font-size: 12px;
-    color: #b8cce4;
-    letter-spacing: 2px;
+.header-date-year {{
+    font-size: 11px;
+    color: #6a8aaa;
+    letter-spacing: 3px;
+    text-transform: uppercase;
 }}
-.header-stats {{
-    display: inline-flex;
-    gap: 14px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 20px;
-    padding: 4px 16px;
-    font-size: 12px;
+.header-date-main {{
+    font-size: 22px;
+    font-weight: 700;
+    color: #ddeeff;
+    letter-spacing: 3px;
+    line-height: 1.1;
+    text-shadow: 0 0 18px rgba(100,180,255,0.35);
 }}
-.stat-up   {{ color: #ff8080; }}
-.stat-down {{ color: #60b8f8; }}
-.stat-new  {{ color: #5cf0a0; }}
-.stat-sep  {{ color: #3a4a5a; }}
+.header-date-label {{
+    font-size: 9px;
+    color: #4a6a8a;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+}}
 /* ── 卡片网格 ── */
 .grid {{
     display: grid;
@@ -537,7 +541,7 @@ body::before {{
         rgba(4, 6, 18, 0.88) 48%,
         rgba(4, 6, 18, 0.97) 100%
     );
-    padding: 20px 6px 6px;
+    padding: 16px 6px 5px;
 }}
 .card-name {{
     font-size: 11px;
@@ -545,18 +549,20 @@ body::before {{
     color: #f5f5f5;
     word-break: break-all;
     white-space: normal;
-    line-height: 1.3;
-    margin-bottom: 2px;
+    line-height: 1.25;
+    margin-bottom: 1px;
     text-shadow: 0 1px 5px rgba(0,0,0,0.95);
 }}
 .card-meta {{
-    font-size: 10px;
-    color: #a8bcd8;
+    font-size: 10.5px;
+    font-weight: bold;
+    color: #d4e8ff;
     word-break: break-all;
     white-space: normal;
-    line-height: 1.25;
+    line-height: 1.2;
     margin-bottom: 3px;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.95);
 }}
 .price-row {{
     display: flex;
@@ -745,14 +751,9 @@ def _render_daily_report_html(
       <div class="header-eyebrow">CardRush · Daily Report</div>
     </div>
     <div class="header-right">
-      <div class="header-date">{date_str}</div>
-      <div class="header-stats">
-        <span class="stat-up">↑ 涨价 {up_count}</span>
-        <span class="stat-sep">·</span>
-        <span class="stat-down">↓ 降价 {down_count}</span>
-        <span class="stat-sep">·</span>
-        <span class="stat-new">★ 新增 {new_count}</span>
-      </div>
+      <div class="header-date-year">{date_str[:4]}</div>
+      <div class="header-date-main">{date_str[5:7]}.{date_str[8:10]}</div>
+      <div class="header-date-label">Daily Report</div>
     </div>
   </div>
   <div class="grid">{cards_html}
