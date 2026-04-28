@@ -816,13 +816,12 @@ def _card_html(c: dict, image_map: dict) -> str:
 def _overview_score(c: dict) -> float:
     """
     综合评分，用于概述页排行榜。
-    公式：|percent_diff| × new_price^0.3
-    用涨跌幅（比例）衡量变动，再乘价格的 0.3 次幂给高价卡加权。
-    相比 log10，幂函数对高价卡的偏爱更显著（500円→100000円 约 8 倍差距 vs log10 的 1.85 倍）。
+    公式：|percent_diff| × new_price^0.5
+    用涨跌幅（比例）衡量变动，再乘价格的 0.5 次幂给高价卡加权。
     """
     new_price    = c["new_price"] or 1
     percent_diff = abs(c.get("percent_diff") or 0)
-    return percent_diff * (max(new_price, 1) ** 0.4)
+    return percent_diff * (max(new_price, 1) ** 0.5)
 
 
 def _make_page_html(css: str, date_str: str, page_num_html: str,
