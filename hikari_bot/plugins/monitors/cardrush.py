@@ -654,6 +654,99 @@ body::before {{
          1px  1px 0 rgba(0,0,0,0.8),
          0    0   6px rgba(0,0,0,0.9);
 }}
+/* ── 概述页统计栏 ── */
+.overview-stats {{
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(8,14,32,0.72);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(80,130,200,0.18);
+}}
+.stat-desc {{
+    flex: 1;
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    border-right: 1px solid rgba(80,130,200,0.15);
+}}
+.stat-desc-title {{
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #5a8aaa;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}}
+.stat-desc-body {{
+    font-size: 13px;
+    font-weight: 500;
+    color: #c8dff0;
+    line-height: 1.7;
+    letter-spacing: 0.5px;
+}}
+.stat-desc-body em {{
+    font-style: normal;
+    font-weight: 800;
+    color: #eef6ff;
+}}
+.stat-pills {{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 20px;
+}}
+.stat-pill {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}}
+.stat-pill.up   {{ background: rgba(160,20,20,0.35); color: #ffe066; border: 1px solid rgba(200,50,50,0.3); }}
+.stat-pill.down {{ background: rgba(10,110,40,0.35); color: #afffce; border: 1px solid rgba(40,200,90,0.3); }}
+.stat-pill.new  {{ background: rgba(60,60,160,0.35); color: #b8d0ff; border: 1px solid rgba(100,140,240,0.3); }}
+.stat-pill-icon {{ font-size: 14px; }}
+/* 概述页标题 */
+.overview-section-title {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0 8px;
+}}
+.overview-section-title::before,
+.overview-section-title::after {{
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(80,140,210,0.4), transparent);
+}}
+.overview-section-title span {{
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 6px;
+    color: #8ab8d8;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 4px;
+}}
+/* 概述页卡片网格：5列 */
+.grid-overview {{
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}}
+}}
 """
 
 async def _fetch_card_images(
@@ -701,65 +794,36 @@ async def _fetch_card_images(
     return result
 
 
-def _render_daily_report_html(
-    changes: list[dict],
-    date_str: str,
-    image_map: dict[int, str] | None = None,
-) -> list[str]:
-    """
-    将卡价变化列表渲染为 HTML 页面列表，每页 50 张卡（10×5）。
-    返回 HTML 字符串列表，每个元素对应一页。
-    """
-    if not changes:
-        return []
+def _card_html(c: dict, image_map: dict) -> str:
+    """将单张卡数据渲染为卡片 HTML 片段（供概述页和正文页共用）。"""
+    product_id  = c.get("product_id", "")
+    name        = html_mod.escape(c["name"])
+    model_no    = html_mod.escape(c.get("model_number") or "")
+    rarity_en   = html_mod.escape(rarity_jp_to_en(c.get("rarity") or ""))
+    new_price   = c["new_price"]
+    old_price   = c.get("old_price")
+    change_type = c["change_type"]
+    price_diff  = c.get("price_diff") or 0
 
-    bg_url     = _load_bg_image_b64()
-    css        = _build_html_css(bg_url)
-    image_map  = image_map or {}
+    img_url = image_map.get(product_id) or _CARD_IMAGE_URL.format(product_id=product_id)
 
-    PAGE_SIZE  = 50
-    up_count   = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) > 0)
-    down_count = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) <= 0)
-    new_count  = sum(1 for c in changes if c["change_type"] == "new")
+    if change_type == "new":
+        css_cls  = "new"
+        badge    = "新"
+        new_str  = f"{new_price:,}円"
+        old_html = '<div class="old-price">0円</div>'
+    elif price_diff > 0:
+        css_cls  = "up"
+        badge    = "↑"
+        new_str  = f"{new_price:,}円"
+        old_html = f'<div class="old-price">{old_price:,}円</div>'
+    else:
+        css_cls  = "down"
+        badge    = "↓"
+        new_str  = f"{new_price:,}円"
+        old_html = f'<div class="old-price">{old_price:,}円</div>' if old_price else ""
 
-    total_pages = (len(changes) + PAGE_SIZE - 1) // PAGE_SIZE
-    pages = []
-
-    for page_idx in range(total_pages):
-        page       = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
-        page_label = ""  # no longer used in title
-        page_num_html = f'<div class="header-page-num">PAGE {page_idx + 1}/{total_pages}</div>'
-
-        cards_html_parts = []
-        for c in page:
-            product_id  = c.get("product_id", "")
-            name        = html_mod.escape(c["name"])
-            model_no    = html_mod.escape(c.get("model_number") or "")
-            rarity_en   = html_mod.escape(rarity_jp_to_en(c.get("rarity") or ""))
-            new_price   = c["new_price"]
-            old_price   = c.get("old_price")
-            change_type = c["change_type"]
-            price_diff  = c.get("price_diff") or 0
-
-            img_url = image_map.get(product_id) or _CARD_IMAGE_URL.format(product_id=product_id)
-
-            if change_type == "new":
-                css_cls  = "new"
-                badge    = "新"
-                new_str  = f"{new_price:,}円"
-                old_html = '<div class="old-price">0円</div>'
-            elif price_diff > 0:
-                css_cls  = "up"
-                badge    = "↑"
-                new_str  = f"{new_price:,}円"
-                old_html = f'<div class="old-price">{old_price:,}円</div>'
-            else:
-                css_cls  = "down"
-                badge    = "↓"
-                new_str  = f"{new_price:,}円"
-                old_html = f'<div class="old-price">{old_price:,}円</div>' if old_price else ""
-
-            cards_html_parts.append(f"""
+    return f"""
     <div class="card {css_cls}">
       <img class="card-img" src="{img_url}" loading="lazy">
       <div class="card-overlay">
@@ -773,16 +837,29 @@ def _render_daily_report_html(
           <span class="badge">{badge}</span>
         </div>
       </div>
-    </div>""")
+    </div>"""
 
-        cards_html = "".join(cards_html_parts)
 
-        # 不足 PAGE_SIZE 张时补占位空卡，保诅始终显示 5 行
-        placeholder_count = PAGE_SIZE - len(page)
-        if placeholder_count > 0:
-            cards_html += '<div class="card card-placeholder"></div>' * placeholder_count
+def _overview_score(c: dict) -> float:
+    """
+    综合评分，用于概述页排行榜。
+    公式：|price_diff| × log10(new_price)
+    对于新增卡，price_diff 视为 new_price（从 0 涨到现价）。
+    用 log10 压制低价卡对高价卡的优势，避免几十円的小卡刷榜。
+    """
+    import math
+    new_price  = c["new_price"] or 1
+    price_diff = c.get("price_diff") or 0
+    if c["change_type"] == "new":
+        abs_diff = new_price
+    else:
+        abs_diff = abs(price_diff)
+    return abs_diff * math.log10(max(new_price, 1))
 
-        html_page = f"""<!DOCTYPE html>
+
+def _make_page_html(css: str, date_str: str, page_num_html: str,
+                    body_content: str) -> str:
+    return f"""<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
@@ -800,13 +877,120 @@ def _render_daily_report_html(
       {page_num_html}
     </div>
   </div>
-  <div class="grid">{cards_html}
-  </div>
+  {body_content}
   <div class="watermark">Data by Cardrush &nbsp;/&nbsp; Generated by SRDS</div>
 </div>
 </body>
 </html>"""
-        pages.append(html_page)
+
+
+def _render_daily_report_html(
+    changes: list[dict],
+    date_str: str,
+    image_map: dict[int, str] | None = None,
+    min_price: int = 0,
+) -> list[str]:
+    """
+    将卡价变化列表渲染为 HTML 页面列表。
+    第一页为概述页（统计摘要 + Top30 排行榜），后续每页 50 张卡（10×5）。
+    返回 HTML 字符串列表，每个元素对应一页。
+    """
+    if not changes:
+        return []
+
+    bg_url    = _load_bg_image_b64()
+    css       = _build_html_css(bg_url)
+    image_map = image_map or {}
+
+    PAGE_SIZE  = 50
+    up_count   = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) > 0)
+    down_count = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) <= 0)
+    new_count  = sum(1 for c in changes if c["change_type"] == "new")
+
+    content_pages = (len(changes) + PAGE_SIZE - 1) // PAGE_SIZE
+    total_pages   = content_pages + 1  # +1 for overview page
+    pages         = []
+
+    # ── 概述页（PAGE 1） ──────────────────────────────────────────────────────
+    OVERVIEW_COLS = 5
+    OVERVIEW_ROWS = 4
+    OVERVIEW_SIZE = OVERVIEW_COLS * OVERVIEW_ROWS  # 20
+
+    # 涨幅/跌幅/新增分别取 Top N，合并去重，按分数降序
+    up_cards   = sorted(
+        [c for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) > 0],
+        key=_overview_score, reverse=True,
+    )
+    down_cards = sorted(
+        [c for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) < 0],
+        key=_overview_score, reverse=True,
+    )
+    new_cards  = sorted(
+        [c for c in changes if c["change_type"] == "new"],
+        key=_overview_score, reverse=True,
+    )
+
+    # 按 up → down → new 的优先级填满 OVERVIEW_SIZE 个槽位
+    seen_ids: set = set()
+    ranked: list[dict] = []
+    for pool in (up_cards, down_cards, new_cards):
+        for c in pool:
+            if len(ranked) >= OVERVIEW_SIZE:
+                break
+            pid = c.get("product_id")
+            if pid not in seen_ids:
+                seen_ids.add(pid)
+                ranked.append(c)
+        if len(ranked) >= OVERVIEW_SIZE:
+            break
+
+    overview_cards_html = "".join(_card_html(c, image_map) for c in ranked)
+    # 补占位
+    ph = OVERVIEW_SIZE - len(ranked)
+    if ph > 0:
+        overview_cards_html += '<div class="card card-placeholder"></div>' * ph
+
+    # 统计文案
+    date_display = f"{date_str[:4]}年{date_str[5:7]}月{date_str[8:10]}日"
+    threshold_note = f"买取价 <em>{min_price:,}円</em> 以上的" if min_price > 0 else ""
+    desc_html = (
+        f"统计了 <em>{date_display}</em> CardRush 平台"
+        f"{threshold_note}单卡价格变动情况，"
+        f"共 <em>{len(changes)}</em> 张卡发生变化。"
+    )
+
+    overview_body = f"""
+  <div class="overview-stats">
+    <div class="stat-desc">
+      <div class="stat-desc-title">Daily Summary</div>
+      <div class="stat-desc-body">{desc_html}</div>
+    </div>
+    <div class="stat-pills">
+      <div class="stat-pill up">  <span class="stat-pill-icon">↑</span> 涨价 {up_count} 张</div>
+      <div class="stat-pill down"><span class="stat-pill-icon">↓</span> 降价 {down_count} 张</div>
+      <div class="stat-pill new"> <span class="stat-pill-icon">★</span> 新增 {new_count} 张</div>
+    </div>
+  </div>
+  <div class="overview-section-title"><span>異動 TOP 20</span></div>
+  <div class="grid grid-overview">{overview_cards_html}
+  </div>"""
+
+    pages.append(_make_page_html(css, date_str,
+                                 f'<div class="header-page-num">PAGE 1/{total_pages}</div>',
+                                 overview_body))
+
+    # ── 正文页（PAGE 2…） ────────────────────────────────────────────────────
+    for page_idx in range(content_pages):
+        page = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
+        page_num_html = f'<div class="header-page-num">PAGE {page_idx + 2}/{total_pages}</div>'
+
+        cards_html = "".join(_card_html(c, image_map) for c in page)
+        placeholder_count = PAGE_SIZE - len(page)
+        if placeholder_count > 0:
+            cards_html += '<div class="card card-placeholder"></div>' * placeholder_count
+
+        content = f'<div class="grid">{cards_html}\n  </div>'
+        pages.append(_make_page_html(css, date_str, page_num_html, content))
 
     return pages
 
@@ -847,7 +1031,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         img_dir = os.path.join(DATA_DIR, "card_images")
         image_map = await _fetch_card_images(changes, img_dir)
 
-        pages = _render_daily_report_html(changes, date_str, image_map=image_map)
+        pages = _render_daily_report_html(changes, date_str, image_map=image_map, min_price=min_price)
         out_dir = os.path.join(DATA_DIR, "daily_report_html")
         os.makedirs(out_dir, exist_ok=True)
 
