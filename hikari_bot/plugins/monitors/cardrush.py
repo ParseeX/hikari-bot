@@ -10,6 +10,8 @@ cardrush.py — CardRush 买取价格监控与查询插件
 
 import asyncio
 import base64
+import html as html_mod
+import os
 import re
 from datetime import date, datetime
 from io import BytesIO
@@ -27,6 +29,7 @@ require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.commands import on_cmd
+from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.core.logger import log_message
 from hikari_bot.services.price import (
     get_daily_report_changes,
@@ -385,7 +388,242 @@ async def price_curve_draw(
             await price_curve.finish(f"绘制失败：{e}")
 
 
-# ── 卡价日报 ──────────────────────────────────────────────────────────────────
+# ── 卡价日报（图片版 HTML 生成） ──────────────────────────────────────────────
+# 用法：卡价图报 [M.D]   例：卡价图报 4.27
+
+_CARD_IMAGE_URL = "https://files.cardrush.media/yugioh/ocha_products/{product_id}.webp"
+
+_HTML_CSS = """
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: "Noto Sans CJK JP", "Source Han Sans JP", "Yu Gothic", "Meiryo",
+                 "Microsoft YaHei", sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 20px;
+    min-width: 1300px;
+}
+h1 {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: #f0f0f0;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+.subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 4px;
+}
+.summary {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 16px;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px;
+}
+.card {
+    background: #16213e;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #0f3460;
+}
+.card-img {
+    width: 100%;
+    aspect-ratio: 421 / 614;
+    object-fit: cover;
+    display: block;
+    background: #0f3460;
+}
+.card-info {
+    padding: 5px 6px 6px;
+}
+.card-name {
+    font-size: 10px;
+    font-weight: bold;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+.card-meta {
+    font-size: 9px;
+    color: #777;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+.price-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 2px;
+}
+.price-block { flex: 1; min-width: 0; }
+.new-price {
+    font-size: 11px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+.old-price {
+    font-size: 9px;
+    color: #666;
+    text-decoration: line-through;
+    white-space: nowrap;
+    margin-top: 1px;
+}
+.badge {
+    font-size: 10px;
+    font-weight: bold;
+    padding: 1px 4px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+/* 颜色主题 */
+.up   .new-price { color: #e74c3c; }
+.down .new-price { color: #5dade2; }
+.new  .new-price { color: #2ecc71; }
+.up   .badge { background: #4a1a1a; color: #e74c3c; }
+.down .badge { background: #1a2a4a; color: #5dade2; }
+.new  .badge { background: #1a3a2a; color: #2ecc71; }
+"""
+
+def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
+    """
+    将卡价变化列表渲染为 HTML 页面列表，每页 50 张卡（10×5）。
+    返回 HTML 字符串列表，每个元素对应一页。
+    """
+    if not changes:
+        return []
+
+    PAGE_SIZE = 50
+    up_count   = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) > 0)
+    down_count = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) <= 0)
+    new_count  = sum(1 for c in changes if c["change_type"] == "new")
+    summary    = f"共 {len(changes)} 条变化  涨价 {up_count} · 降价/停收 {down_count} · 新增 {new_count}"
+
+    total_pages = (len(changes) + PAGE_SIZE - 1) // PAGE_SIZE
+    pages = []
+
+    for page_idx in range(total_pages):
+        page = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
+        page_label = f"（{page_idx + 1}/{total_pages}）" if total_pages > 1 else ""
+
+        cards_html_parts = []
+        for c in page:
+            product_id  = c.get("product_id", "")
+            name        = html_mod.escape(c["name"])
+            model_no    = html_mod.escape(c.get("model_number") or "")
+            rarity_en   = html_mod.escape(rarity_jp_to_en(c.get("rarity") or ""))
+            new_price   = c["new_price"]
+            old_price   = c.get("old_price")
+            change_type = c["change_type"]
+            price_diff  = c.get("price_diff") or 0
+
+            img_url = _CARD_IMAGE_URL.format(product_id=product_id)
+
+            if change_type == "new":
+                css_cls  = "new"
+                badge    = "NEW"
+                new_str  = f"{new_price:,}円"
+                old_html = ""
+            elif price_diff > 0:
+                css_cls  = "up"
+                badge    = "↑"
+                new_str  = f"{new_price:,}円"
+                old_html = f'<div class="old-price">{old_price:,}円</div>'
+            else:
+                css_cls  = "down"
+                badge    = "↓"
+                new_str  = "0" if new_price == 0 else f"{new_price:,}円"
+                old_html = f'<div class="old-price">{old_price:,}円</div>' if old_price else ""
+
+            cards_html_parts.append(f"""
+    <div class="card {css_cls}">
+      <img class="card-img" src="{img_url}" loading="lazy">
+      <div class="card-info">
+        <div class="card-name" title="{name}">{name}</div>
+        <div class="card-meta">{model_no} {rarity_en}</div>
+        <div class="price-row">
+          <div class="price-block">
+            <div class="new-price">{new_str}</div>
+            {old_html}
+          </div>
+          <span class="badge">{badge}</span>
+        </div>
+      </div>
+    </div>""")
+
+        cards_html = "".join(cards_html_parts)
+
+        html_page = f"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<style>{_HTML_CSS}</style>
+</head>
+<body>
+  <h1>Cardrush 买取価格変動日報</h1>
+  <div class="subtitle">{date_str}{page_label}</div>
+  <div class="summary">{summary}</div>
+  <div class="grid">{cards_html}
+  </div>
+</body>
+</html>"""
+        pages.append(html_page)
+
+    return pages
+
+
+daily_report_html = on_cmd("卡价图报", priority=5, permission=SUPERUSER)
+
+@daily_report_html.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    arg_text = args.extract_plain_text().strip()
+
+    try:
+        date_str = _parse_date_arg(arg_text) if arg_text else date.today().isoformat()
+
+        loop = asyncio.get_event_loop()
+        changes = await loop.run_in_executor(None, get_daily_report_changes, date_str)
+
+        if not changes:
+            await daily_report_html.finish(f"【{date_str}】当日无价格变化记录。")
+            return
+
+        pages = _render_daily_report_html(changes, date_str)
+        out_dir = os.path.join(DATA_DIR, "daily_report_html")
+        os.makedirs(out_dir, exist_ok=True)
+
+        paths = []
+        for i, page_html in enumerate(pages, 1):
+            filename = f"cardrush_{date_str}_p{i}.html"
+            filepath = os.path.join(out_dir, filename)
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(page_html)
+            paths.append(filepath)
+
+        reply = f"已生成 {len(pages)} 页 HTML：\n" + "\n".join(paths)
+        await daily_report_html.finish(reply)
+
+    except ValueError as e:
+        await daily_report_html.finish(str(e))
+    except Exception as e:
+        if not isinstance(e, FinishedException):
+            await log_message(f"[cardrush] daily_report_html error: {e}")
+            await daily_report_html.finish(f"生成失败：{e}")
+
+
+# ── 卡价日报（文字版） ─────────────────────────────────────────────────────────
 # 用法：卡价日报 [M.D]   例：卡价日报 4.27
 
 def _parse_date_arg(arg: str) -> str:

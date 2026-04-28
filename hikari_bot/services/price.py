@@ -270,6 +270,7 @@ def get_daily_report_changes(
                 FROM card_price_history
             )
             SELECT
+                product_id,
                 name,
                 rarity,
                 model_number,
@@ -286,7 +287,7 @@ def get_daily_report_changes(
         rows = cursor.fetchall()
 
     results = []
-    for name, rarity, model_number, old_price, new_price, changed_at in rows:
+    for product_id, name, rarity, model_number, old_price, new_price, changed_at in rows:
         old_price = int(old_price) if old_price is not None else None
         new_price = int(new_price)
 
@@ -305,6 +306,7 @@ def get_daily_report_changes(
 
         results.append(
             {
+                "product_id": product_id,
                 "name": name,
                 "rarity": rarity,
                 "model_number": model_number,
