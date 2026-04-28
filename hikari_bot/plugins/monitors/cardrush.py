@@ -17,6 +17,7 @@ import re
 from datetime import date, datetime
 from io import BytesIO
 
+import aiohttp
 from playwright.async_api import async_playwright
 
 import matplotlib.dates as mdates
@@ -412,7 +413,7 @@ def _load_bg_image_b64() -> str | None:
 def _build_html_css(bg_url: str | None) -> str:
     """生成页面 CSS，bg_url 为背景图 data URL 或 None（使用渐变背景）。"""
     if bg_url:
-        bg_css = f"background-image: url('{bg_url}'); background-size: cover; background-position: center;"
+        bg_css = f"background-image: url('{bg_url}'); background-size: auto; background-repeat: repeat;"
     else:
         bg_css = "background: linear-gradient(160deg, #07091a 0%, #0c1528 40%, #07091a 100%);"
     return f"""
@@ -603,7 +604,49 @@ body::before {{
 }}
 """
 
-def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
+async def _fetch_card_images(
+    changes: list[dict],
+    concurrency: int = 20,
+    retries: int = 3,
+    timeout: int = 10,
+) -> dict[int, str]:
+    """
+    并发下载所有卡图，返回 {product_id: "data:image/webp;base64,..."} 映射。
+    下载失败的卡使用空字符串（会回退到原始 URL）。
+    """
+    product_ids = list({c["product_id"] for c in changes if c.get("product_id")})
+    result: dict[int, str] = {}
+    sem = asyncio.Semaphore(concurrency)
+
+    async def fetch_one(session: aiohttp.ClientSession, pid: int) -> None:
+        url = _CARD_IMAGE_URL.format(product_id=pid)
+        for attempt in range(retries):
+            try:
+                async with sem:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
+                        if resp.status == 200:
+                            data = await resp.read()
+                            b64 = base64.b64encode(data).decode()
+                            ct = resp.content_type or "image/webp"
+                            result[pid] = f"data:{ct};base64,{b64}"
+                            return
+            except Exception:
+                if attempt < retries - 1:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+        result[pid] = ""  # 全部重试失败，回退到原始 URL
+
+    connector = aiohttp.TCPConnector(limit=concurrency)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        await asyncio.gather(*[fetch_one(session, pid) for pid in product_ids])
+
+    return result
+
+
+def _render_daily_report_html(
+    changes: list[dict],
+    date_str: str,
+    image_map: dict[int, str] | None = None,
+) -> list[str]:
     """
     将卡价变化列表渲染为 HTML 页面列表，每页 50 张卡（10×5）。
     返回 HTML 字符串列表，每个元素对应一页。
@@ -613,6 +656,7 @@ def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
 
     bg_url     = _load_bg_image_b64()
     css        = _build_html_css(bg_url)
+    image_map  = image_map or {}
 
     PAGE_SIZE  = 50
     up_count   = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) > 0)
@@ -637,7 +681,7 @@ def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
             change_type = c["change_type"]
             price_diff  = c.get("price_diff") or 0
 
-            img_url = _CARD_IMAGE_URL.format(product_id=product_id)
+            img_url = image_map.get(product_id) or _CARD_IMAGE_URL.format(product_id=product_id)
 
             if change_type == "new":
                 css_cls  = "new"
@@ -722,12 +766,16 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await daily_report_html.finish(f"【{date_str}】当日无价格变化记录。")
             return
 
-        pages = _render_daily_report_html(changes, date_str)
+        total_cards = len(changes)
+        await bot.send(event, f"正在下载 {total_cards} 张卡图，请稍候…")
+        image_map = await _fetch_card_images(changes)
+
+        pages = _render_daily_report_html(changes, date_str, image_map=image_map)
         out_dir = os.path.join(DATA_DIR, "daily_report_html")
         os.makedirs(out_dir, exist_ok=True)
 
         total = len(pages)
-        await bot.send(event, f"正在生成 {total} 页图报，请稍候…")
+        await bot.send(event, f"下载完毕，正在渲染 {total} 页图报…")
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch()
@@ -742,10 +790,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                 )
                 file_url = "file:///" + filepath.replace("\\", "/")
                 await bpage.goto(file_url)
-                try:
-                    await bpage.wait_for_load_state("networkidle", timeout=20_000)
-                except Exception:
-                    pass  # 部分图片超时不影响截图
+                # 图片已嵌入 base64，无需等待网络，直接截图
+                await bpage.wait_for_load_state("domcontentloaded")
 
                 screenshot_bytes = await bpage.screenshot(full_page=True)
                 await bpage.close()
