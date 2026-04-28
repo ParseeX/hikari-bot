@@ -46,6 +46,7 @@ from hikari_bot.services.price import (
     search_local_prices,
 )
 from hikari_bot.services.ygocard import get_card_info
+from hikari_bot.services.bilibili import post_article_with_images
 
 
 # ── 稀有度映射 ────────────────────────────────────────────────────────────────
@@ -1230,6 +1231,9 @@ async def _auto_send_daily_report():
                 await bot.send_private_msg(user_id=int(uid),
                                            message=MessageSegment.image(f"base64://{b64}"))
         await log_message(f"[cardrush_auto] Report sent to {ADMIN} ({len(screenshots)} page(s)).")
+
+        # 发布 B 站定时专栏文章（北京时间 21:30）
+        await post_article_with_images(screenshots, date_str)
 
     except Exception as e:
         await log_message(f"[cardrush_auto] Auto report failed: {e}")

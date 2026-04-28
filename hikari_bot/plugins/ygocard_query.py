@@ -14,6 +14,7 @@ import re
 from datetime import datetime
 from io import BytesIO
 
+from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
@@ -26,7 +27,7 @@ from hikari_bot.services.ygodeck import generate_card_list_image
 
 # ── 随机 / 每日卡片 ────────────────────────────────────────────────────────────────────
 
-ygo_random_card = on_cmd("随机一卡", priority=5, permission=SUPERUSER)
+ygo_random_card = on_command("随机一卡", priority=5, permission=SUPERUSER)
 @ygo_random_card.handle()
 async def _(bot: Bot, event: MessageEvent):
     image = await get_ygopic(random_card(), half=False)
@@ -37,7 +38,7 @@ async def _(bot: Bot, event: MessageEvent):
     image_base64 = base64.b64encode(image).decode('utf-8')
     await ygo_random_card.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
-ygo_daily_card = on_cmd("每日一卡", priority=5)
+ygo_daily_card = on_command("每日一卡", priority=5)
 @ygo_daily_card.handle()
 async def _(bot: Bot, event: MessageEvent):
     today = datetime.now().strftime("%Y-%m-%d")
@@ -89,7 +90,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await log_message(f"[ygo_card_pic] Card image not found for card ID: {card_id}")
             await ygo_card_pic.finish("卡图加载失败！")
             return
-            
+
         image_base64 = base64.b64encode(image).decode('utf-8')
         await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
