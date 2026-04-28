@@ -816,18 +816,14 @@ def _card_html(c: dict, image_map: dict) -> str:
 def _overview_score(c: dict) -> float:
     """
     综合评分，用于概述页排行榜。
-    公式：|price_diff| × log10(new_price)
-    对于新增卡，price_diff 视为 new_price（从 0 涨到现价）。
-    用 log10 压制低价卡对高价卡的优势，避免几十円的小卡刷榜。
+    公式：|percent_diff| × log10(new_price)
+    用涨跌幅（比例）而非绝对额，避免高价卡小幅变动压过低价卡大幅变动。
+    再乘 log10(new_price) 给高价卡一点权重，避免几十円的小卡刷榜。
     """
     import math
-    new_price  = c["new_price"] or 1
-    price_diff = c.get("price_diff") or 0
-    if c["change_type"] == "new":
-        abs_diff = new_price
-    else:
-        abs_diff = abs(price_diff)
-    return abs_diff * math.log10(max(new_price, 1))
+    new_price    = c["new_price"] or 1
+    percent_diff = abs(c.get("percent_diff") or 0)
+    return percent_diff * math.log10(max(new_price, 1))
 
 
 def _make_page_html(css: str, date_str: str, page_num_html: str,
