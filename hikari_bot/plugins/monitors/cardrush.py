@@ -595,9 +595,9 @@ body::before {{
     text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }}
 .badge {{
-    font-size: 11px;
+    font-size: 9px;
     font-weight: bold;
-    padding: 2px 5px;
+    padding: 1px 4px;
     border-radius: 3px;
     flex-shrink: 0;
     line-height: 1.4;
@@ -717,7 +717,7 @@ def _render_daily_report_html(
                 css_cls  = "new"
                 badge    = "新"
                 new_str  = f"{new_price:,}円"
-                old_html = ""
+                old_html = '<div class="old-price">0円</div>'
             elif price_diff > 0:
                 css_cls  = "up"
                 badge    = "↑"
