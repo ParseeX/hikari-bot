@@ -905,7 +905,7 @@ def _render_daily_report_html(
     date_display_ja = f"{date_str[:4]}年{int(date_str[5:7])}月{int(date_str[8:10])}日"
     zh_html = (
         f"统计了 <em>{date_display}</em> CardRush 平台买取价"
-        f"<em>500円～100,000円</em>范围内单卡价格变动情况，"
+        f"<em>500円～100,000円</em>范围内游戏王单卡价格变动情况，"
         f"共 <em>{len(changes)}</em> 张卡发生变化。<br>"
         f"涨价 <em class='num-up'>{up_count}</em> 张　·　"
         f"降价 <em class='num-down'>{down_count}</em> 张　·　"
@@ -913,7 +913,7 @@ def _render_daily_report_html(
     )
     ja_html = (
         f"<em>{date_display_ja}</em>のCardRushプラットフォームにおける"
-        f"買取価格<em>500円〜100,000円</em>の単カード価格変動情報。"
+        f"買取価格<em>500円〜100,000円</em>の遊戯王カード価格変動情報。"
         f"変動計 <em>{len(changes)}</em> 枚。<br>"
         f"値上がり <em class='num-up'>{up_count}</em> 枚　·　"
         f"値下がり <em class='num-down'>{down_count}</em> 枚　·　"
