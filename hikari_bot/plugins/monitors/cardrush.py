@@ -546,24 +546,24 @@ body::before {{
     );
     padding: 18px 5px 5px;
 }}
-/* 涨价和新增：红色遗罩 */
+/* 涨价和新增：醒目红色遗罩 */
 .up .card-overlay, .new .card-overlay {{
     background: linear-gradient(
         to bottom,
         transparent 0%,
-        rgba(90, 10, 10, 0.38) 25%,
-        rgba(110, 8, 8, 0.80) 52%,
-        rgba(90, 5, 5, 0.94) 100%
+        rgba(160, 20, 20, 0.55) 30%,
+        rgba(180, 10, 10, 0.88) 58%,
+        rgba(150, 5, 5, 0.97) 100%
     );
 }}
-/* 降价：绿色遗罩 */
+/* 降价：醒目绿色遗罩 */
 .down .card-overlay {{
     background: linear-gradient(
         to bottom,
         transparent 0%,
-        rgba(5, 55, 22, 0.38) 25%,
-        rgba(5, 75, 22, 0.80) 52%,
-        rgba(3, 58, 15, 0.94) 100%
+        rgba(10, 110, 40, 0.55) 30%,
+        rgba(8, 130, 40, 0.88) 58%,
+        rgba(5, 105, 28, 0.97) 100%
     );
 }}
 .card-name {{
@@ -624,12 +624,17 @@ body::before {{
     line-height: 1.4;
     align-self: flex-end;
 }}
-.up   .new-price {{ color: #ffcc66; }}
-.down .new-price {{ color: #66ffcc; }}
-.new  .new-price {{ color: #ffcc66; }}
-.up   .badge {{ background: rgba(255,180,50,0.25); color: #ffcc66; border: 1px solid rgba(255,180,50,0.5); }}
-.down .badge {{ background: rgba(50,220,130,0.25); color: #66ffcc; border: 1px solid rgba(50,220,130,0.5); }}
-.new  .badge {{ background: rgba(255,180,50,0.25); color: #ffcc66; border: 1px solid rgba(255,180,50,0.5); }}
+.up   .new-price {{ color: #ffe066; }}
+.down .new-price {{ color: #afffce; }}
+.new  .new-price {{ color: #ffe066; }}
+.up   .badge {{ background: rgba(255,200,30,0.3); color: #ffe066; border: 1px solid rgba(255,200,30,0.6); }}
+.down .badge {{ background: rgba(40,230,100,0.3); color: #afffce; border: 1px solid rgba(40,230,100,0.6); }}
+.new  .badge {{ background: rgba(255,200,30,0.3); color: #ffe066; border: 1px solid rgba(255,200,30,0.6); }}
+.card-placeholder {{
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}}
 /* ── 水印 ── */
 .watermark {{
     text-align: right;
@@ -767,6 +772,11 @@ def _render_daily_report_html(
     </div>""")
 
         cards_html = "".join(cards_html_parts)
+
+        # 不足 PAGE_SIZE 张时补占位空卡，保诅始终显示 5 行
+        placeholder_count = PAGE_SIZE - len(page)
+        if placeholder_count > 0:
+            cards_html += '<div class="card card-placeholder"></div>' * placeholder_count
 
         html_page = f"""<!DOCTYPE html>
 <html lang="zh">
