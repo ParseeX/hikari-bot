@@ -10,6 +10,7 @@ cardrush.py — CardRush 买取价格监控与查询插件
 
 import asyncio
 import base64
+import functools
 import html as html_mod
 import os
 import re
@@ -436,54 +437,55 @@ h1 {
 }
 .card-img {
     width: 100%;
-    aspect-ratio: 421 / 614;
+    aspect-ratio: 3 / 2;
     object-fit: cover;
+    object-position: top;
     display: block;
     background: #0f3460;
 }
 .card-info {
-    padding: 5px 6px 6px;
+    padding: 6px 7px 7px;
 }
 .card-name {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: bold;
     color: #ddd;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
 }
 .card-meta {
-    font-size: 9px;
+    font-size: 11px;
     color: #777;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 4px;
+    margin-bottom: 5px;
 }
 .price-row {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 2px;
+    gap: 3px;
 }
 .price-block { flex: 1; min-width: 0; }
 .new-price {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
     white-space: nowrap;
 }
 .old-price {
-    font-size: 9px;
+    font-size: 11px;
     color: #666;
     text-decoration: line-through;
     white-space: nowrap;
-    margin-top: 1px;
+    margin-top: 2px;
 }
 .badge {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: bold;
-    padding: 1px 4px;
+    padding: 2px 5px;
     border-radius: 3px;
     flex-shrink: 0;
     line-height: 1.4;
@@ -594,7 +596,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         date_str = _parse_date_arg(arg_text) if arg_text else date.today().isoformat()
 
         loop = asyncio.get_event_loop()
-        changes = await loop.run_in_executor(None, get_daily_report_changes, date_str)
+        _query = functools.partial(get_daily_report_changes, date_str, exclude_prefixes=["RD/"])
+        changes = await loop.run_in_executor(None, _query)
 
         if not changes:
             await daily_report_html.finish(f"【{date_str}】当日无价格变化记录。")
@@ -718,7 +721,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             date_str = date.today().isoformat()
 
         loop = asyncio.get_event_loop()
-        changes = await loop.run_in_executor(None, get_daily_report_changes, date_str)
+        _query = functools.partial(get_daily_report_changes, date_str, exclude_prefixes=["RD/"])
+        changes = await loop.run_in_executor(None, _query)
         messages = _format_daily_report(changes, date_str)
 
         for msg in messages:

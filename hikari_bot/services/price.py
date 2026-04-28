@@ -235,6 +235,7 @@ def get_daily_report_changes(
     series_keywords: Optional[Iterable[str]] = None,
     min_abs_diff: int = 0,
     include_new: bool = True,
+    exclude_prefixes: Optional[Iterable[str]] = None,
 ) -> list[dict[str, Any]]:
     """
     获取某一天新增的价格变化记录，可按系列编号筛选。
@@ -243,6 +244,7 @@ def get_daily_report_changes(
     series_keywords: 例如 ['ALIN']，会匹配 model_number LIKE '%ALIN%'。
     min_abs_diff: 过滤小变动，例如 100 表示只看变动幅度 >= 100 円。
     include_new: 是否包含新出现的卡。
+    exclude_prefixes: 排除 model_number 以这些前缀开头的卡，例如 ['RD/']。
     """
     init_database()
 
@@ -250,6 +252,16 @@ def get_daily_report_changes(
         date_str = date.today().isoformat()
 
     series_where, series_params = _build_series_where(series_keywords)
+
+    # 构造排除前缀条件
+    exclude_list = [p for p in (exclude_prefixes or []) if p]
+    if exclude_list:
+        exclude_clauses = " AND ".join("(model_number IS NULL OR model_number NOT LIKE ?)" for _ in exclude_list)
+        exclude_where = f" AND ({exclude_clauses})"
+        exclude_params = [f"{p}%" for p in exclude_list]
+    else:
+        exclude_where = ""
+        exclude_params = []
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -280,10 +292,11 @@ def get_daily_report_changes(
             FROM history
             WHERE DATE(changed_at) = DATE(?)
             {series_where}
+            {exclude_where}
             ORDER BY product_id DESC, name
         """
 
-        cursor.execute(sql, [date_str, *series_params])
+        cursor.execute(sql, [date_str, *series_params, *exclude_params])
         rows = cursor.fetchall()
 
     results = []
