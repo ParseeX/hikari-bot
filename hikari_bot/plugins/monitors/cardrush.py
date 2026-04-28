@@ -17,6 +17,8 @@ import re
 from datetime import date, datetime
 from io import BytesIO
 
+from playwright.async_api import async_playwright
+
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from nonebot import get_driver, require
@@ -435,33 +437,51 @@ h1 {
     overflow: hidden;
     border: 1px solid #0f3460;
 }
+.card {
+    background: #0a0a16;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #0f3460;
+    position: relative;
+}
 .card-img {
     width: 100%;
-    aspect-ratio: 3 / 2;
-    object-fit: cover;
-    object-position: top;
     display: block;
     background: #0f3460;
 }
-.card-info {
-    padding: 6px 7px 7px;
+/* 渐变遮罩 + 文字叠加在卡图下半部 */
+.card-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(6, 8, 20, 0.60) 22%,
+        rgba(6, 8, 20, 0.86) 50%,
+        rgba(6, 8, 20, 0.96) 100%
+    );
+    padding: 28px 7px 8px;
 }
 .card-name {
     font-size: 12px;
     font-weight: bold;
-    color: #ddd;
+    color: #f2f2f2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 3px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
 }
 .card-meta {
     font-size: 11px;
-    color: #777;
+    color: #c0c0c0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 5px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }
 .price-row {
     display: flex;
@@ -474,13 +494,15 @@ h1 {
     font-size: 13px;
     font-weight: bold;
     white-space: nowrap;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.95);
 }
 .old-price {
     font-size: 11px;
-    color: #666;
+    color: #aaa;
     text-decoration: line-through;
     white-space: nowrap;
     margin-top: 2px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }
 .badge {
     font-size: 12px;
@@ -491,12 +513,12 @@ h1 {
     line-height: 1.4;
 }
 /* 颜色主题 */
-.up   .new-price { color: #e74c3c; }
+.up   .new-price { color: #ff6b6b; }
 .down .new-price { color: #5dade2; }
 .new  .new-price { color: #2ecc71; }
-.up   .badge { background: #4a1a1a; color: #e74c3c; }
-.down .badge { background: #1a2a4a; color: #5dade2; }
-.new  .badge { background: #1a3a2a; color: #2ecc71; }
+.up   .badge { background: rgba(74,26,26,0.85); color: #ff6b6b; }
+.down .badge { background: rgba(26,42,74,0.85); color: #5dade2; }
+.new  .badge { background: rgba(26,58,42,0.85); color: #2ecc71; }
 """
 
 def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
@@ -552,7 +574,7 @@ def _render_daily_report_html(changes: list[dict], date_str: str) -> list[str]:
             cards_html_parts.append(f"""
     <div class="card {css_cls}">
       <img class="card-img" src="{img_url}" loading="lazy">
-      <div class="card-info">
+      <div class="card-overlay">
         <div class="card-name" title="{name}">{name}</div>
         <div class="card-meta">{model_no} {rarity_en}</div>
         <div class="price-row">
@@ -607,16 +629,36 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         out_dir = os.path.join(DATA_DIR, "daily_report_html")
         os.makedirs(out_dir, exist_ok=True)
 
-        paths = []
-        for i, page_html in enumerate(pages, 1):
-            filename = f"cardrush_{date_str}_p{i}.html"
-            filepath = os.path.join(out_dir, filename)
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(page_html)
-            paths.append(filepath)
+        total = len(pages)
+        await bot.send(event, f"正在生成 {total} 页图报，请稍候…")
 
-        reply = f"已生成 {len(pages)} 页 HTML：\n" + "\n".join(paths)
-        await daily_report_html.finish(reply)
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch()
+            for i, page_html in enumerate(pages, 1):
+                filename = f"cardrush_{date_str}_p{i}.html"
+                filepath = os.path.join(out_dir, filename)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(page_html)
+
+                bpage = await browser.new_page(
+                    viewport={"width": 1340, "height": 900}
+                )
+                file_url = "file:///" + filepath.replace("\\", "/")
+                await bpage.goto(file_url)
+                try:
+                    await bpage.wait_for_load_state("networkidle", timeout=20_000)
+                except Exception:
+                    pass  # 部分图片超时不影响截图
+
+                screenshot_bytes = await bpage.screenshot(full_page=True)
+                await bpage.close()
+
+                b64 = base64.b64encode(screenshot_bytes).decode()
+                await bot.send(event, MessageSegment.image(f"base64://{b64}"))
+
+            await browser.close()
+
+        await daily_report_html.finish(f"图报发送完毕（共 {total} 页）。")
 
     except ValueError as e:
         await daily_report_html.finish(str(e))
