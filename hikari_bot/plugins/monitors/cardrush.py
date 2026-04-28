@@ -822,7 +822,7 @@ def _overview_score(c: dict) -> float:
     """
     new_price    = c["new_price"] or 1
     percent_diff = abs(c.get("percent_diff") or 0)
-    return percent_diff * (max(new_price, 1) ** 0.3)
+    return percent_diff * (max(new_price, 1) ** 0.4)
 
 
 def _make_page_html(css: str, date_str: str, page_num_html: str,
