@@ -456,26 +456,27 @@ body::before {{
 .header-left {{
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding-left: 14px;
-    border-left: 4px solid #4a9eff;
+    gap: 3px;
+    padding-left: 16px;
+    border-left: 5px solid #60b0ff;
 }}
 .header-title {{
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 900;
     letter-spacing: 3px;
-    background: linear-gradient(90deg, #90bcff 0%, #ffffff 45%, #ffd060 100%);
+    background: linear-gradient(90deg, #b0d4ff 0%, #ffffff 40%, #ffe080 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     line-height: 1.15;
     text-shadow: none;
-    filter: drop-shadow(0 0 12px rgba(100,170,255,0.4));
+    filter: drop-shadow(0 0 16px rgba(120,190,255,0.6));
 }}
 .header-eyebrow {{
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 600;
     letter-spacing: 5px;
-    color: #7a9abb;
+    color: #a8cef0;
     text-transform: uppercase;
 }}
 .header-right {{
@@ -483,29 +484,28 @@ body::before {{
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    gap: 1px;
+    gap: 4px;
     padding-right: 4px;
 }}
 .header-date-year {{
-    font-size: 12px;
-    font-weight: 700;
-    color: #a8c8e8;
-    letter-spacing: 4px;
-    text-transform: uppercase;
+    display: none;
 }}
 .header-date-main {{
-    font-size: 30px;
+    font-size: 22px;
     font-weight: 900;
     color: #eef6ff;
-    letter-spacing: 4px;
-    line-height: 1.05;
-    text-shadow: 0 0 24px rgba(100,180,255,0.5), 0 2px 8px rgba(0,0,0,0.8);
+    letter-spacing: 3px;
+    line-height: 1.1;
+    text-shadow: 0 0 20px rgba(100,180,255,0.6), 0 2px 6px rgba(0,0,0,0.8);
+}}
+.header-page-num {{
+    font-size: 13px;
+    font-weight: 700;
+    color: #80b8e8;
+    letter-spacing: 3px;
 }}
 .header-date-label {{
-    font-size: 9px;
-    color: #4a6a8a;
-    letter-spacing: 5px;
-    text-transform: uppercase;
+    display: none;
 }}
 /* ── 卡片网格 ── */
 .grid {{
@@ -726,7 +726,8 @@ def _render_daily_report_html(
 
     for page_idx in range(total_pages):
         page       = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
-        page_label = f"&nbsp;&nbsp;<span style='font-size:12px;color:#556677'>（{page_idx + 1}/{total_pages}）</span>" if total_pages > 1 else ""
+        page_label = ""  # no longer used in title
+        page_num_html = f'<div class="header-page-num">P {page_idx + 1} / {total_pages}</div>' if total_pages > 1 else ""
 
         cards_html_parts = []
         for c in page:
@@ -790,12 +791,12 @@ def _render_daily_report_html(
 <div class="content-wrap">
   <div class="header">
     <div class="header-left">
-      <div class="header-title">买取価格変動日報{page_label}</div>
+      <div class="header-title">买取価格変動日報</div>
       <div class="header-eyebrow">CardRush · Daily Report</div>
     </div>
     <div class="header-right">
-      <div class="header-date-year">{date_str[:4]}</div>
-      <div class="header-date-main">{date_str[5:7]}.{date_str[8:10]}</div>
+      <div class="header-date-main">{date_str[:4]}.{date_str[5:7]}.{date_str[8:10]}</div>
+      {page_num_html}
     </div>
   </div>
   <div class="grid">{cards_html}
@@ -816,18 +817,32 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     arg_text = args.extract_plain_text().strip()
 
     try:
-        date_str = _parse_date_arg(arg_text) if arg_text else date.today().isoformat()
+        # 解析参数：支持 "4.27"、"500"、"4.27 500" 三种格式
+        date_str = date.today().isoformat()
+        min_price = 0
+        if arg_text:
+            parts = arg_text.split()
+            for part in parts:
+                if re.match(r'^\d{1,2}\.\d{1,2}$', part):
+                    date_str = _parse_date_arg(part)
+                elif re.match(r'^\d+$', part):
+                    min_price = int(part)
+                else:
+                    raise ValueError(f"无法识别的参数：{part}，支持格式：日期(4.27) 或 价格阈值(500)")
 
         loop = asyncio.get_event_loop()
-        _query = functools.partial(get_daily_report_changes, date_str, exclude_prefixes=["RD/"])
+        _query = functools.partial(get_daily_report_changes, date_str,
+                                   exclude_prefixes=["RD/"], min_price=min_price)
         changes = await loop.run_in_executor(None, _query)
 
         if not changes:
-            await daily_report_html.finish(f"【{date_str}】当日无价格变化记录。")
+            threshold_note = f"（价格阈值 ≥ {min_price} 円）" if min_price > 0 else ""
+            await daily_report_html.finish(f"【{date_str}】{threshold_note}当日无价格变化记录。")
             return
 
         total_cards = len(changes)
-        await bot.send(event, f"正在下载 {total_cards} 张卡图，请稍候…")
+        threshold_note = f"，价格阈值 ≥ {min_price} 円" if min_price > 0 else ""
+        await bot.send(event, f"正在下载 {total_cards} 张卡图{threshold_note}，请稍候…")
         img_dir = os.path.join(DATA_DIR, "card_images")
         image_map = await _fetch_card_images(changes, img_dir)
 
