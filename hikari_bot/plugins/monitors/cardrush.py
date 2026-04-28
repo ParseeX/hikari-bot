@@ -499,27 +499,13 @@ body::before {{
     text-shadow: 0 0 20px rgba(100,180,255,0.6), 0 2px 6px rgba(0,0,0,0.8);
 }}
 .header-page-num {{
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    display: flex;
-    align-items: baseline;
-    gap: 1px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #90b8d8;
+    letter-spacing: 1px;
 }}
-.pn-cur {{
-    font-size: 16px;
-    font-weight: 900;
-    color: #c8e4ff;
-}}
-.pn-sep {{
-    font-size: 11px;
-    color: #4a7a9a;
-    letter-spacing: 0;
-}}
-.pn-tot {{
-    font-size: 11px;
-    font-weight: 400;
-    color: #5a8aaa;
+.pn-cur, .pn-divider, .pn-tot {{
+    display: none;
 }}
 .header-date-label {{
     display: none;
@@ -744,7 +730,9 @@ def _render_daily_report_html(
     for page_idx in range(total_pages):
         page       = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
         page_label = ""  # no longer used in title
-        page_num_html = f'<div class="header-page-num"><span class="pn-cur">{page_idx + 1:02d}</span><span class="pn-sep"> · </span><span class="pn-tot">{total_pages:02d}</span></div>' if total_pages > 1 else ""
+        page_num_html = (
+            f'<div class="header-page-num">第 {page_idx + 1} 页 / 共 {total_pages} 页</div>'
+        ) if total_pages > 1 else ""
 
         cards_html_parts = []
         for c in page:
