@@ -499,7 +499,7 @@ body::before {{
     text-shadow: 0 0 20px rgba(100,180,255,0.6), 0 2px 6px rgba(0,0,0,0.8);
 }}
 .header-page-num {{
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     color: #7aaac8;
     letter-spacing: 3px;
@@ -728,9 +728,7 @@ def _render_daily_report_html(
     for page_idx in range(total_pages):
         page       = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
         page_label = ""  # no longer used in title
-        page_num_html = (
-            f'<div class="header-page-num">PAGE {page_idx + 1}/{total_pages}</div>'
-        ) if total_pages > 1 else ""
+        page_num_html = f'<div class="header-page-num">PAGE {page_idx + 1}/{total_pages}</div>'
 
         cards_html_parts = []
         for c in page:
