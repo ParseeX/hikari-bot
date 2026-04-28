@@ -424,7 +424,7 @@ body {{
                  "Microsoft YaHei", sans-serif;
     {bg_css}
     color: #e0e0e0;
-    padding: 16px 20px 20px;
+    padding: 16px 20px 16px;
     min-width: 1300px;
     position: relative;
 }}
@@ -432,7 +432,7 @@ body::before {{
     content: '';
     position: fixed;
     inset: 0;
-    background: rgba(6, 8, 22, 0.74);
+    background: rgba(4, 6, 18, 0.82);
     z-index: 0;
     pointer-events: none;
 }}
@@ -445,31 +445,36 @@ body::before {{
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
-    padding: 8px 0 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 12px;
+    padding: 10px 16px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    backdrop-filter: blur(2px);
 }}
 .header-left {{
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding-left: 12px;
-    border-left: 3px solid #4a9eff;
+    gap: 2px;
+    padding-left: 14px;
+    border-left: 4px solid #4a9eff;
 }}
 .header-title {{
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 900;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
     background: linear-gradient(90deg, #90bcff 0%, #ffffff 45%, #ffd060 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    line-height: 1.2;
+    line-height: 1.15;
+    text-shadow: none;
+    filter: drop-shadow(0 0 12px rgba(100,170,255,0.4));
 }}
 .header-eyebrow {{
-    font-size: 10px;
-    letter-spacing: 4px;
-    color: #6a8aaa;
+    font-size: 11px;
+    letter-spacing: 5px;
+    color: #7a9abb;
     text-transform: uppercase;
 }}
 .header-right {{
@@ -477,47 +482,44 @@ body::before {{
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    gap: 2px;
+    gap: 1px;
     padding-right: 4px;
 }}
 .header-date-year {{
     font-size: 11px;
     color: #6a8aaa;
-    letter-spacing: 3px;
+    letter-spacing: 4px;
     text-transform: uppercase;
 }}
 .header-date-main {{
-    font-size: 22px;
-    font-weight: 700;
-    color: #ddeeff;
-    letter-spacing: 3px;
-    line-height: 1.1;
-    text-shadow: 0 0 18px rgba(100,180,255,0.35);
+    font-size: 30px;
+    font-weight: 900;
+    color: #eef6ff;
+    letter-spacing: 4px;
+    line-height: 1.05;
+    text-shadow: 0 0 24px rgba(100,180,255,0.5), 0 2px 8px rgba(0,0,0,0.8);
 }}
 .header-date-label {{
     font-size: 9px;
     color: #4a6a8a;
-    letter-spacing: 4px;
+    letter-spacing: 5px;
     text-transform: uppercase;
 }}
 /* ── 卡片网格 ── */
 .grid {{
     display: grid;
     grid-template-columns: repeat(10, 1fr);
-    gap: 8px;
+    gap: 6px;
 }}
 .card {{
-    border-radius: 8px;
+    border-radius: 6px;
     overflow: hidden;
     position: relative;
     aspect-ratio: 3 / 4;
-    border: 2px solid #3a6090;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.7);
     background: #080c18;
 }}
-.up   {{ box-shadow: 0 0 10px rgba(255,82,82,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
-.down {{ box-shadow: 0 0 10px rgba(58,172,240,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
-.new  {{ box-shadow: 0 0 10px rgba(0,230,118,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
 .card-img {{
     position: absolute;
     inset: 0;
@@ -537,19 +539,23 @@ body::before {{
     background: linear-gradient(
         to bottom,
         transparent 0%,
-        rgba(4, 6, 18, 0.58) 20%,
-        rgba(4, 6, 18, 0.88) 48%,
-        rgba(4, 6, 18, 0.97) 100%
+        rgba(4, 6, 18, 0.65) 25%,
+        rgba(4, 6, 18, 0.92) 52%,
+        rgba(4, 6, 18, 0.99) 100%
     );
-    padding: 16px 6px 5px;
+    padding: 18px 5px 5px;
 }}
 .card-name {{
     font-size: 11px;
     font-weight: bold;
     color: #f5f5f5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
     word-break: break-all;
-    white-space: normal;
     line-height: 1.25;
+    max-height: 2.5em;
     margin-bottom: 1px;
     text-shadow: 0 1px 5px rgba(0,0,0,0.95);
 }}
@@ -557,8 +563,9 @@ body::before {{
     font-size: 10.5px;
     font-weight: bold;
     color: #d4e8ff;
-    word-break: break-all;
-    white-space: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     line-height: 1.2;
     margin-bottom: 3px;
     letter-spacing: 0.3px;
@@ -572,17 +579,19 @@ body::before {{
 }}
 .price-block {{ flex: 1; min-width: 0; }}
 .new-price {{
-    font-size: 13px;
-    font-weight: bold;
+    font-size: 18px;
+    font-weight: 900;
     white-space: nowrap;
-    text-shadow: 0 1px 5px rgba(0,0,0,0.95);
+    line-height: 1.1;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.95);
 }}
 .old-price {{
-    font-size: 10px;
-    color: #7a8fa0;
+    font-size: 12px;
+    font-weight: bold;
+    color: #c8a060;
     text-decoration: line-through;
     white-space: nowrap;
-    margin-top: 2px;
+    margin-top: 1px;
     text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }}
 .badge {{
@@ -592,6 +601,7 @@ body::before {{
     border-radius: 3px;
     flex-shrink: 0;
     line-height: 1.4;
+    align-self: flex-end;
 }}
 .up   .new-price {{ color: #ff8080; }}
 .down .new-price {{ color: #60b8f8; }}
@@ -606,7 +616,7 @@ body::before {{
     font-weight: bold;
     color: rgba(255,255,255,0.75);
     letter-spacing: 1.5px;
-    margin-top: 14px;
+    margin-top: 10px;
     padding-right: 4px;
     text-shadow:
         -1px -1px 0 rgba(0,0,0,0.8),
