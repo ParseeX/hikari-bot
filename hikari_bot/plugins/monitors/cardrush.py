@@ -1152,8 +1152,9 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
 async def check_price_changes():
     """拉取最新价格并保存，返回新增记录数。"""
-    new_prices = query_all()
-    count = save_prices(new_prices)
+    loop = asyncio.get_event_loop()
+    new_prices = await loop.run_in_executor(None, query_all)
+    count = await loop.run_in_executor(None, save_prices, new_prices)
     if count > 0:
         await log_message(f"[cardrush_monitor] Finish checking with {count} change(s).")
 
