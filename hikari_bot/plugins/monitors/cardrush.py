@@ -498,6 +498,7 @@ body::before {{
     border-radius: 8px;
     overflow: hidden;
     position: relative;
+    aspect-ratio: 3 / 4;
     border: 2px solid #3a6090;
     box-shadow: 0 2px 10px rgba(0,0,0,0.7);
     background: #080c18;
@@ -506,7 +507,12 @@ body::before {{
 .down {{ border-color: #3aacf0; box-shadow: 0 0 10px rgba(58,172,240,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
 .new  {{ border-color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.3), 0 2px 8px rgba(0,0,0,0.7); }}
 .card-img {{
+    position: absolute;
+    inset: 0;
     width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
     display: block;
     background: #0c1428;
 }}
@@ -519,30 +525,30 @@ body::before {{
     background: linear-gradient(
         to bottom,
         transparent 0%,
-        rgba(4, 6, 18, 0.58) 20%,
-        rgba(4, 6, 18, 0.88) 48%,
-        rgba(4, 6, 18, 0.97) 100%
+        rgba(240, 245, 255, 0.55) 20%,
+        rgba(230, 238, 255, 0.88) 48%,
+        rgba(220, 232, 255, 0.97) 100%
     );
     padding: 28px 7px 8px;
 }}
 .card-name {{
     font-size: 11px;
     font-weight: bold;
-    color: #f5f5f5;
+    color: #0d1a2e;
     word-break: break-all;
     white-space: normal;
     line-height: 1.35;
     margin-bottom: 3px;
-    text-shadow: 0 1px 5px rgba(0,0,0,0.95);
+    text-shadow: none;
 }}
 .card-meta {{
     font-size: 10px;
-    color: #a8bcd8;
+    color: #3a4e6a;
     word-break: break-all;
     white-space: normal;
     line-height: 1.3;
     margin-bottom: 5px;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    text-shadow: none;
 }}
 .price-row {{
     display: flex;
@@ -555,15 +561,15 @@ body::before {{
     font-size: 13px;
     font-weight: bold;
     white-space: nowrap;
-    text-shadow: 0 1px 5px rgba(0,0,0,0.95);
+    text-shadow: none;
 }}
 .old-price {{
     font-size: 10px;
-    color: #7a8fa0;
+    color: #6a7d94;
     text-decoration: line-through;
     white-space: nowrap;
     margin-top: 2px;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    text-shadow: none;
 }}
 .badge {{
     font-size: 11px;
@@ -573,12 +579,12 @@ body::before {{
     flex-shrink: 0;
     line-height: 1.4;
 }}
-.up   .new-price {{ color: #ff8080; }}
-.down .new-price {{ color: #60b8f8; }}
-.new  .new-price {{ color: #5cf0a0; }}
-.up   .badge {{ background: rgba(255,82,82,0.2); color: #ff8080; border: 1px solid rgba(255,82,82,0.45); }}
-.down .badge {{ background: rgba(58,172,240,0.2); color: #60b8f8; border: 1px solid rgba(58,172,240,0.45); }}
-.new  .badge {{ background: rgba(0,230,118,0.2); color: #5cf0a0; border: 1px solid rgba(0,230,118,0.45); }}
+.up   .new-price {{ color: #c0001a; }}
+.down .new-price {{ color: #0060b0; }}
+.new  .new-price {{ color: #006830; }}
+.up   .badge {{ background: rgba(192,0,26,0.12); color: #c0001a; border: 1px solid rgba(192,0,26,0.4); }}
+.down .badge {{ background: rgba(0,96,176,0.12); color: #0060b0; border: 1px solid rgba(0,96,176,0.4); }}
+.new  .badge {{ background: rgba(0,104,48,0.12); color: #006830; border: 1px solid rgba(0,104,48,0.4); }}
 /* ── 水印 ── */
 .watermark {{
     text-align: right;
