@@ -669,14 +669,14 @@ body::before {{
 .overview-desc-zh {{
     font-size: 26px;
     font-weight: 700;
-    color: #ddeeff;
+    color: #d0e8ff;
     line-height: 1.8;
     letter-spacing: 1px;
 }}
 .overview-desc-ja {{
     font-size: 26px;
     font-weight: 700;
-    color: #7aabcc;
+    color: #d0e8ff;
     line-height: 1.8;
     letter-spacing: 0.5px;
     border-top: 1px solid rgba(80,130,200,0.15);
@@ -816,14 +816,13 @@ def _card_html(c: dict, image_map: dict) -> str:
 def _overview_score(c: dict) -> float:
     """
     综合评分，用于概述页排行榜。
-    公式：|percent_diff| × log10(new_price)
-    用涨跌幅（比例）而非绝对额，避免高价卡小幅变动压过低价卡大幅变动。
-    再乘 log10(new_price) 给高价卡一点权重，避免几十円的小卡刷榜。
+    公式：|percent_diff| × new_price^0.3
+    用涨跌幅（比例）衡量变动，再乘价格的 0.3 次幂给高价卡加权。
+    相比 log10，幂函数对高价卡的偏爱更显著（500円→100000円 约 8 倍差距 vs log10 的 1.85 倍）。
     """
-    import math
     new_price    = c["new_price"] or 1
     percent_diff = abs(c.get("percent_diff") or 0)
-    return percent_diff * math.log10(max(new_price, 1))
+    return percent_diff * (max(new_price, 1) ** 0.3)
 
 
 def _make_page_html(css: str, date_str: str, page_num_html: str,
