@@ -499,13 +499,11 @@ body::before {{
     text-shadow: 0 0 20px rgba(100,180,255,0.6), 0 2px 6px rgba(0,0,0,0.8);
 }}
 .header-page-num {{
-    font-size: 12px;
-    font-weight: 600;
-    color: #90b8d8;
-    letter-spacing: 1px;
-}}
-.pn-cur, .pn-divider, .pn-tot {{
-    display: none;
+    font-size: 11px;
+    font-weight: 700;
+    color: #7aaac8;
+    letter-spacing: 3px;
+    text-transform: uppercase;
 }}
 .header-date-label {{
     display: none;
@@ -731,7 +729,7 @@ def _render_daily_report_html(
         page       = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
         page_label = ""  # no longer used in title
         page_num_html = (
-            f'<div class="header-page-num">第 {page_idx + 1} 页 / 共 {total_pages} 页</div>'
+            f'<div class="header-page-num">PAGE {page_idx + 1}/{total_pages}</div>'
         ) if total_pages > 1 else ""
 
         cards_html_parts = []
