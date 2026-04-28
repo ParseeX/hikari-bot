@@ -461,7 +461,7 @@ body::before {{
     border-left: 4px solid #4a9eff;
 }}
 .header-title {{
-    font-size: 26px;
+    font-size: 32px;
     font-weight: 900;
     letter-spacing: 3px;
     background: linear-gradient(90deg, #90bcff 0%, #ffffff 45%, #ffd060 100%);
@@ -487,8 +487,9 @@ body::before {{
     padding-right: 4px;
 }}
 .header-date-year {{
-    font-size: 11px;
-    color: #6a8aaa;
+    font-size: 12px;
+    font-weight: 700;
+    color: #a8c8e8;
     letter-spacing: 4px;
     text-transform: uppercase;
 }}
@@ -795,7 +796,6 @@ def _render_daily_report_html(
     <div class="header-right">
       <div class="header-date-year">{date_str[:4]}</div>
       <div class="header-date-main">{date_str[5:7]}.{date_str[8:10]}</div>
-      <div class="header-date-label">Daily Report</div>
     </div>
   </div>
   <div class="grid">{cards_html}
