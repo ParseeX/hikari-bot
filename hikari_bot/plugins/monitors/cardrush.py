@@ -501,8 +501,25 @@ body::before {{
 .header-page-num {{
     font-size: 13px;
     font-weight: 700;
-    color: #80b8e8;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
+    display: flex;
+    align-items: baseline;
+    gap: 1px;
+}}
+.pn-cur {{
+    font-size: 16px;
+    font-weight: 900;
+    color: #c8e4ff;
+}}
+.pn-sep {{
+    font-size: 11px;
+    color: #4a7a9a;
+    letter-spacing: 0;
+}}
+.pn-tot {{
+    font-size: 11px;
+    font-weight: 400;
+    color: #5a8aaa;
 }}
 .header-date-label {{
     display: none;
@@ -727,7 +744,7 @@ def _render_daily_report_html(
     for page_idx in range(total_pages):
         page       = changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
         page_label = ""  # no longer used in title
-        page_num_html = f'<div class="header-page-num">P {page_idx + 1} / {total_pages}</div>' if total_pages > 1 else ""
+        page_num_html = f'<div class="header-page-num"><span class="pn-cur">{page_idx + 1:02d}</span><span class="pn-sep"> · </span><span class="pn-tot">{total_pages:02d}</span></div>' if total_pages > 1 else ""
 
         cards_html_parts = []
         for c in page:
