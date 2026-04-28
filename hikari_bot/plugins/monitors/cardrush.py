@@ -430,8 +430,9 @@ body {{
 }}
 body::before {{
     content: '';
-    position: fixed;
+    position: absolute;
     inset: 0;
+    min-height: 100%;
     background: rgba(4, 6, 18, 0.68);
     z-index: 0;
     pointer-events: none;
