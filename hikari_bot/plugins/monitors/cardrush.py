@@ -889,33 +889,16 @@ def _render_daily_report_html(
     OVERVIEW_ROWS = 3
     OVERVIEW_SIZE = OVERVIEW_COLS * OVERVIEW_ROWS  # 30
 
-    # 涨幅/跌幅/新增分别取 Top N，合并去重，按分数降序
-    up_cards   = sorted(
-        [c for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) > 0],
-        key=_overview_score, reverse=True,
-    )
-    down_cards = sorted(
-        [c for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) < 0],
-        key=_overview_score, reverse=True,
-    )
-    new_cards  = sorted(
-        [c for c in changes if c["change_type"] == "new"],
-        key=_overview_score, reverse=True,
-    )
-
-    # 按 up → down → new 的优先级填满 OVERVIEW_SIZE 个槽位
+    # 按综合评分降序，取前 OVERVIEW_SIZE 张（新增卡不参与排行）
+    # 公式：|price_diff| × log10(new_price)，高价大波动的卡优先
     seen_ids: set = set()
-    ranked: list[dict] = []
-    for pool in (up_cards, down_cards, new_cards):
-        for c in pool:
-            if len(ranked) >= OVERVIEW_SIZE:
-                break
-            pid = c.get("product_id")
-            if pid not in seen_ids:
-                seen_ids.add(pid)
-                ranked.append(c)
-        if len(ranked) >= OVERVIEW_SIZE:
-            break
+    ranked: list[dict] = sorted(
+        [c for c in changes if c["change_type"] == "changed"],
+        key=_overview_score,
+        reverse=True,
+    )[:OVERVIEW_SIZE]
+    for c in ranked:
+        seen_ids.add(c.get("product_id"))
 
     overview_cards_html = "".join(_card_html(c, image_map) for c in ranked)
     # 补占位
