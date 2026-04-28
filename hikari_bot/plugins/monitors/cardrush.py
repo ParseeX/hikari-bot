@@ -13,6 +13,7 @@ import base64
 import functools
 import html as html_mod
 import os
+import shutil
 import re
 from datetime import date, datetime
 from io import BytesIO
@@ -606,19 +607,26 @@ body::before {{
 
 async def _fetch_card_images(
     changes: list[dict],
+    img_dir: str,
     concurrency: int = 20,
     retries: int = 3,
     timeout: int = 10,
 ) -> dict[int, str]:
     """
-    并发下载所有卡图，返回 {product_id: "data:image/webp;base64,..."} 映射。
-    下载失败的卡使用空字符串（会回退到原始 URL）。
+    并发下载所有卡图到 img_dir 目录，返回 {product_id: file:///... URL} 映射。
+    下载失败的卡使用空字符串（会回退到原始远程 URL）。
     """
+    os.makedirs(img_dir, exist_ok=True)
     product_ids = list({c["product_id"] for c in changes if c.get("product_id")})
     result: dict[int, str] = {}
     sem = asyncio.Semaphore(concurrency)
 
     async def fetch_one(session: aiohttp.ClientSession, pid: int) -> None:
+        dest = os.path.join(img_dir, f"{pid}.webp")
+        # 已有缓存则直接用
+        if os.path.exists(dest):
+            result[pid] = "file:///" + dest.replace("\\", "/")
+            return
         url = _CARD_IMAGE_URL.format(product_id=pid)
         for attempt in range(retries):
             try:
@@ -626,9 +634,9 @@ async def _fetch_card_images(
                     async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
                         if resp.status == 200:
                             data = await resp.read()
-                            b64 = base64.b64encode(data).decode()
-                            ct = resp.content_type or "image/webp"
-                            result[pid] = f"data:{ct};base64,{b64}"
+                            with open(dest, "wb") as f:
+                                f.write(data)
+                            result[pid] = "file:///" + dest.replace("\\", "/")
                             return
             except Exception:
                 if attempt < retries - 1:
@@ -768,7 +776,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
         total_cards = len(changes)
         await bot.send(event, f"正在下载 {total_cards} 张卡图，请稍候…")
-        image_map = await _fetch_card_images(changes)
+        img_dir = os.path.join(DATA_DIR, "card_images")
+        image_map = await _fetch_card_images(changes, img_dir)
 
         pages = _render_daily_report_html(changes, date_str, image_map=image_map)
         out_dir = os.path.join(DATA_DIR, "daily_report_html")
@@ -788,18 +797,27 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                 bpage = await browser.new_page(
                     viewport={"width": 1340, "height": 900}
                 )
+                bpage.set_default_timeout(120_000)
                 file_url = "file:///" + filepath.replace("\\", "/")
-                await bpage.goto(file_url)
-                # 图片已嵌入 base64，无需等待网络，直接截图
-                await bpage.wait_for_load_state("domcontentloaded")
+                await bpage.goto(file_url, wait_until="domcontentloaded")
+                # 等待字体就绪，避免 screenshot 内部超时
+                await bpage.evaluate("document.fonts.ready")
 
-                screenshot_bytes = await bpage.screenshot(full_page=True)
+                screenshot_bytes = await bpage.screenshot(
+                    full_page=True,
+                    animations="disabled",
+                    timeout=120_000,
+                )
                 await bpage.close()
 
                 b64 = base64.b64encode(screenshot_bytes).decode()
                 await bot.send(event, MessageSegment.image(f"base64://{b64}"))
 
             await browser.close()
+
+        # 渲染完毕，删除临时卡图缓存
+        if os.path.isdir(img_dir):
+            shutil.rmtree(img_dir, ignore_errors=True)
 
         await daily_report_html.finish(f"图报发送完毕（共 {total} 页）。")
 
