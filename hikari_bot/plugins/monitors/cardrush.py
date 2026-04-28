@@ -23,7 +23,7 @@ from playwright.async_api import async_playwright
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-from nonebot import get_driver, require
+from nonebot import get_bot, get_driver, require
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.exception import FinishedException, RejectedException
 from nonebot.params import Arg, CommandArg
@@ -35,6 +35,7 @@ from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
+from hikari_bot.core.whitelist import message_superusers
 from hikari_bot.core.logger import log_message
 from hikari_bot.services.price import (
     get_daily_report_changes,
@@ -1175,6 +1176,68 @@ async def scheduled_price_check():
 @scheduler.scheduled_job("interval", minutes=5, id="cardrush_price_monitor", misfire_grace_time=300)
 async def _scheduled_job():
     await scheduled_price_check()
+
+
+async def _auto_send_daily_report():
+    """每天 22:10 自动生成当日卡价图报并私信发送给所有管理员。"""
+    date_str = date.today().isoformat()
+    try:
+        loop = asyncio.get_event_loop()
+        _query = functools.partial(get_daily_report_changes, date_str,
+                                   exclude_prefixes=["RD/"])
+        changes = await loop.run_in_executor(None, _query)
+
+        if not changes:
+            await log_message(f"[cardrush_auto] No price changes on {date_str}, skipping report.")
+            return
+
+        img_dir = os.path.join(DATA_DIR, "card_images")
+        image_map = await _fetch_card_images(changes, img_dir)
+        pages = _render_daily_report_html(changes, date_str, image_map=image_map)
+
+        out_dir = os.path.join(DATA_DIR, "daily_report_html")
+        os.makedirs(out_dir, exist_ok=True)
+
+        # 渲染截图
+        screenshots: list[bytes] = []
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch()
+            for i, page_html in enumerate(pages, 1):
+                filename = f"cardrush_{date_str}_auto_p{i}.html"
+                filepath = os.path.join(out_dir, filename)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(page_html)
+                bpage = await browser.new_page(viewport={"width": 1340, "height": 900})
+                bpage.set_default_timeout(120_000)
+                file_url = "file:///" + filepath.replace("\\", "/")
+                await bpage.goto(file_url, wait_until="domcontentloaded")
+                await bpage.evaluate("document.fonts.ready")
+                screenshots.append(await bpage.screenshot(
+                    full_page=True, animations="disabled", timeout=120_000
+                ))
+                await bpage.close()
+            await browser.close()
+
+        if os.path.isdir(img_dir):
+            shutil.rmtree(img_dir, ignore_errors=True)
+
+        # 发送给所有管理员（图片逐页发送）
+        bot = get_bot()
+        from hikari_bot.core.constants import ADMIN
+        for uid in ADMIN:
+            for shot in screenshots:
+                b64 = base64.b64encode(shot).decode()
+                await bot.send_private_msg(user_id=int(uid),
+                                           message=MessageSegment.image(f"base64://{b64}"))
+        await log_message(f"[cardrush_auto] Report sent to {ADMIN} ({len(screenshots)} page(s)).")
+
+    except Exception as e:
+        await log_message(f"[cardrush_auto] Auto report failed: {e}")
+
+
+@scheduler.scheduled_job("cron", hour=22, minute=10, id="cardrush_daily_report_auto", misfire_grace_time=600)
+async def _auto_report_job():
+    await _auto_send_daily_report()
 
 
 # ── 管理员命令 ────────────────────────────────────────────────────────────────
