@@ -656,27 +656,26 @@ body::before {{
 }}
 /* ── 概述页文字区 ── */
 .overview-desc {{
-    min-height: 300px;
-    padding: 28px 36px;
+    padding: 20px 36px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 16px;
+    gap: 14px;
     background: rgba(6,10,24,0.70);
     border-radius: 8px;
     border: 1px solid rgba(80,130,200,0.15);
     backdrop-filter: blur(8px);
 }}
 .overview-desc-zh {{
-    font-size: 20px;
+    font-size: 26px;
     font-weight: 700;
     color: #ddeeff;
     line-height: 1.8;
     letter-spacing: 1px;
 }}
 .overview-desc-ja {{
-    font-size: 16px;
-    font-weight: 500;
+    font-size: 26px;
+    font-weight: 700;
     color: #7aabcc;
     line-height: 1.8;
     letter-spacing: 0.5px;
@@ -707,13 +706,12 @@ body::before {{
     background: linear-gradient(90deg, transparent, rgba(80,140,210,0.4), transparent);
 }}
 .overview-section-title span {{
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 6px;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 4px;
     color: #8ab8d8;
-    text-transform: uppercase;
     white-space: nowrap;
-    padding: 0 4px;
+    padding: 0 8px;
 }}
 /* 概述页卡片网格：10列（与正文页相同） */
 .grid-overview {{
@@ -930,16 +928,16 @@ def _render_daily_report_html(
     date_display_ja = f"{date_str[:4]}年{int(date_str[5:7])}月{int(date_str[8:10])}日"
     zh_html = (
         f"统计了 <em>{date_display}</em> CardRush 平台买取价"
-        f"<em>500～100,000円</em>范围内单卡价格变动情况，"
-        f"共 <em>{len(changes)}</em> 张卡发生变化。"
+        f"<em>500円～100,000円</em>范围内单卡价格变动情况，"
+        f"共 <em>{len(changes)}</em> 张卡发生变化。<br>"
         f"涨价 <em class='num-up'>{up_count}</em> 张　·　"
         f"降价 <em class='num-down'>{down_count}</em> 张　·　"
         f"新增 <em class='num-new'>{new_count}</em> 张"
     )
     ja_html = (
         f"<em>{date_display_ja}</em>のCardRushプラットフォームにおける"
-        f"買取価格<em>500〜100,000円</em>の単カード価格変動情報。"
-        f"変動計 <em>{len(changes)}</em> 枚。"
+        f"買取価格<em>500円〜100,000円</em>の単カード価格変動情報。"
+        f"変動計 <em>{len(changes)}</em> 枚。<br>"
         f"値上がり <em class='num-up'>{up_count}</em> 枚　·　"
         f"値下がり <em class='num-down'>{down_count}</em> 枚　·　"
         f"新規 <em class='num-new'>{new_count}</em> 枚"
