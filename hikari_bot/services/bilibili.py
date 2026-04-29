@@ -5,23 +5,24 @@ bilibili.py — B 站专栏（文章）发布工具
 用法：调用 post_article_with_images()
 """
 
-import os
 from datetime import datetime, timezone, timedelta
 
 import aiohttp
+from nonebot import get_driver
 
 from hikari_bot.core.logger import log_message
 
 
 def _get_credentials() -> dict[str, str] | None:
-    """从环境变量读取 B 站 Cookie，任意一项缺失则返回 None。"""
+    """从 NoneBot 配置读取 B 站 Cookie，任意一项缺失则返回 None。"""
+    cfg = get_driver().config
     keys = {
-        "sessdata":    "BILIBILI_SESSDATA",
-        "bili_jct":    "BILIBILI_BILI_JCT",
-        "buvid3":      "BILIBILI_BUVID3",
-        "dede_uid":    "BILIBILI_DEDE_USER_ID",
+        "sessdata": "bilibili_sessdata",
+        "bili_jct": "bilibili_bili_jct",
+        "buvid3":   "bilibili_buvid3",
+        "dede_uid": "bilibili_dede_user_id",
     }
-    creds = {k: os.getenv(v, "") for k, v in keys.items()}
+    creds = {k: getattr(cfg, v, "") or "" for k, v in keys.items()}
     if not all(creds.values()):
         return None
     return creds
