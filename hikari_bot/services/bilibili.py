@@ -26,7 +26,9 @@ def _get_credential():
         "buvid3":   "bilibili_buvid3",
         "dede_uid": "bilibili_dede_user_id",
     }
-    vals = {k: getattr(cfg, v, "") or "" for k, v in keys.items()}
+    # NoneBot/Pydantic may parse numeric env vars (e.g. DEDE_USER_ID) as int;
+    # Credential expects str for all cookie fields, so coerce everything to str.
+    vals = {k: str(getattr(cfg, v, "") or "") for k, v in keys.items()}
     if not all(vals.values()):
         return None
 
@@ -97,5 +99,6 @@ async def post_article_with_images(
         return True
 
     except Exception as e:
-        await log_message(f"[bili] Post failed: {e}")
+        import traceback
+        await log_message(f"[bili] Post failed: {e}\n{traceback.format_exc()}")
         return False
