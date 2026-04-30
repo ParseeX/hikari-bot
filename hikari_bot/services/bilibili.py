@@ -2,54 +2,49 @@
 bilibili.py — B 站图文动态（多图+文字+定时）发布工具
 
 依赖：bilibili-api-python（服务器安装：pip install bilibili-api-python）
-用法：调用 post_article_with_images()
+
+Cookie 来源：data/bili_auth.json（由服务器上运行 bili_login.py 扫码登录生成）
 """
 
+import json
+import os
 from datetime import datetime, timezone, timedelta
-
-from nonebot import get_driver
 
 from hikari_bot.core.logger import log_message
 
+# auth.json 路径：<项目根>/data/bili_auth.json
+_AUTH_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+    "data", "bili_auth.json"
+)
+
 
 def _get_credential():
-    """从 NoneBot 配置读取 B 站 Cookie，必填项缺失则返回 None。
-
-    必填（.env）:
-      BILIBILI_SESSDATA, BILIBILI_BILI_JCT, BILIBILI_BUVID3, BILIBILI_DEDE_USER_ID
-    可选（.env）:
-      BILIBILI_BUVID4, BILIBILI_AC_TIME_VALUE
-    """
+    """从 data/bili_auth.json 读取 B 站凭据（由 bili_login.py 扫码登录生成）。"""
     try:
         from bilibili_api import Credential
     except ImportError:
         return None
 
-    cfg = get_driver().config
+    if not os.path.exists(_AUTH_FILE):
+        return None
 
-    def _str(key: str) -> str:
-        # NoneBot/Pydantic may parse unquoted numeric values as int; coerce to str.
-        return str(getattr(cfg, key, "") or "")
+    try:
+        with open(_AUTH_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return None
 
-    required = {
-        "sessdata": "bilibili_sessdata",
-        "bili_jct": "bilibili_bili_jct",
-        "buvid3":   "bilibili_buvid3",
-        "dede_uid": "bilibili_dede_user_id",
-    }
-    vals = {k: _str(v) for k, v in required.items()}
-    missing = [k for k, v in vals.items() if not v]
-    if missing:
+    if not d.get("sessdata") or not d.get("bili_jct"):
         return None
 
     return Credential(
-        sessdata=vals["sessdata"],
-        bili_jct=vals["bili_jct"],
-        buvid3=vals["buvid3"],
-        dedeuserid=vals["dede_uid"],
-        # Optional but recommended for longer-lived sessions:
-        buvid4=_str("bilibili_buvid4") or None,
-        ac_time_value=_str("bilibili_ac_time_value") or None,
+        sessdata=d.get("sessdata"),
+        bili_jct=d.get("bili_jct"),
+        buvid3=d.get("buvid3"),
+        buvid4=d.get("buvid4"),
+        dedeuserid=str(d.get("dedeuserid") or ""),
+        ac_time_value=d.get("ac_time_value"),
     )
 
 
@@ -77,18 +72,22 @@ async def post_article_with_images(
 
     credential = _get_credential()
     if credential is None:
-        await log_message("[bili] Credentials not configured, skipping Bilibili post.")
+        await log_message(
+            f"[bili] 未找到凭据，请先在服务器上运行 bili_login.py 完成扫码登录。\n"
+            f"  预期文件路径：{_AUTH_FILE}"
+        )
         return False
 
-    # 诊断：把读取到的凭据关键字段输出到 log，确认 .env 被正确加载
+    # 诊断：把读取到的凭据关键字段输出到 log，确认来源和内容是否正确
     # 敏感字段（SESSDATA/bili_jct）只显示前8位，避免明文泄露
     def _mask(s: str | None, keep: int = 8) -> str:
         if not s:
             return "(empty)"
         return s[:keep] + "…" if len(s) > keep else s
 
+    cred_source = "auth.json" if os.path.exists(_AUTH_FILE) else ".env"
     await log_message(
-        "[bili] Credential debug:\n"
+        f"[bili] Credential debug (source: {cred_source}):\n"
         f"  SESSDATA       = {_mask(credential.sessdata)}\n"
         f"  bili_jct       = {_mask(credential.bili_jct)}\n"
         f"  buvid3         = {_mask(credential.buvid3)}\n"
