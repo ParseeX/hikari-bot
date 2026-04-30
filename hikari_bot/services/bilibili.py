@@ -72,10 +72,8 @@ async def post_article_with_images(
     """
     try:
         import httpx
-        from bilibili_api.utils.picture import Picture
     except ImportError as e:
-        await log_message(f"[bili] 缺少依赖（{e}），请 pip install bilibili-api-python httpx。")
-        return False
+        await log_message(f"[bili] 缺少依赖（{e}），请 pip install httpx。"); return False
 
     credential = _get_credential()
     if credential is None:
@@ -84,23 +82,6 @@ async def post_article_with_images(
             f"  预期文件路径：{_AUTH_FILE}"
         )
         return False
-
-    # 诊断：把读取到的凭据关键字段输出到 log，确认来源和内容是否正确
-    def _mask(s: str | None, keep: int = 8) -> str:
-        if not s:
-            return "(empty)"
-        return s[:keep] + "…" if len(s) > keep else s
-
-    cred_source = "auth.json" if os.path.exists(_AUTH_FILE) else ".env"
-    await log_message(
-        f"[bili] Credential debug (source: {cred_source}):\n"
-        f"  SESSDATA       = {_mask(credential.sessdata)}\n"
-        f"  bili_jct       = {_mask(credential.bili_jct)}\n"
-        f"  buvid3         = {_mask(credential.buvid3)}\n"
-        f"  DedeUserID     = {credential.dedeuserid}\n"
-        f"  buvid4         = {_mask(credential.buvid4)}\n"
-        f"  ac_time_value  = {_mask(credential.ac_time_value)}"
-    )
 
     # 预检：验证 cookie 是否有效
     try:
@@ -115,48 +96,15 @@ async def post_article_with_images(
         )
         return False
 
-    # 专栏标题（单独显示在顶部）
     date_label = f"{date_str[:4]}.{date_str[5:7]}.{date_str[8:10]}"
     title = f"{date_label} 日本游戏王卡价日报"
 
-    # 定时发布时间戳（北京时间 = UTC+8）
     beijing_tz = timezone(timedelta(hours=8))
     year, month, day = int(date_str[:4]), int(date_str[5:7]), int(date_str[8:10])
     send_time = datetime(year, month, day, pub_hour, pub_minute, 0, tzinfo=beijing_tz)
     pub_timestamp = int(send_time.timestamp())
 
     try:
-        # 上传截图，获取 CDN URL
-        pics = [Picture.from_content(shot, "png") for shot in screenshots]
-        await log_message(f"[bili] Uploading {len(pics)} image(s)...")
-        for pic in pics:
-            await pic.upload(credential)
-        await log_message("[bili] All images uploaded.")
-
-        # 封面 = 第一张截图 URL
-        cover_url = pics[0].url if pics else ""
-
-        # 正文 HTML：描述段落 + 逐张图片（<figure> 是 B 站专栏标准图片元素）
-        desc_html = (
-            "<p>Cardrush 为日本主流卡店平台之一，其公开买取价常被用于观察市场行情。</p>"
-            "<p>本文基于公开数据整理，仅供交流参考。</p>"
-            "<p>预计每日 21:30（北京时间）更新。</p>"
-        )
-        def _img_url(url: str) -> str:
-            # B站专栏 HTML 要求 URL 去掉 https: 前缀，使用 //host/path 形式
-            return url.replace("https:", "").replace("http:", "")
-
-        images_html = "".join(
-            f'<figure class="img-box">'
-            f'<img data-src="{_img_url(pic.url)}" class="" style="cursor: zoom-in;">'
-            f'<figcaption class=""></figcaption>'
-            f'</figure>'
-            for pic in pics
-        )
-        await log_message(f"[bili] Image URLs: {[_img_url(p.url) for p in pics]}")
-        content_html = desc_html + images_html
-
-        # 原始 HTTP 请求（bilibili-api 库未实现专栏上传，直接调接口）
         cookies = {
             "SESSDATA": credential.sessdata,
             "bili_jct": credential.bili_jct,
@@ -177,6 +125,40 @@ async def post_article_with_images(
         }
 
         async with httpx.AsyncClient(cookies=cookies, headers=headers, timeout=30) as client:
+            # 专栏专用图片上传接口
+            img_urls = []
+            await log_message(f"[bili] Uploading {len(screenshots)} image(s) via article API...")
+            for idx, img_bytes in enumerate(screenshots):
+                files = {'file': (f'image{idx}.png', img_bytes, 'image/png')}
+                resp = await client.post(
+                    "https://api.bilibili.com/x/article/creative/image/upload",
+                    files=files,
+                    data={"biz": "article", "csrf": credential.bili_jct},
+                )
+                j = resp.json()
+                if j.get("code") != 0 or "url" not in j.get("data", {}):
+                    await log_message(f"[bili] Image upload failed: {j}"); return False
+                img_urls.append(j["data"]["url"])
+            await log_message(f"[bili] Article image URLs: {img_urls}")
+
+            cover_url = img_urls[0] if img_urls else ""
+
+            desc_html = (
+                "<p>Cardrush 为日本主流卡店平台之一，其公开买取价常被用于观察市场行情。</p>"
+                "<p>本文基于公开数据整理，仅供交流参考。</p>"
+                "<p>预计每日 21:30（北京时间）更新。</p>"
+            )
+            def _img_url(url: str) -> str:
+                return url.replace("https:", "").replace("http:", "")
+            images_html = "".join(
+                f'<figure class="img-box">'
+                f'<img data-src="{_img_url(url)}" class="" style="cursor: zoom-in;">'
+                f'<figcaption class=""></figcaption>'
+                f'</figure>'
+                for url in img_urls
+            )
+            content_html = desc_html + images_html
+
             # Step 1：保存草稿
             draft_resp = await client.post(
                 "https://api.bilibili.com/x/article/creative/draft/addupdate",
@@ -186,16 +168,14 @@ async def post_article_with_images(
                     "cover": _img_url(cover_url),
                     "category": 0,
                     "list_id": 0,
-                    "tid": 4,       # 日常
-                    "original": 1,  # 原创
+                    "tid": 4,
+                    "original": 1,
                     "csrf": credential.bili_jct,
                 },
             )
             draft_json = draft_resp.json()
             if draft_json.get("code") != 0:
-                await log_message(f"[bili] Draft save failed: {draft_json}")
-                return False
-
+                await log_message(f"[bili] Draft save failed: {draft_json}"); return False
             aid = draft_json["data"]["aid"]
             await log_message(f"[bili] Draft saved (aid={aid}).")
 
@@ -207,18 +187,14 @@ async def post_article_with_images(
             raw = pub_resp.text.strip()
             await log_message(f"[bili] Publish response ({pub_resp.status_code}): {raw[:500]}")
             if not raw:
-                # 部分情况下接口返回空体但 HTTP 2xx 表示成功
                 if pub_resp.status_code in (200, 204):
                     await log_message("[bili] Publish response empty but status OK, treating as success.")
                 else:
-                    await log_message(f"[bili] Publish failed: empty response, HTTP {pub_resp.status_code}")
-                    return False
+                    await log_message(f"[bili] Publish failed: empty response, HTTP {pub_resp.status_code}"); return False
             else:
                 pub_json = pub_resp.json()
                 if pub_json.get("code") != 0:
-                    await log_message(f"[bili] Publish failed: {pub_json}")
-                    return False
-
+                    await log_message(f"[bili] Publish failed: {pub_json}"); return False
             await log_message(
                 f"[bili] Article posted (cv{aid}), "
                 f"scheduled at Beijing {pub_hour:02d}:{pub_minute:02d} ({date_str})."
