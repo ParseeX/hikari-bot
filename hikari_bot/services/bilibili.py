@@ -124,6 +124,13 @@ async def post_article_with_images(
             "Origin": "https://member.bilibili.com",
         }
 
+        headers_img = headers.copy()
+        headers_img.update({
+            "Accept": "application/json, text/plain, */*",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": "https://member.bilibili.com",
+        })
+
         async with httpx.AsyncClient(cookies=cookies, headers=headers, timeout=30) as client:
             # 专栏专用图片上传接口
             img_urls = []
@@ -134,6 +141,7 @@ async def post_article_with_images(
                     "https://api.bilibili.com/x/article/creative/image/upload",
                     files=files,
                     data={"biz": "article", "csrf": credential.bili_jct},
+                    headers=headers_img,
                 )
                 raw = resp.text.strip()
                 await log_message(f"[bili] Image upload resp ({resp.status_code}): {raw[:300]}")
