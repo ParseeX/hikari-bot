@@ -1,9 +1,16 @@
 """
-bilibili.py — B 站图文动态（多图+文字+定时）发布工具
+bilibili.py — B 站专栏（图文）发布工具
 
-依赖：bilibili-api-python（服务器安装：pip install bilibili-api-python）
+依赖：
+  pip install bilibili-api-python httpx
 
 Cookie 来源：data/bili_auth.json（由服务器上运行 bili_login.py 扫码登录生成）
+
+发布流程：
+  1. 用 bilibili_api.Picture 上传截图，拿到 CDN URL
+  2. 组装 HTML 正文（图片用 <figure class="img-box"> 内嵌）
+  3. POST /x/article/creative/draft/addupdate  保存草稿（含定时）
+  4. POST /x/article/creative/draft/publish    发布草稿
 """
 
 import json
@@ -55,7 +62,7 @@ async def post_article_with_images(
     pub_minute: int = 30,
 ) -> bool:
     """
-    将截图列表以图文动态形式发布到 B 站（支持定时）。
+    将截图列表以专栏形式发布到 B 站（标题独立、图片内嵌正文、支持定时）。
 
     :param screenshots: 按页顺序的截图字节列表
     :param date_str:    日期字符串，格式 YYYY-MM-DD
@@ -64,10 +71,10 @@ async def post_article_with_images(
     :return:            成功返回 True
     """
     try:
-        from bilibili_api import dynamic
+        import httpx
         from bilibili_api.utils.picture import Picture
-    except ImportError:
-        await log_message("[bili] bilibili-api-python not installed, skipping post.")
+    except ImportError as e:
+        await log_message(f"[bili] 缺少依赖（{e}），请 pip install bilibili-api-python httpx。")
         return False
 
     credential = _get_credential()
@@ -79,7 +86,6 @@ async def post_article_with_images(
         return False
 
     # 诊断：把读取到的凭据关键字段输出到 log，确认来源和内容是否正确
-    # 敏感字段（SESSDATA/bili_jct）只显示前8位，避免明文泄露
     def _mask(s: str | None, keep: int = 8) -> str:
         if not s:
             return "(empty)"
@@ -96,7 +102,7 @@ async def post_article_with_images(
         f"  ac_time_value  = {_mask(credential.ac_time_value)}"
     )
 
-    # 预检：验证 cookie 是否有效，-101 时提前报错，避免浪费图片上传流量
+    # 预检：验证 cookie 是否有效
     try:
         is_login = await credential.check_valid()
     except Exception as e:
@@ -105,42 +111,102 @@ async def post_article_with_images(
     if not is_login:
         await log_message(
             "[bili] 账号未登录（SESSDATA 无效或已过期）。\n"
-            "请重新从浏览器复制最新 Cookie，更新服务器 .env 中的：\n"
-            "  BILIBILI_SESSDATA / BILIBILI_BILI_JCT / BILIBILI_BUVID3 / BILIBILI_DEDE_USER_ID\n"
-            "如果拥有 buvid4 和 ac_time_value 也请一并填入。"
+            "请重新在服务器上运行 bili_login.py 重新扫码登录。"
         )
         return False
 
-    # 固定开头文字（含标题行）
-    intro = (
-        f"{date_str[:4]}.{date_str[5:7]}.{date_str[8:10]} 日本游戏王卡价日报\n\n"
-        "Cardrush 为日本主流卡店平台之一，其公开买取价常被用于观察市场行情。\n"
-        "本文基于公开数据整理，仅供交流参考。\n"
-        "预计每日 21:30（北京时间）更新。"
-    )
+    # 专栏标题（单独显示在顶部）
+    date_label = f"{date_str[:4]}.{date_str[5:7]}.{date_str[8:10]}"
+    title = f"{date_label} 日本游戏王卡价日报"
 
-    # 定时发布时间（北京时间 = UTC+8）
+    # 定时发布时间戳（北京时间 = UTC+8）
     beijing_tz = timezone(timedelta(hours=8))
     year, month, day = int(date_str[:4]), int(date_str[5:7]), int(date_str[8:10])
     send_time = datetime(year, month, day, pub_hour, pub_minute, 0, tzinfo=beijing_tz)
+    pub_timestamp = int(send_time.timestamp())
 
     try:
-        # 将截图字节转为 Picture 对象
+        # 上传截图，获取 CDN URL
         pics = [Picture.from_content(shot, "png") for shot in screenshots]
-        await log_message(f"[bili] Prepared {len(pics)} image(s) for upload.")
+        await log_message(f"[bili] Uploading {len(pics)} image(s)...")
+        for pic in pics:
+            await pic.upload(credential)
+        await log_message("[bili] All images uploaded.")
 
-        # 构建图文动态（含定时）并发送
-        build = dynamic.BuildDynamic.create_by_args(
-            text=intro,
-            pics=pics,
-            send_time=send_time,
+        # 封面 = 第一张截图 URL
+        cover_url = pics[0].url if pics else ""
+
+        # 正文 HTML：描述段落 + 逐张图片（<figure> 是 B 站专栏标准图片元素）
+        desc_html = (
+            "<p>Cardrush 为日本主流卡店平台之一，其公开买取价常被用于观察市场行情。</p>"
+            "<p>本文基于公开数据整理，仅供交流参考。</p>"
+            "<p>预计每日 21:30（北京时间）更新。</p>"
         )
-        result = await dynamic.send_dynamic(build, credential)
-        await log_message(
-            f"[bili] Dynamic posted, scheduled at Beijing {pub_hour:02d}:{pub_minute:02d} "
-            f"({date_str}). Result: {result}"
+        images_html = "".join(
+            f'<figure class="img-box"><img data-src="{pic.url}"></figure>'
+            for pic in pics
         )
-        return True
+        content_html = desc_html + images_html
+
+        # 原始 HTTP 请求（bilibili-api 库未实现专栏上传，直接调接口）
+        cookies = {
+            "SESSDATA": credential.sessdata,
+            "bili_jct": credential.bili_jct,
+            "buvid3": credential.buvid3 or "",
+            "DedeUserID": str(credential.dedeuserid or ""),
+        }
+        if credential.buvid4:
+            cookies["buvid4"] = credential.buvid4
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Referer": "https://member.bilibili.com/platform/upload/text/edit",
+            "Origin": "https://member.bilibili.com",
+        }
+
+        async with httpx.AsyncClient(cookies=cookies, headers=headers, timeout=30) as client:
+            # Step 1：保存草稿（含定时时间戳）
+            draft_resp = await client.post(
+                "https://api.bilibili.com/x/article/creative/draft/addupdate",
+                data={
+                    "title": title,
+                    "content": content_html,
+                    "cover": cover_url,
+                    "category": 0,
+                    "list_id": 0,
+                    "tid": 4,       # 日常
+                    "original": 1,  # 原创
+                    "pub_time": pub_timestamp,
+                    "csrf": credential.bili_jct,
+                },
+            )
+            draft_json = draft_resp.json()
+            if draft_json.get("code") != 0:
+                await log_message(f"[bili] Draft save failed: {draft_json}")
+                return False
+
+            aid = draft_json["data"]["aid"]
+            await log_message(f"[bili] Draft saved (aid={aid}).")
+
+            # Step 2：提交发布
+            pub_resp = await client.post(
+                "https://api.bilibili.com/x/article/creative/draft/publish",
+                data={"aid": aid, "csrf": credential.bili_jct},
+            )
+            pub_json = pub_resp.json()
+            if pub_json.get("code") != 0:
+                await log_message(f"[bili] Publish failed: {pub_json}")
+                return False
+
+            await log_message(
+                f"[bili] Article posted (cv{aid}), "
+                f"scheduled at Beijing {pub_hour:02d}:{pub_minute:02d} ({date_str})."
+            )
+            return True
 
     except Exception as e:
         import traceback
