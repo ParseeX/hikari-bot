@@ -1240,7 +1240,7 @@ async def _auto_send_daily_report():
         await log_message(f"[cardrush_auto] Auto report failed: {e}")
 
 
-@scheduler.scheduled_job("cron", hour=21, minute=23, id="cardrush_daily_report_auto", misfire_grace_time=600)
+@scheduler.scheduled_job("cron", hour=21, minute=10, id="cardrush_daily_report_auto", misfire_grace_time=600)
 async def _auto_report_job():
     await _auto_send_daily_report()
 
@@ -1263,6 +1263,60 @@ async def _(bot: Bot, event: MessageEvent):
     await bot.send(event, "数据库已清空重建，开始重新抓取全站数据…")
     await scheduled_price_check()
     await bot.send(event, "数据抓取完成。")
+
+
+bili_post = on_cmd("发布B站动态", permission=SUPERUSER)
+
+@bili_post.handle()
+async def _(bot: Bot, event: MessageEvent):
+    from hikari_bot.services.bilibili import post_article_with_images
+    date_str = date.today().isoformat()
+    await bot.send(event, f"开始生成并发布 {date_str} 日报到 B 站，请稍候…")
+    try:
+        loop = asyncio.get_event_loop()
+        _query = functools.partial(get_daily_report_changes, date_str,
+                                   exclude_prefixes=["RD/"])
+        changes = await loop.run_in_executor(None, _query)
+        if not changes:
+            await bot.send(event, "今日无价格变动数据，无法生成日报。")
+            return
+
+        img_dir = os.path.join(DATA_DIR, "card_images")
+        image_map = await _fetch_card_images(changes, img_dir)
+        pages = _render_daily_report_html(changes, date_str, image_map=image_map)
+
+        out_dir = os.path.join(DATA_DIR, "daily_report_html")
+        os.makedirs(out_dir, exist_ok=True)
+
+        screenshots: list[bytes] = []
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch()
+            for i, page_html in enumerate(pages, 1):
+                filename = f"cardrush_{date_str}_bili_p{i}.html"
+                filepath = os.path.join(out_dir, filename)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(page_html)
+                bpage = await browser.new_page(viewport={"width": 1340, "height": 900})
+                bpage.set_default_timeout(120_000)
+                file_url = "file:///" + filepath.replace("\\", "/")
+                await bpage.goto(file_url, wait_until="domcontentloaded")
+                await bpage.evaluate("document.fonts.ready")
+                screenshots.append(await bpage.screenshot(
+                    full_page=True, animations="disabled", timeout=120_000
+                ))
+                await bpage.close()
+            await browser.close()
+
+        if os.path.isdir(img_dir):
+            shutil.rmtree(img_dir, ignore_errors=True)
+
+        ok = await post_article_with_images(screenshots, date_str)
+        if ok:
+            await bot.send(event, "B 站动态已提交，将在定时时间发布。")
+        else:
+            await bot.send(event, "B 站动态发布失败，请查看日志。")
+    except Exception as e:
+        await bot.send(event, f"发布失败：{e}")
 
 
 # ── 启动钩子 ──────────────────────────────────────────────────────────────────
