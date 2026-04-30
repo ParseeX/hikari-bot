@@ -142,10 +142,18 @@ async def post_article_with_images(
             "<p>本文基于公开数据整理，仅供交流参考。</p>"
             "<p>预计每日 21:30（北京时间）更新。</p>"
         )
+        def _img_url(url: str) -> str:
+            # B站专栏 HTML 要求 URL 去掉 https: 前缀，使用 //host/path 形式
+            return url.replace("https:", "").replace("http:", "")
+
         images_html = "".join(
-            f'<figure class="img-box"><img data-src="{pic.url}"></figure>'
+            f'<figure class="img-box">'
+            f'<img data-src="{_img_url(pic.url)}" class="" style="cursor: zoom-in;">'
+            f'<figcaption class=""></figcaption>'
+            f'</figure>'
             for pic in pics
         )
+        await log_message(f"[bili] Image URLs: {[_img_url(p.url) for p in pics]}")
         content_html = desc_html + images_html
 
         # 原始 HTTP 请求（bilibili-api 库未实现专栏上传，直接调接口）
@@ -169,18 +177,17 @@ async def post_article_with_images(
         }
 
         async with httpx.AsyncClient(cookies=cookies, headers=headers, timeout=30) as client:
-            # Step 1：保存草稿（含定时时间戳）
+            # Step 1：保存草稿
             draft_resp = await client.post(
                 "https://api.bilibili.com/x/article/creative/draft/addupdate",
                 data={
                     "title": title,
                     "content": content_html,
-                    "cover": cover_url,
+                    "cover": _img_url(cover_url),
                     "category": 0,
                     "list_id": 0,
                     "tid": 4,       # 日常
                     "original": 1,  # 原创
-                    "pub_time": pub_timestamp,
                     "csrf": credential.bili_jct,
                 },
             )
@@ -192,15 +199,25 @@ async def post_article_with_images(
             aid = draft_json["data"]["aid"]
             await log_message(f"[bili] Draft saved (aid={aid}).")
 
-            # Step 2：提交发布
+            # Step 2：提交发布（定时时间戳在这里传入）
             pub_resp = await client.post(
                 "https://api.bilibili.com/x/article/creative/draft/publish",
-                data={"aid": aid, "csrf": credential.bili_jct},
+                data={"aid": aid, "pub_time": pub_timestamp, "csrf": credential.bili_jct},
             )
-            pub_json = pub_resp.json()
-            if pub_json.get("code") != 0:
-                await log_message(f"[bili] Publish failed: {pub_json}")
-                return False
+            raw = pub_resp.text.strip()
+            await log_message(f"[bili] Publish response ({pub_resp.status_code}): {raw[:500]}")
+            if not raw:
+                # 部分情况下接口返回空体但 HTTP 2xx 表示成功
+                if pub_resp.status_code in (200, 204):
+                    await log_message("[bili] Publish response empty but status OK, treating as success.")
+                else:
+                    await log_message(f"[bili] Publish failed: empty response, HTTP {pub_resp.status_code}")
+                    return False
+            else:
+                pub_json = pub_resp.json()
+                if pub_json.get("code") != 0:
+                    await log_message(f"[bili] Publish failed: {pub_json}")
+                    return False
 
             await log_message(
                 f"[bili] Article posted (cv{aid}), "
