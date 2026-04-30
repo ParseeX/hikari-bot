@@ -33,14 +33,12 @@ async def main():
     qr = login_v2.QrCodeLogin(platform=login_v2.QrCodeLoginChannel.WEB)
     await qr.generate_qrcode()
 
-    # 在终端打印二维码（ASCII 字符形式）
-    try:
-        import qrcode_terminal
-        qrcode_terminal.draw(qr.get_qrcode_url())
-    except ImportError:
-        # 没有 qrcode_terminal 时退回到只打印链接，让用户手动访问
-        print("（提示：安装 qrcode_terminal 可在终端直接显示二维码）")
-        print(f"请访问此链接或用 App 扫描：\n{qr.get_qrcode_url()}\n")
+    # 在终端打印二维码（库内部已生成 ASCII 字符形式）
+    qr_link = qr._QrCodeLogin__qr_link
+    qr_terminal = qr._QrCodeLogin__qr_terminal
+    if qr_terminal:
+        print(qr_terminal)
+    print(f"或访问此链接（用浏览器/App 扫描）：\n{qr_link}\n")
 
     print("等待扫码……")
 
