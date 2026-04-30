@@ -135,7 +135,14 @@ async def post_article_with_images(
                     files=files,
                     data={"biz": "article", "csrf": credential.bili_jct},
                 )
-                j = resp.json()
+                raw = resp.text.strip()
+                await log_message(f"[bili] Image upload resp ({resp.status_code}): {raw[:300]}")
+                if not raw:
+                    await log_message(f"[bili] Image upload failed: empty response, HTTP {resp.status_code}"); return False
+                try:
+                    j = resp.json()
+                except Exception as e:
+                    await log_message(f"[bili] Image upload JSON error: {e}, raw={raw[:300]}"); return False
                 if j.get("code") != 0 or "url" not in j.get("data", {}):
                     await log_message(f"[bili] Image upload failed: {j}"); return False
                 img_urls.append(j["data"]["url"])
