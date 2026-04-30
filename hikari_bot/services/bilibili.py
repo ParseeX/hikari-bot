@@ -13,23 +13,33 @@ from hikari_bot.core.logger import log_message
 
 
 def _get_credential():
-    """从 NoneBot 配置读取 B 站 Cookie，任意一项缺失则返回 None。"""
+    """从 NoneBot 配置读取 B 站 Cookie，必填项缺失则返回 None。
+
+    必填（.env）:
+      BILIBILI_SESSDATA, BILIBILI_BILI_JCT, BILIBILI_BUVID3, BILIBILI_DEDE_USER_ID
+    可选（.env）:
+      BILIBILI_BUVID4, BILIBILI_AC_TIME_VALUE
+    """
     try:
         from bilibili_api import Credential
     except ImportError:
         return None
 
     cfg = get_driver().config
-    keys = {
+
+    def _str(key: str) -> str:
+        # NoneBot/Pydantic may parse unquoted numeric values as int; coerce to str.
+        return str(getattr(cfg, key, "") or "")
+
+    required = {
         "sessdata": "bilibili_sessdata",
         "bili_jct": "bilibili_bili_jct",
         "buvid3":   "bilibili_buvid3",
         "dede_uid": "bilibili_dede_user_id",
     }
-    # NoneBot/Pydantic may parse numeric env vars (e.g. DEDE_USER_ID) as int;
-    # Credential expects str for all cookie fields, so coerce everything to str.
-    vals = {k: str(getattr(cfg, v, "") or "") for k, v in keys.items()}
-    if not all(vals.values()):
+    vals = {k: _str(v) for k, v in required.items()}
+    missing = [k for k, v in vals.items() if not v]
+    if missing:
         return None
 
     return Credential(
@@ -37,6 +47,9 @@ def _get_credential():
         bili_jct=vals["bili_jct"],
         buvid3=vals["buvid3"],
         dedeuserid=vals["dede_uid"],
+        # Optional but recommended for longer-lived sessions:
+        buvid4=_str("bilibili_buvid4") or None,
+        ac_time_value=_str("bilibili_ac_time_value") or None,
     )
 
 
@@ -65,6 +78,38 @@ async def post_article_with_images(
     credential = _get_credential()
     if credential is None:
         await log_message("[bili] Credentials not configured, skipping Bilibili post.")
+        return False
+
+    # 诊断：把读取到的凭据关键字段输出到 log，确认 .env 被正确加载
+    # 敏感字段（SESSDATA/bili_jct）只显示前8位，避免明文泄露
+    def _mask(s: str | None, keep: int = 8) -> str:
+        if not s:
+            return "(empty)"
+        return s[:keep] + "…" if len(s) > keep else s
+
+    await log_message(
+        "[bili] Credential debug:\n"
+        f"  SESSDATA       = {_mask(credential.sessdata)}\n"
+        f"  bili_jct       = {_mask(credential.bili_jct)}\n"
+        f"  buvid3         = {_mask(credential.buvid3)}\n"
+        f"  DedeUserID     = {credential.dedeuserid}\n"
+        f"  buvid4         = {_mask(credential.buvid4)}\n"
+        f"  ac_time_value  = {_mask(credential.ac_time_value)}"
+    )
+
+    # 预检：验证 cookie 是否有效，-101 时提前报错，避免浪费图片上传流量
+    try:
+        is_login = await credential.check_valid()
+    except Exception as e:
+        is_login = False
+        await log_message(f"[bili] check_valid() error: {e}")
+    if not is_login:
+        await log_message(
+            "[bili] 账号未登录（SESSDATA 无效或已过期）。\n"
+            "请重新从浏览器复制最新 Cookie，更新服务器 .env 中的：\n"
+            "  BILIBILI_SESSDATA / BILIBILI_BILI_JCT / BILIBILI_BUVID3 / BILIBILI_DEDE_USER_ID\n"
+            "如果拥有 buvid4 和 ac_time_value 也请一并填入。"
+        )
         return False
 
     # 固定开头文字（含标题行）
