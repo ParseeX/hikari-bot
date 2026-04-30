@@ -131,29 +131,39 @@ async def post_article_with_images(
             "Origin": "https://member.bilibili.com",
         })
 
+        img_api_candidates = [
+            "https://api.bilibili.com/x/article/creative/image/up",
+            "https://api.bilibili.com/x/article/creative/image/upload",
+        ]
         async with httpx.AsyncClient(cookies=cookies, headers=headers, timeout=30) as client:
             # 专栏专用图片上传接口
             img_urls = []
             await log_message(f"[bili] Uploading {len(screenshots)} image(s) via article API...")
             for idx, img_bytes in enumerate(screenshots):
                 files = {'file': (f'image{idx}.png', img_bytes, 'image/png')}
-                resp = await client.post(
-                    "https://api.bilibili.com/x/article/creative/image/upload",
-                    files=files,
-                    data={"biz": "article", "csrf": credential.bili_jct},
-                    headers=headers_img,
-                )
-                raw = resp.text.strip()
-                await log_message(f"[bili] Image upload resp ({resp.status_code}): {raw[:300]}")
-                if not raw:
-                    await log_message(f"[bili] Image upload failed: empty response, HTTP {resp.status_code}"); return False
-                try:
-                    j = resp.json()
-                except Exception as e:
-                    await log_message(f"[bili] Image upload JSON error: {e}, raw={raw[:300]}"); return False
-                if j.get("code") != 0 or "url" not in j.get("data", {}):
-                    await log_message(f"[bili] Image upload failed: {j}"); return False
-                img_urls.append(j["data"]["url"])
+                success = False
+                for api_url in img_api_candidates:
+                    resp = await client.post(
+                        api_url,
+                        files=files,
+                        data={"biz": "article", "csrf": credential.bili_jct},
+                        headers=headers_img,
+                    )
+                    raw = resp.text.strip()
+                    await log_message(f"[bili] Try {api_url} resp ({resp.status_code}): {raw[:200]}")
+                    if not raw or resp.status_code != 200:
+                        continue
+                    try:
+                        j = resp.json()
+                    except Exception as e:
+                        await log_message(f"[bili] {api_url} JSON error: {e}, raw={raw[:200]}")
+                        continue
+                    if j.get("code") == 0 and "url" in j.get("data", {}):
+                        img_urls.append(j["data"]["url"])
+                        success = True
+                        break
+                if not success:
+                    await log_message(f"[bili] All image upload endpoints failed for image {idx}."); return False
             await log_message(f"[bili] Article image URLs: {img_urls}")
 
             cover_url = img_urls[0] if img_urls else ""
