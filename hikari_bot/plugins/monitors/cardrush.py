@@ -15,6 +15,7 @@ import html as html_mod
 import os
 import shutil
 import re
+import tempfile
 from datetime import date, datetime
 from io import BytesIO
 
@@ -983,42 +984,41 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         image_map = await _fetch_card_images(changes, img_dir)
 
         pages = _render_daily_report_html(changes, date_str, image_map=image_map)
-        out_dir = os.path.join(DATA_DIR, "daily_report_html")
-        os.makedirs(out_dir, exist_ok=True)
-
         total = len(pages)
         await bot.send(event, f"下载完毕，正在渲染 {total} 页图报…")
 
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
-            for i, page_html in enumerate(pages, 1):
-                filename = f"cardrush_{date_str}_p{i}.html"
-                filepath = os.path.join(out_dir, filename)
-                with open(filepath, "w", encoding="utf-8") as f:
-                    f.write(page_html)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.launch()
+                for i, page_html in enumerate(pages, 1):
+                    html_path = os.path.join(tmp_dir, f"p{i}.html")
+                    with open(html_path, "w", encoding="utf-8") as f:
+                        f.write(page_html)
 
-                bpage = await browser.new_page(
-                    viewport={"width": 1340, "height": 900}
-                )
-                bpage.set_default_timeout(120_000)
-                file_url = "file:///" + filepath.replace("\\", "/")
-                await bpage.goto(file_url, wait_until="domcontentloaded")
-                # 等待字体就绪，避免 screenshot 内部超时
-                await bpage.evaluate("document.fonts.ready")
+                    bpage = await browser.new_page(
+                        viewport={"width": 1340, "height": 900}
+                    )
+                    bpage.set_default_timeout(120_000)
+                    file_url = "file:///" + html_path.replace("\\", "/")
+                    await bpage.goto(file_url, wait_until="domcontentloaded")
+                    await bpage.evaluate("document.fonts.ready")
 
-                screenshot_bytes = await bpage.screenshot(
-                    full_page=True,
-                    animations="disabled",
-                    timeout=120_000,
-                )
-                await bpage.close()
+                    img_path = os.path.join(tmp_dir, f"p{i}.png")
+                    await bpage.screenshot(
+                        path=img_path,
+                        full_page=True,
+                        animations="disabled",
+                        timeout=120_000,
+                    )
+                    await bpage.close()
 
-                b64 = base64.b64encode(screenshot_bytes).decode()
-                await bot.send(event, MessageSegment.image(f"base64://{b64}"))
+                    img_file_url = "file:///" + img_path.replace("\\", "/")
+                    await bot.send(event, MessageSegment.image(img_file_url))
 
-            await browser.close()
+                await browser.close()
+        # with 块结束，tmp_dir 自动删除（含所有 HTML/PNG）
 
-        # 渲染完毕，删除临时卡图缓存
+        # 删除卡图缓存
         if os.path.isdir(img_dir):
             shutil.rmtree(img_dir, ignore_errors=True)
 
