@@ -694,12 +694,21 @@ body::before {{
 .num-up   {{ color: #ffe066 !important; }}
 .num-down {{ color: #afffce !important; }}
 .num-new  {{ color: #b8d0ff !important; }}
+/* 概述页文字区+标题分隔线容器，固定高度 = 正文页比概述页多的 2 行卡高度
+   2 × card_height + 1 × gap = 2 × 166.13 + 6 ≈ 344px（viewport=1340，body-padding=40px）*/
+.overview-extra {{
+    height: 344px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}}
 /* 概述页标题分隔线 */
 .overview-section-title {{
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 6px 0 4px;
+    margin: 4px 0 0;
 }}
 .overview-section-title::before,
 .overview-section-title::after {{
@@ -924,11 +933,13 @@ def _render_daily_report_html(
     )
 
     overview_body = f"""
-  <div class="overview-desc">
-    <div class="overview-desc-zh">{zh_html}</div>
-    <div class="overview-desc-ja">{ja_html}</div>
+  <div class="overview-extra">
+    <div class="overview-desc">
+      <div class="overview-desc-zh">{zh_html}</div>
+      <div class="overview-desc-ja">{ja_html}</div>
+    </div>
+    <div class="overview-section-title"><span>異動 TOP {OVERVIEW_SIZE}</span></div>
   </div>
-  <div class="overview-section-title"><span>異動 TOP {OVERVIEW_SIZE}</span></div>
   <div class="grid grid-overview">{overview_cards_html}
   </div>"""
 
@@ -1003,10 +1014,12 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                     await bpage.goto(file_url, wait_until="domcontentloaded")
                     await bpage.evaluate("document.fonts.ready")
 
-                    img_path = os.path.join(tmp_dir, f"p{i}.png")
+                    img_path = os.path.join(tmp_dir, f"p{i}.jpg")
                     await bpage.screenshot(
                         path=img_path,
                         full_page=True,
+                        type="jpeg",
+                        quality=88,
                         animations="disabled",
                         timeout=120_000,
                     )
