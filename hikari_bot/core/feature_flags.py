@@ -1,7 +1,7 @@
 import json
 import os
 
-from hikari_bot.core.constants import RESOURCES_DIR
+from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.core.logger import log_message
 
 FLAGS_FILE = os.path.join(DATA_DIR, "feature_flags.json")
@@ -15,7 +15,7 @@ async def _load_flags() -> dict:
         return {}
 
 async def _save_flags(flags: dict) -> None:
-    os.makedirs(RESOURCES_DIR, exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
     with open(FLAGS_FILE, "w", encoding="utf-8") as f:
         json.dump(flags, f, ensure_ascii=False, indent=2)
 
