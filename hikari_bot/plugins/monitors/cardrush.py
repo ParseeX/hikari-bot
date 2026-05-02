@@ -876,17 +876,10 @@ def _render_daily_report_html(
     down_count = sum(1 for c in changes if c["change_type"] == "changed" and (c["price_diff"] or 0) <= 0)
     new_count  = sum(1 for c in changes if c["change_type"] == "new")
 
-    content_pages = (len(changes) + PAGE_SIZE - 1) // PAGE_SIZE
-    total_pages   = content_pages + 1  # +1 for overview page
-    pages         = []
-
-    # ── 概述页（PAGE 1） ──────────────────────────────────────────────────────
+    # 先筛出概述页卡片
     OVERVIEW_COLS = 10
     OVERVIEW_ROWS = 3
     OVERVIEW_SIZE = OVERVIEW_COLS * OVERVIEW_ROWS  # 30
-
-    # 按综合评分降序，取前 OVERVIEW_SIZE 张（新增卡不参与排行）
-    # 公式：|price_diff| × log10(new_price)，高价大波动的卡优先
     seen_ids: set = set()
     ranked: list[dict] = sorted(
         [c for c in changes if c["change_type"] == "changed"],
@@ -896,6 +889,13 @@ def _render_daily_report_html(
     for c in ranked:
         seen_ids.add(c.get("product_id"))
 
+    # 概述页已展示的卡不再重复出现
+    content_changes = [c for c in changes if c.get("product_id") not in seen_ids]
+    content_pages = (len(content_changes) + PAGE_SIZE - 1) // PAGE_SIZE
+    total_pages = content_pages + 1  # 1 概述 + N 正文
+    pages = []
+
+    # ── 概述页（PAGE 1） ──────────────────────────────────────────────────────
     overview_cards_html = "".join(_card_html(c, image_map) for c in ranked)
     # 补占位
     ph = OVERVIEW_SIZE - len(ranked)
@@ -936,11 +936,6 @@ def _render_daily_report_html(
                                  overview_body))
 
     # ── 正文页（PAGE 2…） ────────────────────────────────────────────────────
-    # 概述页已展示的卡不再重复出现
-    content_changes = [c for c in changes if c.get("product_id") not in seen_ids]
-    content_pages   = (len(content_changes) + PAGE_SIZE - 1) // PAGE_SIZE
-    total_pages     = content_pages + 1  # 重新计算（概述页已固定为1页）
-
     for page_idx in range(content_pages):
         page = content_changes[page_idx * PAGE_SIZE : (page_idx + 1) * PAGE_SIZE]
         page_num_html = f'<div class="header-page-num">PAGE {page_idx + 2}/{total_pages}</div>'
