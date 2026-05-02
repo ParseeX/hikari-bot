@@ -4,7 +4,7 @@ import os
 from hikari_bot.core.constants import RESOURCES_DIR
 from hikari_bot.core.logger import log_message
 
-FLAGS_FILE = os.path.join(RESOURCES_DIR, "feature_flags.json")
+FLAGS_FILE = os.path.join(DATA_DIR, "feature_flags.json")
 
 async def _load_flags() -> dict:
     try:
