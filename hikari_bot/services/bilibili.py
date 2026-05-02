@@ -6,7 +6,7 @@
 from hikari_bot.core.logger import log_message
 
 # openclaw 自动化专栏上传入口（需你用 openclaw 脚本实现具体逻辑）
-async def post_article_with_images(screenshots, date_str, pub_hour=21, pub_minute=30):
+async def post_article_with_images(screenshots, date_str, pub_hour=22, pub_minute=30):
     """
     使用 openclaw 云控自动化上传专栏。
     你需要用 openclaw 脚本实现：
