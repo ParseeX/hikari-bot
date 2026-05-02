@@ -46,7 +46,9 @@ def get_bot_startup_info():
 
 def new_log_file():
     global log_file
-    log_file = os.path.join(DATA_DIR, f"bot_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    logs_dir = os.path.join(DATA_DIR, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    log_file = os.path.join(logs_dir, f"bot_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 
 async def log_message(message: str):
     if log_file:
