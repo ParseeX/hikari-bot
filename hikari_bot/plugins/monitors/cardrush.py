@@ -1183,13 +1183,13 @@ async def scheduled_price_check():
                 )
 
 
-@scheduler.scheduled_job("interval", minutes=5, id="cardrush_price_monitor", misfire_grace_time=300)
+@scheduler.scheduled_job("interval", minutes=15, id="cardrush_price_monitor", misfire_grace_time=300)
 async def _scheduled_job():
     await scheduled_price_check()
 
 
 async def _auto_send_daily_report():
-    """每天 22:10 自动生成当日卡价图报并私信发送给所有管理员。"""
+    """每天 22:20 自动生成当日卡价图报并私信发送给所有管理员。"""
     date_str = date.today().isoformat()
     try:
         loop = asyncio.get_event_loop()
@@ -1248,7 +1248,7 @@ async def _auto_send_daily_report():
         await log_message(f"[cardrush_auto] Auto report failed: {e}")
 
 
-@scheduler.scheduled_job("cron", hour=22, minute=10, id="cardrush_daily_report_auto", misfire_grace_time=600)
+@scheduler.scheduled_job("cron", hour=22, minute=20, id="cardrush_daily_report_auto", misfire_grace_time=600)
 async def _auto_report_job():
     await _auto_send_daily_report()
 
