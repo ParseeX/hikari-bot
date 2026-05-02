@@ -38,6 +38,7 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
 from hikari_bot.core.whitelist import message_superusers
 from hikari_bot.core.logger import log_message
+from hikari_bot.services.ygocard import get_unknown_card
 from hikari_bot.services.price import (
     get_daily_report_changes,
     get_price_history,
@@ -750,6 +751,15 @@ async def _fetch_card_images(
     result: dict[int, str] = {}
     sem = asyncio.Semaphore(concurrency)
 
+    # 预先获取 unknown 图片（下载失败时使用）
+    unknown_dest = os.path.join(img_dir, "unknown.jpg")
+    if not os.path.exists(unknown_dest):
+        unknown_data = await get_unknown_card()
+        if unknown_data:
+            with open(unknown_dest, "wb") as f:
+                f.write(unknown_data)
+    unknown_url = "file:///" + unknown_dest.replace("\\", "/") if os.path.exists(unknown_dest) else ""
+
     async def fetch_one(session: aiohttp.ClientSession, pid: int) -> None:
         dest = os.path.join(img_dir, f"{pid}.webp")
         # 已有缓存则直接用
@@ -770,7 +780,7 @@ async def _fetch_card_images(
             except Exception:
                 if attempt < retries - 1:
                     await asyncio.sleep(0.5 * (attempt + 1))
-        result[pid] = ""  # 全部重试失败，回退到原始 URL
+        result[pid] = unknown_url  # 全部重试失败，使用 unknown 占位图
 
     connector = aiohttp.TCPConnector(limit=concurrency)
     async with aiohttp.ClientSession(connector=connector) as session:
@@ -790,7 +800,7 @@ def _card_html(c: dict, image_map: dict) -> str:
     change_type = c["change_type"]
     price_diff  = c.get("price_diff") or 0
 
-    img_url = image_map.get(product_id) or _CARD_IMAGE_URL.format(product_id=product_id)
+    img_url = image_map.get(product_id) or ""
 
     if change_type == "new":
         css_cls  = "new"
