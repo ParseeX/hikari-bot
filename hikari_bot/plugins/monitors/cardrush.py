@@ -658,31 +658,31 @@ body::before {{
 }}
 /* ── 概述页文字区 ── */
 .overview-desc {{
-    padding: 5px 5px 5px 5px;
+    padding: 12px 36px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 4px;
+    gap: 8px;
     background: rgba(6,10,24,0.70);
     border-radius: 8px;
     border: 1px solid rgba(80,130,200,0.15);
     backdrop-filter: blur(8px);
 }}
 .overview-desc-zh {{
-    font-size: 11px;
-    font-weight: bold;
+    font-size: 26px;
+    font-weight: 700;
     color: #d0e8ff;
-    line-height: 1.25;
-    letter-spacing: 0.3px;
+    line-height: 1.45;
+    letter-spacing: 0px;
 }}
 .overview-desc-ja {{
-    font-size: 10.5px;
-    font-weight: bold;
+    font-size: 26px;
+    font-weight: 700;
     color: #d0e8ff;
-    line-height: 1.2;
-    letter-spacing: 0.3px;
+    line-height: 1.45;
+    letter-spacing: 0px;
     border-top: 1px solid rgba(80,130,200,0.15);
-    padding-top: 4px;
+    padding-top: 8px;
 }}
 .overview-desc-zh em,
 .overview-desc-ja em {{
@@ -697,8 +697,8 @@ body::before {{
 .overview-section-title {{
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin: 4px 0 4px;
+    gap: 12px;
+    margin: 6px 0 4px;
 }}
 .overview-section-title::before,
 .overview-section-title::after {{
@@ -708,12 +708,12 @@ body::before {{
     background: linear-gradient(90deg, transparent, rgba(80,140,210,0.4), transparent);
 }}
 .overview-section-title span {{
-    font-size: 13px;
-    font-weight: bold;
-    letter-spacing: 1.5px;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 4px;
     color: #8ab8d8;
     white-space: nowrap;
-    padding: 0 4px;
+    padding: 0 8px;
 }}
 /* 概述页卡片网格：10列（与正文页相同） */
 .grid-overview {{
