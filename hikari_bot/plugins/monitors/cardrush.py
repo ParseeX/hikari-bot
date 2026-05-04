@@ -19,6 +19,8 @@ import tempfile
 from datetime import date, datetime
 from io import BytesIO
 
+from PIL import Image
+
 import aiohttp
 from playwright.async_api import async_playwright
 
@@ -1024,16 +1026,20 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                     await bpage.goto(file_url, wait_until="domcontentloaded")
                     await bpage.evaluate("document.fonts.ready")
 
-                    img_path = os.path.join(tmp_dir, f"p{i}.jpg")
-                    await bpage.screenshot(
-                        path=img_path,
+                    raw_bytes = await bpage.screenshot(
                         full_page=True,
-                        type="jpeg",
-                        quality=88,
+                        type="png",
                         animations="disabled",
                         timeout=120_000,
                     )
                     await bpage.close()
+
+                    # 缩放到 75% 再以 JPEG quality=72 保存，体积降到 ~500KB
+                    img = Image.open(BytesIO(raw_bytes))
+                    w, h = img.size
+                    img = img.resize((int(w * 0.75), int(h * 0.75)), Image.LANCZOS)
+                    img_path = os.path.join(tmp_dir, f"p{i}.jpg")
+                    img.save(img_path, "JPEG", quality=72, optimize=True)
 
                     img_file_url = "file:///" + img_path.replace("\\", "/")
                     await bot.send(event, MessageSegment.image(img_file_url))
