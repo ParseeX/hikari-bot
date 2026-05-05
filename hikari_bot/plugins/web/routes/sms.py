@@ -44,8 +44,8 @@ async def sms_handler(payload: SmsPayload):
     await message_superusers(full_msg)
 
     # 2️⃣ 验证码（如果有）
-    m = re.search(r"\b\d{4,8}\b", payload.content)
-    if m:
-        await message_superusers(f"{m.group(0)}")
+    code_candidates = [m for m in re.findall(r"\d+", payload.content) if len(m) in (4, 6, 8)]
+    if code_candidates:
+        await message_superusers(code_candidates[-1])
 
     return {"ok": True}

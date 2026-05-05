@@ -42,7 +42,6 @@ from hikari_bot.services.ygocard import get_unknown_card
 from hikari_bot.services.price import (
     get_daily_report_changes,
     get_price_history,
-    query_all,
     reset_database,
     save_prices,
     search_local_prices,
@@ -1166,36 +1165,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await daily_report.finish(f"查询失败：{e}")
 
 
-# ── 定时任务：价格监控 ────────────────────────────────────────────────────────
-
-async def check_price_changes():
-    """拉取最新价格并保存，返回新增记录数。"""
-    loop = asyncio.get_event_loop()
-    new_prices = await loop.run_in_executor(None, query_all)
-    count = await loop.run_in_executor(None, save_prices, new_prices)
-    if count > 0:
-        await log_message(f"[cardrush_monitor] Finish checking with {count} change(s).")
-
-
-async def scheduled_price_check():
-    """带重试的定时任务入口，最多重试 5 次，间隔 30 秒。"""
-    max_retries = 5
-    for attempt in range(1, max_retries + 1):
-        try:
-            await check_price_changes()
-            return
-        except Exception as e:
-            if attempt < max_retries:
-                await asyncio.sleep(30)
-            else:
-                await log_message(
-                    f"[cardrush_monitor] Failed after {max_retries} attempts: {e}"
-                )
-
-
-@scheduler.scheduled_job("interval", minutes=15, id="cardrush_price_monitor", misfire_grace_time=300)
-async def _scheduled_job():
-    await scheduled_price_check()
 
 
 async def _auto_send_daily_report():
