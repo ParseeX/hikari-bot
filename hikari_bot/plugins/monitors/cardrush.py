@@ -1258,7 +1258,7 @@ async def _auto_send_daily_report():
         await log_message(f"[cardrush_auto] Auto report failed: {e}")
 
 
-@scheduler.scheduled_job("cron", hour=22, minute=20, id="cardrush_daily_report_auto", misfire_grace_time=600)
+@scheduler.scheduled_job("cron", hour=22, minute=20, timezone="Asia/Tokyo", id="cardrush_daily_report_auto", misfire_grace_time=600)
 async def _auto_report_job():
     await _auto_send_daily_report()
 
