@@ -62,10 +62,8 @@ async def cr_upload(payload: UploadPayload):
     except Exception as e:
         await log_message(f"[cr_upload] save_prices failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    if saved >= 0:
-        msg = f"[cr_upload] Finish checking with {saved} change(s)."
-        logging.info(msg)
-        await log_message(msg)
+    if saved > 0:
+        await log_message(f"[cr_upload] Finish checking with {saved} change(s).")
     return {"ok": True, "received": len(prices_data), "saved": saved}
 
 
