@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from nonebot import get_driver
 
 from hikari_bot.services.price import save_prices
+from hikari_bot.core.logger import log_message
 
 router = APIRouter()
 
@@ -59,10 +60,10 @@ async def cr_upload(payload: UploadPayload):
     try:
         saved = await _run_save(prices_data)
     except Exception as e:
-        logging.error(f"[cr_upload] save_prices failed: {e}")
+        await log_message(f"[cr_upload] save_prices failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     if saved > 0:
-        logging.info(f"[cr_upload] Finish checking with {saved} change(s).")
+        await log_message(f"[cr_upload] Finish checking with {saved} change(s).")
     return {"ok": True, "received": len(prices_data), "saved": saved}
 
 
