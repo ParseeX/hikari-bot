@@ -1234,22 +1234,13 @@ async def _auto_report_job():
 
 # ── 管理员命令 ────────────────────────────────────────────────────────────────
 
-price_check = on_cmd("检查卡价", permission=SUPERUSER)
-
-@price_check.handle()
-async def _(bot: Bot, event: MessageEvent):
-    await scheduled_price_check()
-
-
 reset_db = on_cmd("重置卡价数据库", permission=SUPERUSER)
 
 @reset_db.handle()
 async def _(bot: Bot, event: MessageEvent):
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, reset_database)
-    await bot.send(event, "数据库已清空重建，开始重新抓取全站数据…")
-    await scheduled_price_check()
-    await bot.send(event, "数据抓取完成。")
+    await bot.send(event, "数据库已清空重建。")
 
 
 bili_post = on_cmd("发布B站动态", permission=SUPERUSER)
@@ -1313,4 +1304,3 @@ driver = get_driver()
 @driver.on_bot_connect
 async def _startup_price_check(bot: Bot):
     await log_message("[cardrush_monitor] CardRush monitor started.")
-    await scheduled_price_check()
