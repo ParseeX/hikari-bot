@@ -7,7 +7,6 @@ cr_scraper.py — 本地 Cardrush 价格爬虫，爬取后上传到服务器。
 环境变量（也可在脚本同目录的 .env 文件里写）：
     CR_SERVER_URL   服务器地址，例如 https://example.com
     CR_API_KEY      与服务器 CR_UPLOAD_API_KEY 一致
-    CR_PROXY        可选，SOCKS5 代理，例如 socks5h://127.0.0.1:1080
 
 cron 示例（每15分钟）：
     */15 * * * * /usr/bin/python3 /path/to/scripts/cr_scraper.py >> /var/log/cr_scraper.log 2>&1
@@ -21,16 +20,6 @@ import sys
 
 import requests
 
-# ── 读取同目录 .env（可选）────────────────────────────────────────────────────
-_env_path = os.path.join(os.path.dirname(__file__), ".env")
-if os.path.exists(_env_path):
-    with open(_env_path, encoding="utf-8") as _f:
-        for _line in _f:
-            _line = _line.strip()
-            if _line and not _line.startswith("#") and "=" in _line:
-                _k, _v = _line.split("=", 1)
-                os.environ.setdefault(_k.strip(), _v.strip())
-
 # ── 配置 ─────────────────────────────────────────────────────────────────────
 CARD_RUSH_URL = "https://cardrush.media/yugioh/buying_prices"
 CARD_RUSH_HEADERS = {
@@ -40,7 +29,6 @@ CARD_RUSH_HEADERS = {
 
 SERVER_URL = os.environ.get("CR_SERVER_URL", "").rstrip("/")
 API_KEY = os.environ.get("CR_API_KEY", "")
-PROXY_URL = os.environ.get("CR_PROXY", "")  # 例如 socks5h://127.0.0.1:1080
 
 logging.basicConfig(
     level=logging.INFO,
@@ -64,13 +52,11 @@ def _extract_next_data(html: str) -> dict:
 
 
 def fetch_all_prices() -> list[dict]:
-    proxies = {"http": PROXY_URL, "https": PROXY_URL} if PROXY_URL else None
     log.info("开始爬取 Cardrush 价格数据…")
     r = requests.get(
         CARD_RUSH_URL,
         params={"limit": 100000},
         headers=CARD_RUSH_HEADERS,
-        proxies=proxies,
         timeout=60,
     )
     r.raise_for_status()
@@ -108,7 +94,7 @@ def upload_prices(prices: list[dict]) -> dict:
     if not API_KEY:
         raise ValueError("CR_API_KEY 未设置")
 
-    endpoint = f"{SERVER_URL}/cr/upload"
+    endpoint = f"{SERVER_URL}"
     log.info(f"上传 {len(prices)} 条记录到 {endpoint} …")
 
     r = requests.post(

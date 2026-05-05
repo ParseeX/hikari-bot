@@ -1,7 +1,7 @@
 """
 cr_upload.py — 接收本地爬虫上传的 Cardrush 价格数据，写入数据库。
 
-鉴权：请求头 X-API-Key 必须与环境变量 CR_UPLOAD_API_KEY 一致。
+鉴权：请求头 X-API-Key 必须与环境变量 CARDRUSH_UPLOAD_TOKEN 一致。
 """
 import os
 import logging
@@ -17,9 +17,9 @@ router = APIRouter()
 # ── 鉴权 ────────────────────────────────────────────────────────────────────
 
 def _get_expected_key() -> str:
-    key = os.environ.get("CR_UPLOAD_API_KEY", "").strip()
+    key = os.environ.get("CARDRUSH_UPLOAD_TOKEN", "").strip()
     if not key:
-        raise RuntimeError("CR_UPLOAD_API_KEY is not set, all upload requests rejected")
+        raise RuntimeError("CARDRUSH_UPLOAD_TOKEN is not set, all upload requests rejected")
     return key
 
 
