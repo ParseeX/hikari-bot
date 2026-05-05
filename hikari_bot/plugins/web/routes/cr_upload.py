@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
+from nonebot import get_driver
 
 from hikari_bot.services.price import save_prices
 
@@ -17,7 +18,8 @@ router = APIRouter()
 # ── 鉴权 ────────────────────────────────────────────────────────────────────
 
 def _get_expected_key() -> str:
-    key = os.environ.get("CARDRUSH_UPLOAD_TOKEN", "").strip()
+    key = getattr(get_driver().config, "cardrush_upload_token", "") or ""
+    key = key.strip()
     if not key:
         raise RuntimeError("CARDRUSH_UPLOAD_TOKEN is not set, all upload requests rejected")
     return key
