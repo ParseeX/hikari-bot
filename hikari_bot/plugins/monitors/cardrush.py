@@ -901,7 +901,7 @@ def _render_daily_report_html(
     OVERVIEW_SIZE = OVERVIEW_COLS * OVERVIEW_ROWS  # 30
     seen_ids: set = set()
     ranked: list[dict] = sorted(
-        [c for c in changes if c["change_type"] == "changed"],
+        changes,
         key=_overview_score,
         reverse=True,
     )[:OVERVIEW_SIZE]
