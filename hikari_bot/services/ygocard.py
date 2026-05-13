@@ -175,13 +175,15 @@ async def get_card_info_by_id(id: str):
         conn.close()
         return None
     
-    cursor.execute("""
-        INSERT INTO cards (id, data)
-        VALUES (?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-            data = excluded.data
-    """, (id, json.dumps(data, ensure_ascii=False)))
-    conn.commit()
+    if id < 100000000:
+        cursor.execute("""
+            INSERT INTO cards (id, data)
+            VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                data = excluded.data
+        """, (id, json.dumps(data, ensure_ascii=False)))
+        conn.commit()
+    
     conn.close()
     return data
 
@@ -194,7 +196,7 @@ async def get_card_info(keyword: str):
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
-                    result = data["result"][0]
+                    result = data["result"].get(0)
                     # if keyword_in_card(result, keyword):
                     #     return result
                     # else:
