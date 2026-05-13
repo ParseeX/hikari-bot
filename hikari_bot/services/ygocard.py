@@ -147,7 +147,7 @@ async def get_card_info_by_id_from_net(id: str):
                     data = await response.json()
                     results = data["result"]
                     for result in results:
-                        if id >= 100000000 or abs(int(result["id"])-int(id)) <= 10:
+                        if int(id) >= 100000000 or abs(int(result["id"])-int(id)) <= 10:
                             return result
                     return None
                 else:
