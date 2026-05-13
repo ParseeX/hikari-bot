@@ -383,7 +383,7 @@ async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
             if font_name != "jp":
                 font_name = "sc"
         else:
-            return None
+            raise ValueError(f"找不到主卡组卡牌信息：{card_id}")
         
         cards.append({"count": str(count), "name": card_name, "pos": [0, type, t[type]], "font": font_name})
         t[type] += 1
@@ -409,7 +409,7 @@ async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
             if font_name != "jp":
                 font_name = "sc"
         else:
-            return None
+            raise ValueError(f"找不到额外卡组卡牌信息：{card_id}")
         
         cards.append({"count": str(count), "name": card_name, "pos": [1, 0, t], "font": font_name})
         t += 1
@@ -435,7 +435,7 @@ async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
             if font_name != "jp":
                 font_name = "sc"
         else:
-            return None
+            raise ValueError(f"找不到副卡组卡牌信息：{card_id}")
         
         cards.append({"count": str(count), "name": card_name, "pos": [1, 1, t], "font": font_name})
         t += 1

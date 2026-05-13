@@ -45,7 +45,12 @@ async def generate(
     else:
         return JSONResponse({"success": False, "message": "未知错误。"})
 
-    pdf_buffer = await generate_deck_list_pdf(deck_text, language)
+    try:
+        pdf_buffer = await generate_deck_list_pdf(deck_text, language)
+    except ValueError as e:
+        return JSONResponse({"success": False, "message": str(e)})
+    if pdf_buffer is None:
+        return JSONResponse({"success": False, "message": "生成卡表失败：额外卡组或副卡组超过15张。"})
     record_deck_usage(request.client.host)
     return StreamingResponse(
         content=pdf_buffer,
