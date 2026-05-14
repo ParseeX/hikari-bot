@@ -196,7 +196,7 @@ async def get_card_info(keyword: str):
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
-                    result = data["result"].get(0)
+                    result = data["result"][0] if data["result"] else None
                     # if keyword_in_card(result, keyword):
                     #     return result
                     # else:
