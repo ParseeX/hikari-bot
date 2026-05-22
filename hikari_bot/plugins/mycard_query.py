@@ -26,6 +26,20 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.services.mycard import *
 
 
+def _is_zero_delta_match(record: dict, user_id: str) -> bool:
+    """判断是否为无效对局（查询玩家自身分数变化为 0）。"""
+    try:
+        if record.get("usernamea") == user_id:
+            delta = float(record["pta"]) - float(record["pta_ex"])
+        elif record.get("usernameb") == user_id:
+            delta = float(record["ptb"]) - float(record["ptb_ex"])
+        else:
+            return False
+        return abs(delta) < 1e-9
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 # ── 历史战绩查询 ───────────────────────────────────────────────────────────────────
 # 用法：直接发送》X月历史「或》X月历史 用户名「
 
@@ -87,15 +101,16 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
     if records == None:
         await mycard_query.finish(f"查询失败，请稍后重试")
 
-    wins = [record for record in records if record['winner'] == user_id]
+    valid_records = [record for record in records if not _is_zero_delta_match(record, user_id)]
+    wins = [record for record in valid_records if record['winner'] == user_id]
 
     result_message = f"""玩家：{user_id}
-{str(year-2000)+'年' if year!=current_year else ''}{month}月场次：{len(records)}
-{str(year-2000)+'年' if year!=current_year else ''}{month}月胜率：{(0 if len(records)==0 else len(wins)*100.0/len(records)):.2f}%"""
+{str(year-2000)+'年' if year!=current_year else ''}{month}月场次：{len(valid_records)}
+{str(year-2000)+'年' if year!=current_year else ''}{month}月胜率：{(0 if len(valid_records)==0 else len(wins)*100.0/len(valid_records)):.2f}%"""
 
-    if len(records) > 0:
-        pt_ex = [record['pta_ex'] if record['usernamea'] == user_id else record['ptb_ex'] for record in records]
-        pt = [record['pta'] if record['usernamea'] == user_id else record['ptb'] for record in records]
+    if len(valid_records) > 0:
+        pt_ex = [record['pta_ex'] if record['usernamea'] == user_id else record['ptb_ex'] for record in valid_records]
+        pt = [record['pta'] if record['usernamea'] == user_id else record['ptb'] for record in valid_records]
 
         pt.append(pt_ex[-1])
         pt.reverse()
@@ -288,9 +303,11 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if len(records) == 0:
         await mycard_winrate.finish(f"玩家 {user_id} 暂无对战记录")
 
+    valid_records = [record for record in records if not _is_zero_delta_match(record, user_id)]
+
     # 按月份分组记录
     monthly_data = {}
-    for record in records:
+    for record in valid_records:
         start_time_utc = datetime.strptime(record["start_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
         utc_zone = pytz.utc
         start_time_utc = utc_zone.localize(start_time_utc)
@@ -319,8 +336,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         year, month = month_key.split('-')
         month_labels.append(f"{year[-2:]}/{int(month)}")
 
-    total_wins = len([record for record in records if record['winner'] == user_id])
-    total_games = len(records)
+    total_wins = len([record for record in valid_records if record['winner'] == user_id])
+    total_games = len(valid_records)
     overall_rate = (total_wins * 100.0 / total_games) if total_games > 0 else 0.0
 
     result_message = f"""玩家：{user_id}
