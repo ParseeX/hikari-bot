@@ -37,18 +37,6 @@ def init_card_info_db():
     conn.commit()
     conn.close()
 
-def update_db():
-    """删除先行卡和无官方简中译名的卡片，再次查询时会获取最新数据"""
-    conn = sqlite3.connect(YGOCDB)
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("DELETE FROM cards WHERE id > 100000000")
-        cursor.execute("DELETE FROM cards WHERE data NOT LIKE '%sc_name%'")
-        conn.commit()
-    finally:
-        conn.close()
-
 
 async def update_cdb():
     """从远程下载最新的mc卡牌数据库文件"""
@@ -175,7 +163,7 @@ async def get_card_info_by_id(id: str):
         conn.close()
         return None
     
-    if int(id) < 100000000:
+    if int(id) < 100000000 and data["sc_name"]:
         cursor.execute("""
             INSERT INTO cards (id, data)
             VALUES (?, ?)

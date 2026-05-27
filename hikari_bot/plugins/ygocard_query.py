@@ -14,10 +14,13 @@ import re
 from datetime import datetime
 from io import BytesIO
 
-from nonebot import on_command
+from nonebot import on_command, require
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
+
+require("nonebot_plugin_apscheduler")
+from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import log_message
@@ -204,12 +207,22 @@ ygo_update_database = on_cmd("更新数据库", priority=5)
 @ygo_update_database.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
-        update_db()
         await update_cdb()
         await ygo_update_database.finish("更新完成。")
     except Exception as e:
-        await log_message(f"[ygo_update_database] Failed to update database: {e}")
-        await ygo_update_database.finish("更新失败！")
+        if not isinstance(e, FinishedException):
+            await log_message(f"[ygo_update_database] Failed to update database: {e}")
+            await ygo_update_database.finish("更新失败！")
+
+
+@scheduler.scheduled_job("cron", hour=3, minute=0, id="ygo_update_database_daily", misfire_grace_time=1800)
+async def ygo_update_database_daily_job():
+    try:
+        await update_cdb()
+        await log_message("[ygo_update_database_daily] Updated successfully.")
+    except Exception as e:
+        if not isinstance(e, FinishedException):
+            await log_message(f"[ygo_update_database_daily] Failed: {e}")
 
 
 # ── 共界计算 ─────────────────────────────────────────────────────────────────────────
