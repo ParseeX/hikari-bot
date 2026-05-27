@@ -7,9 +7,8 @@ uptime_webhook.py - 接收 Uptime Kuma Webhook 并通知超级用户。
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from nonebot import get_driver
-from pydantic import BaseModel, Field
 
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
@@ -36,35 +35,30 @@ def verify_uptime_token(x_uptime_token: Optional[str] = Header(default=None)):
         raise HTTPException(status_code=401, detail="Invalid uptime token")
 
 
-class MonitorInfo(BaseModel):
-    id: Optional[int] = None
-    name: Optional[str] = "Unknown"
-
-
-class HeartbeatInfo(BaseModel):
-    status: Optional[int] = None
-    msg: Optional[str] = ""
-    time: Optional[str] = ""
-
-
-class UptimePayload(BaseModel):
-    monitor: MonitorInfo = Field(default_factory=MonitorInfo)
-    heartbeat: HeartbeatInfo = Field(default_factory=HeartbeatInfo)
-    msg: Optional[str] = ""
-
-
 @router.post("/uptime_webhook", dependencies=[Depends(verify_uptime_token)])
-async def uptime_webhook(payload: UptimePayload):
+async def uptime_webhook(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    monitor = data.get("monitor") if isinstance(data.get("monitor"), dict) else {}
+    heartbeat = data.get("heartbeat") if isinstance(data.get("heartbeat"), dict) else {}
+
     status_map = {
         0: "故障",
         1: "恢复",
         2: "暂停",
     }
 
-    name = payload.monitor.name or "Unknown"
-    status = payload.heartbeat.status
+    name = monitor.get("name") or "Unknown"
+    status = heartbeat.get("status")
     status_text = status_map.get(status, f"未知({status})")
-    detail = payload.msg or payload.heartbeat.msg or "-"
+    detail = (
+        data.get("msg")
+        or heartbeat.get("msg")
+        or "-"
+    )
 
     text = (
         "【Uptime Kuma】\n"
