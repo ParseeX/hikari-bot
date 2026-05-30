@@ -9,6 +9,7 @@ mycard_query.py — MyCard 竹马平台查询插件
 """
 
 import base64
+import calendar
 import html
 import re
 from datetime import datetime
@@ -115,16 +116,35 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
         pt.append(pt_ex[-1])
         pt.reverse()
 
-        result_message = result_message + f"\n{str(year-2000)+'年' if year!=current_year else ''}{month}月最高分：{max(pt):.2f}"
+        tz_shanghai = pytz.timezone("Asia/Shanghai")
+        now_shanghai = datetime.now(tz_shanghai)
+        last_day = calendar.monthrange(year, month)[1]
+        settlement_dt = tz_shanghai.localize(datetime(year, month, last_day, 22, 0, 0))
 
-        if month == current_month and year == current_year:
-            rank = await mycard_get_player_rank(user_id)
-            if rank != None:
-                result_message = result_message + f"\n当前排名：{rank}"
-        else:
+        is_current_month = (year == current_year and month == current_month)
+        is_settled = not is_current_month or now_shanghai >= settlement_dt
+
+        if is_settled:
+            # 只统计结算时间（月末最后一天22点北京时间）前开始的对局
+            settlement_records = [
+                r for r in valid_records
+                if datetime.strptime(r["start_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                   .replace(tzinfo=pytz.utc).astimezone(tz_shanghai) < settlement_dt
+            ]
+            if settlement_records:
+                spt_ex = [r['pta_ex'] if r['usernamea'] == user_id else r['ptb_ex'] for r in settlement_records]
+                spt = [r['pta'] if r['usernamea'] == user_id else r['ptb'] for r in settlement_records]
+                spt.append(spt_ex[-1])
+                spt.reverse()
+                result_message = result_message + f"\n结算分数：{spt[-1]:.2f}"
             rank = await fetch_player_history_rank(user_id, year, month)
-            if rank != None:
+            if rank is not None:
                 result_message = result_message + f"\n结算排名：{rank}"
+        else:
+            result_message = result_message + f"\n当前分数：{pt[-1]:.2f}"
+            rank = await mycard_get_player_rank(user_id)
+            if rank is not None:
+                result_message = result_message + f"\n当前排名：{rank}"
 
         plt.figure(figsize=(8, 6))
         
@@ -137,10 +157,11 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
         plt.ylabel("")  # 不显示 y 轴标签
         plt.grid(False)  # 隐藏网格
 
-        # 标记第一个和最后一个数据点的值
+        # 标记第一个数据点和历史最高分数据点
         if pt:
             plt.text(0, pt[0], f"{pt[0]:.2f}", ha='center', va='bottom', fontsize=10, color='black')
-            plt.text(len(pt)-1, pt[-1], f"{pt[-1]:.2f}", ha='center', va='bottom', fontsize=10, color='black')
+            max_idx = pt.index(max(pt))
+            plt.text(max_idx, pt[max_idx], f"{pt[max_idx]:.2f}", ha='center', va='bottom', fontsize=10, color='black')
 
         plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
