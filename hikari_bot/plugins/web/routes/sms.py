@@ -9,6 +9,14 @@ from hikari_bot.core.whitelist import message_superusers
 
 router = APIRouter()
 
+# ── 短信黑名单（手动维护，重启后生效）────────────────────────────────────────────
+
+_BLACKLIST: set[str] = {
+    "95566",
+    "10000"
+}
+
+
 class SmsPayload(BaseModel):
     from_: str = Field(alias="from")
     to: Optional[str] = ""
@@ -22,6 +30,10 @@ class SmsPayload(BaseModel):
 
 @router.post("/sms")
 async def sms_handler(payload: SmsPayload):
+    # 黑名单检查
+    if payload.from_ in _BLACKLIST:
+        return {"ok": True, "skipped": True}
+
     # 时间格式化（失败就原样）
     try:
         dt = datetime.fromisoformat(payload.date.replace("Z", "+00:00"))
