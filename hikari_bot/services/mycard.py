@@ -67,6 +67,32 @@ def _write_json(path: str, data) -> None:
 
 
 # ── API 端点 ──────────────────────────────────────────────────────────────────────────
+# {
+# 	"total": 3009,
+# 	"data": [
+# 		{
+# 			"usernamea": "水橋パルスィ",
+# 			"usernameb": "Shwijdhwiwihd",
+# 			"userscorea": 2,
+# 			"userscoreb": 0,
+# 			"expa": 2252.5,
+# 			"expb": 2556.5,
+# 			"expa_ex": 2251.5,
+# 			"expb_ex": 2556.5,
+# 			"pta": 1607.46860743314,
+# 			"ptb": 1295.16745486218,
+# 			"pta_ex": 1599.46860743314,
+# 			"ptb_ex": 1303.16745486218,
+# 			"type": "athletic",
+# 			"start_time": "2026-05-30T04:05:45.000Z",
+# 			"end_time": "2026-05-30T04:14:00.000Z",
+# 			"winner": "水橋パルスィ",
+# 			"isfirstwin": false,
+# 			"decka": null,
+# 			"deckb": null
+# 		}
+# 	]
+# }
 
 async def fetch_player_history(username: str, page_num: int = 999999):
     """获取玩家历史对战记录列表。"""
@@ -101,7 +127,7 @@ async def is_first_win(username: str) -> bool:
 
 def is_specific_month(match: dict, month: int, year: int) -> bool:
     """判断对战记录是否属于指定月份（上海时区）。"""
-    dt = _to_shanghai(match["start_time"])
+    dt = _to_shanghai(match["end_time"])
     return dt.year == year and dt.month == month
 
 
