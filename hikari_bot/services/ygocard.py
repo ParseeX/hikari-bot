@@ -163,7 +163,7 @@ async def get_card_info_by_id(id: str):
         conn.close()
         return None
     
-    if int(id) < 100000000 and data["sc_name"]:
+    if int(id) < 100000000 and data.get("sc_name"):
         cursor.execute("""
             INSERT INTO cards (id, data)
             VALUES (?, ?)
