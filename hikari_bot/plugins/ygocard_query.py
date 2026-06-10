@@ -56,7 +56,7 @@ async def _(bot: Bot, event: MessageEvent):
     await ygo_daily_card.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
-ygo_card_pic = on_cmd("查卡图", aliases={"游戏王卡图", "卡图"}, priority=5)
+ygo_card_pic = on_cmd("卡图查询", aliases={"游戏王卡图", "卡图"}, priority=5)
 @ygo_card_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -98,7 +98,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
-ygo_card_id = on_cmd("查卡密", aliases={"游戏王卡密", "卡密"}, priority=5)
+ygo_card_id = on_cmd("卡密查询", aliases={"游戏王卡密", "卡密"}, priority=5)
 @ygo_card_id.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -111,7 +111,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         await ygo_card_id.finish(str(card_info["id"]))
 
 
-ygo_card_effect = on_cmd("查效果", aliases={"游戏王效果", "效果"}, priority=5)
+ygo_card_effect = on_cmd("效果查询", aliases={"游戏王效果", "效果"}, priority=5)
 @ygo_card_effect.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -132,7 +132,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         else:
             result = f"{official_name}\n{type}\n"
         if p_effect != "":
-            result = result + p_effect + "\n"
+            result = result + p_effect + "\n---------------\n"
         
         if effect == "":
             effect = "※公式のデュエルでは使用できません。"
@@ -141,7 +141,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         await ygo_card_effect.finish(result)
 
 
-ygo_card_faq = on_cmd("查裁定", aliases={"游戏王裁定", "裁定"}, priority=5)
+ygo_card_faq = on_cmd("裁定查询", aliases={"游戏王裁定", "裁定"}, priority=5)
 @ygo_card_faq.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip().split():
