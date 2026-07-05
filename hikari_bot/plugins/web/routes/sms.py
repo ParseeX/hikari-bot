@@ -55,7 +55,7 @@ async def sms_handler(payload: SmsPayload):
     await message_superusers(full_msg)
 
     # 2️⃣ 验证码（如果有）
-    code_candidates = [m for m in re.findall(r"\d+", payload.content) if len(m) in (4, 6, 8)]
+    code_candidates = [m for m in re.findall(r"\d+", payload.content) if len(m) == 6]
     if code_candidates:
         await message_superusers(code_candidates[-1])
 
