@@ -40,7 +40,7 @@ def _extract_data(html: str):
     return json.loads(m.group(1))
 
 
-def query(name=None, rarity=None, model_number=None, limit=100):
+def query(name=None, rarity=None, model_number=None, limit=100, page=None):
     """实时查询 Cardrush 收购价格。"""
     params = {}
 
@@ -51,6 +51,8 @@ def query(name=None, rarity=None, model_number=None, limit=100):
     if model_number:
         params["model_number"] = model_number
     params["limit"] = limit
+    if page is not None:
+        params["page"] = page
 
     try:
         r = requests.get(
@@ -86,7 +88,17 @@ def query(name=None, rarity=None, model_number=None, limit=100):
 
 
 def query_all():
-    return query(limit=100000)
+    """分页拉取全部收购价格，每页 500 条，直到返回数量不足 500 为止。"""
+    all_results = []
+    page = 1
+    page_size = 500
+    while True:
+        results = query(limit=page_size, page=page)
+        all_results.extend(results)
+        if len(results) < page_size:
+            break
+        page += 1
+    return all_results
 
 
 def init_database():
