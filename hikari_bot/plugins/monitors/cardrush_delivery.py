@@ -1,5 +1,6 @@
 import asyncio
-from collections.abc import Sequence
+import base64
+from collections.abc import Awaitable, Callable, Sequence
 from io import BytesIO
 
 from PIL import Image
@@ -43,3 +44,26 @@ async def prepare_qq_pages(
         )
         compressed_pages.append(compressed)
     return compressed_pages
+
+
+async def send_qq_pages(
+    pages: Sequence[bytes],
+    send_page: Callable[[str], Awaitable[object]],
+    *,
+    log_prefix: str,
+) -> list[int]:
+    timed_out_pages: list[int] = []
+    total = len(pages)
+    for index, page in enumerate(pages, 1):
+        try:
+            encoded = base64.b64encode(page).decode()
+            await send_page(f"base64://{encoded}")
+        except Exception as error:
+            if getattr(error, "retcode", None) != 1200:
+                raise
+            timed_out_pages.append(index)
+            await log_message(
+                f"{log_prefix} QQ send page {index}/{total}: "
+                "retcode=1200 ignored; continuing."
+            )
+    return timed_out_pages

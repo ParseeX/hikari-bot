@@ -28,10 +28,10 @@
 - Modify: `hikari_bot/plugins/monitors/cardrush.py`
 
 **Interfaces:**
-- Consumes: `Sequence[bytes]` pages and an async `Callable[[bytes], Awaitable[None]]`.
+- Consumes: `Sequence[bytes]` pages and an async `Callable[[str], Awaitable[object]]` that sends a QQ `base64://` image URI.
 - Produces: `send_qq_pages(pages, send_page, *, log_prefix) -> list[int]`, returning one-based page indexes that reported `retcode=1200`.
 
-- [ ] **Step 1: Write failing continuation and propagation tests**
+- [x] **Step 1: Write failing continuation and propagation tests**
 
 Add the following behavior tests to `test_qq_delivery.py`:
 
@@ -48,7 +48,7 @@ def test_send_qq_pages_continues_after_retcode_1200(monkeypatch):
 
     async def fake_send(page):
         attempts.append(page)
-        if page == b"one":
+        if page == "base64://b25l":
             raise SendError(1200)
 
     async def fake_log(message):
@@ -64,7 +64,11 @@ def test_send_qq_pages_continues_after_retcode_1200(monkeypatch):
         )
     )
 
-    assert attempts == [b"one", b"two", b"three"]
+    assert attempts == [
+        "base64://b25l",
+        "base64://dHdv",
+        "base64://dGhyZWU=",
+    ]
     assert timeouts == [1]
     assert "page 1/3" in logs[0]
     assert "retcode=1200" in logs[0]
@@ -76,7 +80,7 @@ def test_send_qq_pages_reraises_other_errors():
 
     async def fake_send(page):
         attempts.append(page)
-        if page == b"two":
+        if page == "base64://dHdv":
             raise expected
 
     with pytest.raises(SendError) as caught:
@@ -89,7 +93,7 @@ def test_send_qq_pages_reraises_other_errors():
         )
 
     assert caught.value is expected
-    assert attempts == [b"one", b"two"]
+    assert attempts == ["base64://b25l", "base64://dHdv"]
 ```
 
 Import `pytest`, then replace the two inline-loop assertions in
@@ -99,24 +103,24 @@ Import `pytest`, then replace the two inline-loop assertions in
 assert source.count("await send_qq_pages(") == 2
 ```
 
-- [ ] **Step 2: Run tests to verify RED**
+- [x] **Step 2: Run tests to verify RED**
 
 Run:
 
 ```powershell
-uv run pytest tests/cardrush/test_qq_delivery.py tests/cardrush/test_plugin_import.py -q
+.\.venv\Scripts\python.exe -m pytest tests/cardrush/test_qq_delivery.py tests/cardrush/test_plugin_import.py -q
 ```
 
 Expected: failure because `send_qq_pages` does not exist and the two handlers still contain inline loops.
 
-- [ ] **Step 3: Implement the minimal shared sender**
+- [x] **Step 3: Implement the minimal shared sender**
 
-In `cardrush_delivery.py`, import `Awaitable` and `Callable`, then add:
+In `cardrush_delivery.py`, import `base64`, `Awaitable`, and `Callable`, then add:
 
 ```python
 async def send_qq_pages(
     pages: Sequence[bytes],
-    send_page: Callable[[bytes], Awaitable[None]],
+    send_page: Callable[[str], Awaitable[object]],
     *,
     log_prefix: str,
 ) -> list[int]:
@@ -124,7 +128,8 @@ async def send_qq_pages(
     total = len(pages)
     for index, page in enumerate(pages, 1):
         try:
-            await send_page(page)
+            encoded = base64.b64encode(page).decode()
+            await send_page(f"base64://{encoded}")
         except Exception as error:
             if getattr(error, "retcode", None) != 1200:
                 raise
@@ -136,21 +141,17 @@ async def send_qq_pages(
     return timed_out_pages
 ```
 
-- [ ] **Step 4: Integrate both delivery paths**
+- [x] **Step 4: Integrate both delivery paths**
 
 Import `send_qq_pages` in `cardrush.py`. Replace the manual inline loop with:
 
 ```python
-async def send_page(page: bytes) -> None:
-    encoded = base64.b64encode(page).decode()
-    await bot.send(
-        event,
-        MessageSegment.image(f"base64://{encoded}"),
-    )
-
 await send_qq_pages(
     qq_pages,
-    send_page,
+    lambda image_uri: bot.send(
+        event,
+        MessageSegment.image(image_uri),
+    ),
     log_prefix="[cardrush]",
 )
 ```
@@ -159,49 +160,51 @@ Replace the automatic nested page loop with:
 
 ```python
 for user_id in ADMIN:
-    async def send_page(
-        screenshot: bytes,
-        recipient: str = user_id,
-    ) -> None:
-        encoded = base64.b64encode(screenshot).decode()
-        await bot.send_private_msg(
-            user_id=int(recipient),
-            message=MessageSegment.image(
-                f"base64://{encoded}"
-            ),
-        )
-
     await send_qq_pages(
         qq_screenshots,
-        send_page,
+        lambda image_uri, recipient=user_id: bot.send_private_msg(
+            user_id=int(recipient),
+            message=MessageSegment.image(image_uri),
+        ),
         log_prefix=f"[cardrush_auto] user={user_id}",
     )
 ```
 
-- [ ] **Step 5: Run focused tests to verify GREEN**
+- [x] **Step 5: Run focused tests to verify GREEN**
 
 Run:
 
 ```powershell
-uv run pytest tests/cardrush/test_qq_delivery.py tests/cardrush/test_plugin_import.py -q
+.\.venv\Scripts\python.exe -m pytest tests/cardrush/test_qq_delivery.py tests/cardrush/test_plugin_import.py -q
 ```
 
 Expected: all focused tests pass.
 
-- [ ] **Step 6: Run repository verification**
+- [x] **Step 6: Run repository verification**
 
 Run:
 
 ```powershell
-uv run pytest -q
-uv run python -m compileall -q bot.py hikari_bot scripts
-uv run python -m pyflakes bot.py hikari_bot scripts
-uv run nb-cli plugin load hikari_bot.plugins.monitors.cardrush
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m compileall -q bot.py hikari_bot scripts
+.\.venv\Scripts\python.exe -m pyflakes hikari_bot/plugins/monitors/cardrush.py hikari_bot/plugins/monitors/cardrush_delivery.py tests/cardrush/test_qq_delivery.py tests/cardrush/test_plugin_import.py
+@'
+import nonebot
+
+nonebot.init()
+plugin = nonebot.load_plugin(
+    "hikari_bot.plugins.monitors.cardrush"
+)
+assert plugin is not None
+print("cardrush_plugin_load=ok")
+'@ | .\.venv\Scripts\python.exe -
 ```
 
-Expected: all commands exit with code 0.
+Expected: all commands exit with code 0. Whole-repository `pyflakes`
+currently reports unrelated pre-existing findings, so the static check is
+scoped to all Python files changed by this task.
 
-- [ ] **Step 7: Commit and push**
+- [x] **Step 7: Commit and push**
 
 Run:
 

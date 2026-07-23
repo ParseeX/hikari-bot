@@ -22,14 +22,15 @@ Cardrush 图报已经能够稳定生成并发送，但 QQ/NapCat 偶尔会在图
 ```python
 async def send_qq_pages(
     pages: Sequence[bytes],
-    send_page: Callable[[bytes], Awaitable[None]],
+    send_page: Callable[[str], Awaitable[object]],
     *,
     log_prefix: str,
 ) -> list[int]:
     ...
 ```
 
-调用方传入实际的单页发送回调。函数按顺序发送页面，并只捕获
+函数将页面编码成 QQ 使用的 `base64://` URI，再传给调用方提供的实际单页发送回调。
+函数按顺序发送页面，并只捕获
 `error.retcode == 1200` 的异常；命中时记录内部日志和页码，随后继续下一页。其他异常
 原样抛出，由现有外层错误处理负责。
 
@@ -62,4 +63,3 @@ async def send_qq_pages(
 - 中间页返回非 `1200`，确认异常原样抛出且后续页不再发送。
 - 源码契约确认手动和自动路径都通过统一发送函数，B 站仍使用原图。
 - 运行 Cardrush 专项测试、全量测试、`compileall`、`pyflakes` 和插件加载验证。
-

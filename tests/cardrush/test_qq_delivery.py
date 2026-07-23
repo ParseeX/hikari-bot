@@ -3,6 +3,7 @@ import importlib.util
 from io import BytesIO
 from pathlib import Path
 
+import pytest
 from PIL import Image
 
 module_path = Path(
@@ -72,3 +73,65 @@ def test_prepare_qq_pages_warns_above_observation_limit(
     asyncio.run(delivery.prepare_qq_pages([b"one"]))
 
     assert "WARNING: above 230000 bytes" in logs[0]
+
+
+class SendError(Exception):
+    def __init__(self, retcode):
+        super().__init__(f"retcode={retcode}")
+        self.retcode = retcode
+
+
+def test_send_qq_pages_continues_after_retcode_1200(
+    monkeypatch,
+):
+    attempts = []
+    logs = []
+
+    async def fake_send(page):
+        attempts.append(page)
+        if page == "base64://b25l":
+            raise SendError(1200)
+
+    async def fake_log(message):
+        logs.append(message)
+
+    monkeypatch.setattr(delivery, "log_message", fake_log)
+
+    timeouts = asyncio.run(
+        delivery.send_qq_pages(
+            [b"one", b"two", b"three"],
+            fake_send,
+            log_prefix="[test]",
+        )
+    )
+
+    assert attempts == [
+        "base64://b25l",
+        "base64://dHdv",
+        "base64://dGhyZWU=",
+    ]
+    assert timeouts == [1]
+    assert "page 1/3" in logs[0]
+    assert "retcode=1200" in logs[0]
+
+
+def test_send_qq_pages_reraises_other_errors():
+    attempts = []
+    expected = SendError(100)
+
+    async def fake_send(page):
+        attempts.append(page)
+        if page == "base64://dHdv":
+            raise expected
+
+    with pytest.raises(SendError) as caught:
+        asyncio.run(
+            delivery.send_qq_pages(
+                [b"one", b"two", b"three"],
+                fake_send,
+                log_prefix="[test]",
+            )
+        )
+
+    assert caught.value is expected
+    assert attempts == ["base64://b25l", "base64://dHdv"]

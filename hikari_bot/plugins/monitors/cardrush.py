@@ -37,9 +37,8 @@ from hikari_bot.features.cardrush.reporting import (
     format_daily_report,
     parse_date_arg,
 )
-from hikari_bot.plugins.monitors.cardrush_delivery import (
-    prepare_qq_pages,
-)
+from hikari_bot.plugins.monitors.cardrush_delivery import prepare_qq_pages
+from hikari_bot.plugins.monitors.cardrush_delivery import send_qq_pages
 from hikari_bot.services.bilibili import post_article_with_images
 
 service = get_default_cardrush_service()
@@ -279,12 +278,14 @@ async def _(
             event,
             f"下载完毕，正在发送 {len(qq_pages)} 页图报…",
         )
-        for page in qq_pages:
-            encoded = base64.b64encode(page).decode()
-            await bot.send(
+        await send_qq_pages(
+            qq_pages,
+            lambda image_uri: bot.send(
                 event,
-                MessageSegment.image(f"base64://{encoded}"),
-            )
+                MessageSegment.image(image_uri),
+            ),
+            log_prefix="[cardrush]",
+        )
         await daily_report_html.finish(
             f"图报发送完毕（共 {len(pages)} 页）。"
         )
@@ -373,14 +374,14 @@ async def _auto_send_daily_report():
         qq_screenshots = await prepare_qq_pages(screenshots)
         bot = get_bot()
         for user_id in ADMIN:
-            for screenshot in qq_screenshots:
-                encoded = base64.b64encode(screenshot).decode()
-                await bot.send_private_msg(
-                    user_id=int(user_id),
-                    message=MessageSegment.image(
-                        f"base64://{encoded}"
-                    ),
-                )
+            await send_qq_pages(
+                qq_screenshots,
+                lambda image_uri, recipient=user_id: bot.send_private_msg(
+                    user_id=int(recipient),
+                    message=MessageSegment.image(image_uri),
+                ),
+                log_prefix=f"[cardrush_auto] user={user_id}",
+            )
         await log_message(
             f"[cardrush_auto] Report sent to {ADMIN} "
             f"({len(screenshots)} page(s))."
