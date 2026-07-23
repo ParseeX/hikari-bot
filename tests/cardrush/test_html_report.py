@@ -69,3 +69,20 @@ def test_overview_uses_compact_summary_and_escapes_names():
     assert "&lt;card-1&gt;" in page
     assert '<div class="overview-desc-zh">' not in page
     assert '<div class="overview-desc-ja">' not in page
+
+
+def test_html_report_embeds_mobile_portrait_layout():
+    page = render_daily_report_html(
+        make_changes(35),
+        "2026-07-23",
+        image_map={},
+    )[0]
+
+    assert "width: 1080px" in page
+    assert "height: 1920px" in page
+    assert (
+        "grid-template-columns: repeat(5, minmax(0, 1fr))"
+        in page
+    )
+    assert "font-size: 18px" in page
+    assert "font-size: 28px" in page

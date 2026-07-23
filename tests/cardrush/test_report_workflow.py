@@ -80,6 +80,13 @@ def sample_change():
     )
 
 
+def test_screenshot_backend_uses_mobile_portrait_viewport():
+    assert getattr(renderer_module, "_VIEWPORT", None) == {
+        "width": 1080,
+        "height": 1920,
+    }
+
+
 def test_workflow_queries_changes_and_returns_renderer_pages():
     renderer = FakeRenderer()
     workflow = DailyReportWorkflow(FakeService(), renderer)

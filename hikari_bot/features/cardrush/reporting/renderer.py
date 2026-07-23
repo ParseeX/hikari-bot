@@ -16,6 +16,7 @@ _CARD_IMAGE_URL = (
     "https://files.cardrush.media/yugioh/ocha_products/"
     "{product_id}.webp"
 )
+_VIEWPORT = {"width": 1080, "height": 1920}
 
 
 class CardImageFetcher(Protocol):
@@ -131,9 +132,7 @@ class PlaywrightScreenshotBackend:
                 for index, html_page in enumerate(html_pages, 1):
                     html_path = work_dir / f"page-{index}.html"
                     html_path.write_text(html_page, encoding="utf-8")
-                    page = await browser.new_page(
-                        viewport={"width": 1340, "height": 900}
-                    )
+                    page = await browser.new_page(viewport=_VIEWPORT)
                     try:
                         page.set_default_timeout(120_000)
                         await page.goto(
@@ -141,9 +140,28 @@ class PlaywrightScreenshotBackend:
                             wait_until="domcontentloaded",
                         )
                         await page.evaluate("document.fonts.ready")
+                        dimensions = await page.evaluate(
+                            """() => ({
+                                width:
+                                    document.documentElement.scrollWidth,
+                                height:
+                                    document.documentElement.scrollHeight,
+                            })"""
+                        )
+                        if (
+                            dimensions["width"] > _VIEWPORT["width"]
+                            or dimensions["height"]
+                            > _VIEWPORT["height"]
+                        ):
+                            raise CardrushRenderError(
+                                "Cardrush report exceeds "
+                                "1080x1920 viewport: "
+                                f"{dimensions['width']}x"
+                                f"{dimensions['height']}"
+                            )
                         screenshots.append(
                             await page.screenshot(
-                                full_page=True,
+                                full_page=False,
                                 animations="disabled",
                                 timeout=120_000,
                             )
