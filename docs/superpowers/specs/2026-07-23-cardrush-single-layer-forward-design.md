@@ -49,8 +49,8 @@ async def send_qq_forward(
 返回 `True` 表示 API 明确成功，返回 `False` 表示 API 返回 1200、结果未知但已静默
 处理。业务调用方不根据该返回值向聊天追加错误提示。
 
-`cardrush_delivery.py` 继续负责压缩，并公开
-`is_qq_send_timeout(error) -> bool` 供合并转发适配器复用。旧的逐页
+`cardrush_delivery.py` 继续只负责压缩。1200 分类器作为合并转发适配器的私有实现，
+避免导入 `monitors` 包时触发其 `__init__.py` 中的插件注册副作用。旧的逐页
 `send_qq_pages` 在两个调用方迁移后删除。
 
 ## 数据流
@@ -84,4 +84,3 @@ async def send_qq_forward(
 - 使用真实 OneBot `ActionFailed` 验证 1200 被静默处理，非 1200 原样抛出。
 - 源码契约确认手动与自动路径均使用合并转发，B 站仍使用未压缩原图。
 - 运行全量 pytest、compileall、改动文件 pyflakes 和插件加载检查。
-

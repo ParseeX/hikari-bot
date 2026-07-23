@@ -38,7 +38,7 @@ from hikari_bot.features.cardrush.reporting import (
     parse_date_arg,
 )
 from hikari_bot.plugins.monitors.cardrush_delivery import prepare_qq_pages
-from hikari_bot.plugins.monitors.cardrush_delivery import send_qq_pages
+from hikari_bot.plugins.monitors.cardrush_forward import send_qq_forward
 from hikari_bot.services.bilibili import post_article_with_images
 
 service = get_default_cardrush_service()
@@ -278,12 +278,12 @@ async def _(
             event,
             f"下载完毕，正在发送 {len(qq_pages)} 页图报…",
         )
-        await send_qq_pages(
+        group_id = getattr(event, "group_id", None)
+        await send_qq_forward(
+            bot,
             qq_pages,
-            lambda image_uri: bot.send(
-                event,
-                MessageSegment.image(image_uri),
-            ),
+            group_id=int(group_id) if group_id is not None else None,
+            user_id=None if group_id is not None else event.user_id,
             log_prefix="[cardrush]",
         )
         await daily_report_html.finish(
@@ -374,12 +374,10 @@ async def _auto_send_daily_report():
         qq_screenshots = await prepare_qq_pages(screenshots)
         bot = get_bot()
         for user_id in ADMIN:
-            await send_qq_pages(
+            await send_qq_forward(
+                bot,
                 qq_screenshots,
-                lambda image_uri, recipient=user_id: bot.send_private_msg(
-                    user_id=int(recipient),
-                    message=MessageSegment.image(image_uri),
-                ),
+                user_id=int(user_id),
                 log_prefix=f"[cardrush_auto] user={user_id}",
             )
         await log_message(

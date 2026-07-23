@@ -1,5 +1,8 @@
 # Cardrush QQ 发送超时容错设计
 
+> 已由 `2026-07-23-cardrush-single-layer-forward-design.md` 取代。当前 QQ 图报通过一次
+> 合并转发发送，1200 容错位于最终转发调用边界。
+
 ## 背景
 
 Cardrush 图报已经能够稳定生成并发送，但 QQ/NapCat 偶尔会在图片实际送达后返回

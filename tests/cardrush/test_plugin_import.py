@@ -78,5 +78,6 @@ def test_qq_delivery_uses_compressed_pages_but_bilibili_keeps_originals():
     ).read_text(encoding="utf-8")
 
     assert source.count("await prepare_qq_pages(") == 2
-    assert source.count("await send_qq_pages(") == 2
+    assert source.count("await send_qq_forward(") == 2
+    assert "await send_qq_pages(" not in source
     assert "post_article_with_images(screenshots, date_str)" in source

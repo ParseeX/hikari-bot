@@ -1,5 +1,8 @@
 # Cardrush QQ Timeout Continuation Implementation Plan
 
+> 已由 `2026-07-23-cardrush-single-layer-forward.md` 取代。旧的逐页
+> `send_qq_pages` 已删除。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 让 Cardrush QQ 图报在单页返回 `retcode=1200` 时静默继续后续发送，同时保留其他异常的原有失败行为。
