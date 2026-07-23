@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from nonebot.adapters.onebot.v11 import ActionFailed
+
 module_path = Path(
     "hikari_bot/plugins/monitors/cardrush_delivery.py"
 )
@@ -75,12 +77,6 @@ def test_prepare_qq_pages_warns_above_observation_limit(
     assert "WARNING: above 230000 bytes" in logs[0]
 
 
-class SendError(Exception):
-    def __init__(self, retcode):
-        super().__init__(f"retcode={retcode}")
-        self.retcode = retcode
-
-
 def test_send_qq_pages_continues_after_retcode_1200(
     monkeypatch,
 ):
@@ -90,7 +86,11 @@ def test_send_qq_pages_continues_after_retcode_1200(
     async def fake_send(page):
         attempts.append(page)
         if page == "base64://b25l":
-            raise SendError(1200)
+            raise ActionFailed(
+                status="failed",
+                retcode=1200,
+                message="Timeout",
+            )
 
     async def fake_log(message):
         logs.append(message)
@@ -117,14 +117,18 @@ def test_send_qq_pages_continues_after_retcode_1200(
 
 def test_send_qq_pages_reraises_other_errors():
     attempts = []
-    expected = SendError(100)
+    expected = ActionFailed(
+        status="failed",
+        retcode=100,
+        message="Other failure",
+    )
 
     async def fake_send(page):
         attempts.append(page)
         if page == "base64://dHdv":
             raise expected
 
-    with pytest.raises(SendError) as caught:
+    with pytest.raises(ActionFailed) as caught:
         asyncio.run(
             delivery.send_qq_pages(
                 [b"one", b"two", b"three"],

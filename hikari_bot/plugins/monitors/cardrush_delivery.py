@@ -1,6 +1,6 @@
 import asyncio
 import base64
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from io import BytesIO
 
 from PIL import Image
@@ -59,7 +59,13 @@ async def send_qq_pages(
             encoded = base64.b64encode(page).decode()
             await send_page(f"base64://{encoded}")
         except Exception as error:
-            if getattr(error, "retcode", None) != 1200:
+            info = getattr(error, "info", None)
+            retcode = (
+                info.get("retcode")
+                if isinstance(info, Mapping)
+                else getattr(error, "retcode", None)
+            )
+            if retcode != 1200:
                 raise
             timed_out_pages.append(index)
             await log_message(

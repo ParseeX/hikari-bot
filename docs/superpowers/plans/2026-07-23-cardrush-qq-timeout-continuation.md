@@ -36,12 +36,6 @@
 Add the following behavior tests to `test_qq_delivery.py`:
 
 ```python
-class SendError(Exception):
-    def __init__(self, retcode):
-        super().__init__(f"retcode={retcode}")
-        self.retcode = retcode
-
-
 def test_send_qq_pages_continues_after_retcode_1200(monkeypatch):
     attempts = []
     logs = []
@@ -49,7 +43,11 @@ def test_send_qq_pages_continues_after_retcode_1200(monkeypatch):
     async def fake_send(page):
         attempts.append(page)
         if page == "base64://b25l":
-            raise SendError(1200)
+            raise ActionFailed(
+                status="failed",
+                retcode=1200,
+                message="Timeout",
+            )
 
     async def fake_log(message):
         logs.append(message)
@@ -76,14 +74,18 @@ def test_send_qq_pages_continues_after_retcode_1200(monkeypatch):
 
 def test_send_qq_pages_reraises_other_errors():
     attempts = []
-    expected = SendError(100)
+    expected = ActionFailed(
+        status="failed",
+        retcode=100,
+        message="Other failure",
+    )
 
     async def fake_send(page):
         attempts.append(page)
         if page == "base64://dHdv":
             raise expected
 
-    with pytest.raises(SendError) as caught:
+    with pytest.raises(ActionFailed) as caught:
         asyncio.run(
             delivery.send_qq_pages(
                 [b"one", b"two", b"three"],
@@ -96,7 +98,7 @@ def test_send_qq_pages_reraises_other_errors():
     assert attempts == ["base64://b25l", "base64://dHdv"]
 ```
 
-Import `pytest`, then replace the two inline-loop assertions in
+Import `pytest` and OneBot V11 `ActionFailed`, then replace the two inline-loop assertions in
 `test_plugin_import.py` with:
 
 ```python
@@ -115,7 +117,8 @@ Expected: failure because `send_qq_pages` does not exist and the two handlers st
 
 - [x] **Step 3: Implement the minimal shared sender**
 
-In `cardrush_delivery.py`, import `base64`, `Awaitable`, and `Callable`, then add:
+In `cardrush_delivery.py`, import `base64`, `Awaitable`, `Callable`, and
+`Mapping`, then add:
 
 ```python
 async def send_qq_pages(
@@ -131,7 +134,13 @@ async def send_qq_pages(
             encoded = base64.b64encode(page).decode()
             await send_page(f"base64://{encoded}")
         except Exception as error:
-            if getattr(error, "retcode", None) != 1200:
+            info = getattr(error, "info", None)
+            retcode = (
+                info.get("retcode")
+                if isinstance(info, Mapping)
+                else getattr(error, "retcode", None)
+            )
+            if retcode != 1200:
                 raise
             timed_out_pages.append(index)
             await log_message(
