@@ -21,6 +21,7 @@ require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.commands import on_cmd
+from hikari_bot.core.config import settings
 from hikari_bot.core.constants import ADMIN
 from hikari_bot.core.logger import log_message
 from hikari_bot.features.cardrush import get_default_cardrush_service
@@ -373,6 +374,18 @@ async def _auto_send_daily_report():
 
         qq_screenshots = await prepare_qq_pages(screenshots)
         bot = get_bot()
+        if settings.public_group_id:
+            try:
+                await send_qq_forward(
+                    bot,
+                    qq_screenshots,
+                    group_id=int(settings.public_group_id),
+                    log_prefix="[cardrush_auto] public_group",
+                )
+            except Exception as error:
+                await log_message(
+                    f"[cardrush_auto] public group failed: {error}"
+                )
         for user_id in ADMIN:
             await send_qq_forward(
                 bot,

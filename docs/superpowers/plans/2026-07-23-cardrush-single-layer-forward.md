@@ -13,6 +13,7 @@
 - 不使用中转群，不新增或复用任何中转群配置。
 - 每份图报对每个接收目标只调用一次合并转发 API。
 - 每一页必须按原顺序出现在一个独立自定义节点中。
+- 自动日报必须发送到所有 `ADMIN` 私聊，并在 `settings.public_group_id` 存在时发送到该群。
 - 只静默处理数值型 `retcode == 1200`，不得重试。
 - 非 1200 错误必须原样抛出。
 - QQ 继续使用 200KB WebP，B 站继续使用原图。
@@ -109,7 +110,7 @@ print("cardrush_plugin_load=ok")
 '@ | .\.venv\Scripts\python.exe -
 ```
 
-Expected: all commands exit with code 0 and `cardrush.py` remains below 450 lines.
+Expected: all commands exit with code 0 and `cardrush.py` remains below 460 lines.
 
 - [x] **Step 7: Commit and push**
 
