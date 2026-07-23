@@ -2,7 +2,7 @@
 base.py — Bot 基础功能插件
 
 功能：
-  - 日志读取、服务状态查询、帮助图片
+  - 日志读取、服务状态查询
   - 版本查询、插件重载（git pull + 重启）、服务器重启
   - 白名单管理（添加/清空）、群消息广播
   - 好友/入群请求自动处理
@@ -10,7 +10,6 @@ base.py — Bot 基础功能插件
 """
 
 import asyncio
-import base64
 import os
 import re
 from datetime import datetime
@@ -18,7 +17,7 @@ from datetime import datetime
 from nonebot import get_driver, on_message, on_notice, on_request
 from nonebot.adapters.onebot.v11 import (
     Bot, Event, FriendRequestEvent, GroupMessageEvent, GroupRequestEvent,
-    Message, MessageEvent, MessageSegment, PrivateMessageEvent,
+    Message, MessageEvent, PrivateMessageEvent,
 )
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
@@ -26,7 +25,6 @@ from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.commands import on_cmd
-from hikari_bot.core.constants import RESOURCES_DIR
 from hikari_bot.core.logger import get_bot_startup_info, log_message, log_read
 from hikari_bot.core.whitelist import *
 from hikari_bot.plugins.monitors.mycard import ws_status_check
@@ -64,18 +62,6 @@ async def _(bot: Bot, event: MessageEvent):
 - 运行时长：{uptime}
 - MyCard监控：{'在线' if ws_status else '离线'}"""
     await status.finish(status_message)
-
-
-# ── 帮助 ────────────────────────────────────────────────────────────────────────────
-
-help_pic = os.path.join(RESOURCES_DIR, 'help.png')
-help = on_cmd("帮助", aliases={"help"}, priority=5)
-@help.handle()
-async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
-    with open(help_pic, "rb") as f:
-        image_data = f.read()
-    image_base64 = base64.b64encode(image_data).decode("utf-8")
-    await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
 # ── 版本与插件维护 ────────────────────────────────────────────────────────────────────

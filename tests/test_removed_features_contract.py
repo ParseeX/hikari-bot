@@ -57,3 +57,17 @@ def test_faq_command_and_service_are_removed():
         assert removed_command not in plugin_source
     assert "get_qa_by_id" not in function_names
     assert 'FAQ = "https://ygocdb.com/faq/"' not in service_source
+
+
+def test_help_command_and_resources_are_removed():
+    base_source = _source("hikari_bot/plugins/base.py")
+    assert 'on_cmd("帮助"' not in base_source
+    assert 'aliases={"help"}' not in base_source
+    assert "help.png" not in base_source
+
+    for relative in (
+        "hikari_bot/resources/help.png",
+        "hikari_bot/resources/help.md",
+        ".crossnote",
+    ):
+        assert not (ROOT / relative).exists()
