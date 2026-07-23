@@ -26,7 +26,7 @@ from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 
 from hikari_bot.core.commands import on_cmd
-from hikari_bot.core.constants import DECK_DIR, ADMIN
+from hikari_bot.core.constants import ADMIN, DECK_DIR, PUBLIC_DECK_URL
 from hikari_bot.services.ygodeck import (
     get_deck_text_from_url,
     is_deck_code,
@@ -461,7 +461,7 @@ async def _(bot: Bot, event: MessageEvent):
 deck_list = on_cmd("卡表", aliases={"中文卡表", "简中卡表", "日文卡表", "英文卡表"}, priority=5)
 @deck_list.handle()
 async def _(bot: Bot, event: PrivateMessageEvent):
-    await deck_list.finish("请访问最新网页版 http://ygo.xyk.one/deck")
+    await deck_list.finish(f"请访问最新网页版 {PUBLIC_DECK_URL}")
 
 # async def _(bot: Bot, event: PrivateMessageEvent, arg: Message = CommandArg()):
 #     qq = str(event.user_id)
