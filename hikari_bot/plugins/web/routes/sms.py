@@ -5,6 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
 
 router = APIRouter()

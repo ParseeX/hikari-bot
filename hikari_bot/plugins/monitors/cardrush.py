@@ -36,7 +36,6 @@ from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
-from hikari_bot.core.whitelist import message_superusers
 from hikari_bot.core.logger import log_message
 from hikari_bot.services.ygocard import get_unknown_card
 from hikari_bot.services.price import (

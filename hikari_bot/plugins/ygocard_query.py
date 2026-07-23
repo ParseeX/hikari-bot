@@ -10,12 +10,13 @@ ygocard_query.py — 游戏王卡片查询插件
 
 import asyncio
 import base64
+import io
 import re
 from datetime import datetime
-from io import BytesIO
 
 from nonebot import on_command, require
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
+from nonebot.exception import FinishedException
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
@@ -24,7 +25,7 @@ from nonebot_plugin_apscheduler import scheduler
 
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import log_message
-from hikari_bot.services.ygocard import *
+from hikari_bot.services import ygocard as card_service
 from hikari_bot.services.ygodeck import generate_card_list_image
 
 
@@ -33,7 +34,7 @@ from hikari_bot.services.ygodeck import generate_card_list_image
 ygo_random_card = on_command("随机一卡", priority=5, permission=SUPERUSER)
 @ygo_random_card.handle()
 async def _(bot: Bot, event: MessageEvent):
-    image = await get_ygopic(random_card(), half=False)
+    image = await card_service.get_ygopic(card_service.random_card(), half=False)
     if not image:
         await log_message(f"[ygo_random_card] Ramdom card image not found.")
         await ygo_random_card.finish("未找到随机卡片！")
@@ -47,7 +48,7 @@ async def _(bot: Bot, event: MessageEvent):
     today = datetime.now().strftime("%Y-%m-%d")
     seed_str = f"{event.get_user_id()}_{today}"
     seed = hash(seed_str) % (2**31 - 1)
-    image = await get_ygopic(random_card(seed), half=False)
+    image = await card_service.get_ygopic(card_service.random_card(seed), half=False)
     if not image:
         await log_message(f"[ygo_daily_card] Daily card image not found.")
         await ygo_daily_card.finish("未找到每日卡片！")
@@ -60,7 +61,7 @@ ygo_card_pic = on_cmd("卡图查询", aliases={"游戏王卡图", "卡图"}, pri
 @ygo_card_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        if is_card_id(input):
+        if card_service.is_card_id(input):
             card_id = int(input)
         else:
             if "异画" in input:
@@ -72,13 +73,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                     offset = 1
                     input = input.replace("异画", "")
                 
-                card_info = await get_card_info(input)
+                card_info = await card_service.get_card_info(input)
                 if card_info:
                     card_id = card_info["id"] + offset
                 else:
                     card_id = None
             else:
-                card_info = await get_card_info(input)
+                card_info = await card_service.get_card_info(input)
                 if card_info:
                     card_id = card_info["id"]
                 else:
@@ -88,7 +89,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await ygo_card_pic.finish("未找到对应卡片！")
             return
 
-        image = await get_image_by_id(card_id)
+        image = await card_service.get_image_by_id(card_id)
         if not image:
             await log_message(f"[ygo_card_pic] Card image not found for card ID: {card_id}")
             await ygo_card_pic.finish("卡图加载失败！")
@@ -102,7 +103,7 @@ ygo_card_id = on_cmd("卡密查询", aliases={"游戏王卡密", "卡密"}, prio
 @ygo_card_id.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        card_info = await get_card_info(input)
+        card_info = await card_service.get_card_info(input)
         
         if not card_info:
             await ygo_card_id.finish("查询失败！")
@@ -115,7 +116,7 @@ ygo_card_effect = on_cmd("效果查询", aliases={"游戏王效果", "效果"}, 
 @ygo_card_effect.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        card_info = await get_card_info(input)
+        card_info = await card_service.get_card_info(input)
 
         if not card_info:
             await ygo_card_effect.finish("未找到对应卡片！")
@@ -148,7 +149,7 @@ ygo_update_database = on_cmd("更新数据库", priority=5)
 @ygo_update_database.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
-        await update_cdb()
+        await card_service.update_cdb()
         await ygo_update_database.finish("更新完成。")
     except Exception as e:
         if not isinstance(e, FinishedException):
@@ -159,7 +160,7 @@ async def _(bot: Bot, event: MessageEvent):
 @scheduler.scheduled_job("cron", hour=3, minute=0, id="ygo_update_database_daily", misfire_grace_time=1800)
 async def ygo_update_database_daily_job():
     try:
-        await update_cdb()
+        await card_service.update_cdb()
         await log_message("[ygo_update_database_daily] Updated successfully.")
     except Exception as e:
         if not isinstance(e, FinishedException):
@@ -173,7 +174,7 @@ ygo_metaltronus_calc = on_cmd("共界计算", priority=5)
 @ygo_metaltronus_calc.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        card_info = await get_card_info(input)
+        card_info = await card_service.get_card_info(input)
 
         if not card_info:
             await ygo_metaltronus_calc.finish("未找到对应卡片！")
@@ -181,7 +182,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         
         # 使用 asyncio.to_thread 将同步的计算操作放到线程中执行，避免阻塞事件循环
         try:
-            result = await asyncio.to_thread(metaltronus_calc, card_info["id"])
+            result = await asyncio.to_thread(card_service.metaltronus_calc, card_info["id"])
         except Exception as e:
             await log_message(f"[ygo_metaltronus_calc] Error during calculation for card ID {card_info['id']}: {e}")
             await ygo_metaltronus_calc.finish(f"计算过程中出现错误：{str(e)}")

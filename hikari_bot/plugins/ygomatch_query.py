@@ -27,13 +27,8 @@ from nonebot.typing import T_State
 
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.constants import ADMIN, DECK_DIR, PUBLIC_DECK_URL
-from hikari_bot.services.ygodeck import (
-    get_deck_text_from_url,
-    is_deck_code,
-    is_deck_url,
-    save_deck_text_as_ydk,
-)
-from hikari_bot.services.ygomatch import *
+from hikari_bot.services import ygodeck as deck_service
+from hikari_bot.services import ygomatch as match_service
 
 
 # ── 比赛信息查询 ────────────────────────────────────────────────────────────────────────
@@ -43,11 +38,11 @@ ygomatch_search = on_cmd("比赛查询", priority=5)
 @ygomatch_search.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if "神人杯" in args.extract_plain_text().strip():
-        match_state = get_match_state()
+        match_state = match_service.get_match_state()
         if not match_state:
             await ygomatch_search.finish("比赛信息获取失败！")
         match_id = match_state["match_id"]
-        contestants = await get_contestants(match_id)
+        contestants = await match_service.get_contestants(match_id)
 
         await ygomatch_search.finish(f"""赛事名称：{match_state["match_name"]}
 比赛码：{match_state["match_code"]}""")
@@ -55,12 +50,12 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 #已签到人数：{len(match_state["checked_in"])}/{len(contestants)}
 
     elif keywords:=args.extract_plain_text().strip().split():
-        search_result = await search_by_keyword(keywords[0])
+        search_result = await match_service.search_by_keyword(keywords[0])
         if not search_result:
             await ygomatch_search.finish("未查找到相关比赛！")
         for match in search_result:
             if all(keyword.lower() in match["name"].lower() for keyword in keywords):
-                detail = await get_match_detail(match["id"])
+                detail = await match_service.get_match_detail(match["id"])
                 if not detail: return
 
                 name = detail["basic_info"]["name"]
@@ -158,7 +153,7 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
 6. 每轮开始时机器人会在群里@对应成员，请留意避免错过对局；
 7. 如果需要退赛，直接私聊bot"退赛"即可。""")
 
-    match_state = get_match_state()
+    match_state = match_service.get_match_state()
     if not match_state:
         await check_in.finish("比赛信息获取失败！")
 
@@ -166,7 +161,7 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
     users = match_state["user_states"]
     checked_in = match_state["checked_in"]
 
-    info = await get_tournament_info(match_id, match_state["match_code"])
+    info = await match_service.get_tournament_info(match_id, match_state["match_code"])
     if not info:
         await check_in.finish("比赛信息获取失败！")
 
@@ -175,7 +170,7 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
     if info["status"] == "end":
         await check_in.finish(f"本届比赛已经结束，请等待下一届报名！")
 
-    contestants = await get_contestants(match_id)
+    contestants = await match_service.get_contestants(match_id)
 
     xcx_id = None
     for contestant in contestants:
@@ -193,7 +188,7 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
 
     users[user_id] = {"xcx_name": xcx_name, "xcx_id": xcx_id, "state": "waiting_for_deck"}
 
-    save_match_state(match_state)
+    match_service.save_match_state(match_state)
 
     matcher.stop_propagation()
     await check_in.finish(f"您的参赛ID为【{xcx_name}】，请提交您比赛使用的卡组（链接或文件）：")
@@ -205,11 +200,14 @@ quit = on_cmd("退赛", priority=5)
 async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Matcher):
     user_id = str(event.user_id)
 
-    match_state = get_match_state()
+    match_state = match_service.get_match_state()
     if not match_state:
         await quit.finish("比赛信息获取失败！")
     
-    info = await get_tournament_info(match_state["match_id"], match_state["match_code"])
+    info = await match_service.get_tournament_info(
+        match_state["match_id"],
+        match_state["match_code"],
+    )
     if not info:
         await quit.finish("比赛信息获取失败！")
 
@@ -219,14 +217,14 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
     xcx_id = users[user_id]["xcx_id"]
 
     if users[user_id]["state"] == "finish_check_in":
-        result = await match_quit(xcx_id)
+        result = await match_service.match_quit(xcx_id)
         if not result:
             await quit.finish("退赛失败，请重试!")
         
         if info["status"] == "pending":
             del checked_in[xcx_name]
             del users[user_id]
-            save_match_state(match_state)
+            match_service.save_match_state(match_state)
             file_path = os.path.join(DECK_DIR, f"{xcx_name}.ydk")
             os.remove(file_path)
         
@@ -238,9 +236,9 @@ ygo_match_refresh = on_cmd("新建比赛", priority=5, permission=SUPERUSER)
 @ygo_match_refresh.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     match_name = str(arg).strip()
-    code, id = await start_tournament(match_name)
+    code, id = await match_service.start_tournament(match_name)
     if id:
-        reset_match_state(match_name, id, code)
+        match_service.reset_match_state(match_name, id, code)
         await ygo_match_refresh.finish(f"已开启比赛【{match_name}】，比赛码：{code}")
 
 
@@ -254,7 +252,7 @@ collect_deck = on_message(priority=10)
 async def _(bot: Bot, event: PrivateMessageEvent):
     user_id = str(event.user_id)
 
-    match_state = get_match_state()
+    match_state = match_service.get_match_state()
     if not match_state:
         return
     
@@ -273,24 +271,24 @@ async def _(bot: Bot, event: PrivateMessageEvent):
     for seg in msg:
         if seg.type == "text":
             text = seg.data["text"]
-            if is_deck_url(text):
-                deck_text = get_deck_text_from_url(text)
-            elif is_deck_code(text):
+            if deck_service.is_deck_url(text):
+                deck_text = deck_service.get_deck_text_from_url(text)
+            elif deck_service.is_deck_code(text):
                 deck_text = text
             else:
                 await collect_deck.finish("请提交正确的卡组链接！")
 
             if deck_text:
-                result = await match_check_in(xcx_id)
+                result = await match_service.match_check_in(xcx_id)
                 if not result:
                     await collect_deck.finish("签到失败，请重试!")
 
                 os.makedirs(DECK_DIR, exist_ok=True)
                 file_path = os.path.join(DECK_DIR, f"{xcx_name}.ydk")
-                save_deck_text_as_ydk(deck_text, file_path)
+                deck_service.save_deck_text_as_ydk(deck_text, file_path)
                 users[user_id]["state"] = "finish_check_in"
                 checked_in[xcx_name] = user_id
-                save_match_state(match_state)
+                match_service.save_match_state(match_state)
                 await collect_deck.finish("签到成功!")
 
         elif seg.type == "file":
@@ -306,17 +304,17 @@ async def _(bot: Bot, event: PrivateMessageEvent):
                 with open(file_path, "r", encoding="utf-8-sig") as f:
                     deck_text = f.read()
             
-                if is_deck_code(deck_text):
-                    result = await match_check_in(xcx_id)
+                if deck_service.is_deck_code(deck_text):
+                    result = await match_service.match_check_in(xcx_id)
                     if not result:
                         await collect_deck.finish("签到失败，请重试!")
 
                     os.makedirs(DECK_DIR, exist_ok=True)
                     file_path = os.path.join(DECK_DIR, f"{xcx_name}.ydk")
-                    save_deck_text_as_ydk(deck_text, file_path)
+                    deck_service.save_deck_text_as_ydk(deck_text, file_path)
                     users[user_id]["state"] = "finish_check_in"
                     checked_in[xcx_name] = user_id
-                    save_match_state(match_state)
+                    match_service.save_match_state(match_state)
                     await collect_deck.finish("签到成功!")
                 else:
                     await collect_deck.finish("文件内容不是有效的卡组文件。")
@@ -332,7 +330,7 @@ confirm_deck = on_cmd("比赛卡组确认", aliases={"卡组确认"}, priority=5
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     user_id = str(event.user_id)
     
-    match_state = get_match_state()
+    match_state = match_service.get_match_state()
     if not match_state:
         await confirm_deck.finish("比赛信息获取失败！")
 
@@ -365,7 +363,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     with open(file_path, "r", encoding="utf-8-sig") as f:
         deck_text = f.read()
 
-    deck_img = await generate_deck_image(deck_text, xcx_name, match_state["match_name"], deck_name=deck_name, result=result)
+    deck_img = await deck_service.generate_deck_image(
+        deck_text,
+        xcx_name,
+        match_state["match_name"],
+        deck_name=deck_name,
+        result=result,
+    )
     if not deck_img:
         await confirm_deck.finish("卡组图像生成失败！")
 
@@ -381,7 +385,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 generate_all_deck_image = on_cmd("环境统计", priority=5, permission=SUPERUSER)
 @generate_all_deck_image.handle()
 async def _(bot: Bot, event: MessageEvent):
-    match_state = get_match_state()
+    match_state = match_service.get_match_state()
     if not match_state:
         await generate_all_deck_image.finish("比赛信息获取失败！")
     checked_in = match_state["checked_in"]
@@ -389,7 +393,11 @@ async def _(bot: Bot, event: MessageEvent):
         deck_file_path = os.path.join(DECK_DIR, f"{xcx_name}.ydk")
         with open(deck_file_path, "r", encoding="utf-8") as f:
             deck_text = f.read()
-        deck_img = await generate_deck_image(deck_text, xcx_name, match_state["match_name"])
+        deck_img = await deck_service.generate_deck_image(
+            deck_text,
+            xcx_name,
+            match_state["match_name"],
+        )
         if deck_img:
             output_directory = os.path.join(DECK_DIR, "pics")
             os.makedirs(output_directory, exist_ok=True)
@@ -403,19 +411,22 @@ async def _(bot: Bot, event: MessageEvent):
 pairing_info = on_cmd("对阵信息", priority=5, permission=SUPERUSER)
 @pairing_info.handle()
 async def _(bot: Bot, event: MessageEvent):
-    match_state = get_match_state()
+    match_state = match_service.get_match_state()
     if not match_state:
         await pairing_info.finish("比赛信息获取失败！")
 
     match_id = match_state["match_id"]
     checked_in = match_state["checked_in"]
 
-    info = await get_tournament_info(match_id, match_state["match_code"])
+    info = await match_service.get_tournament_info(
+        match_id,
+        match_state["match_code"],
+    )
     if not info:
         await pairing_info.finish("比赛信息获取失败！")
     
     current_round = info["current_round"]
-    pairing = await get_pairing(match_id, current_round)
+    pairing = await match_service.get_pairing(match_id, current_round)
     if not pairing:
         await pairing_info.finish("配对信息获取失败！")
 
@@ -542,8 +553,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
     if texts:=html.unescape(args.extract_plain_text()).strip().split():
         text = texts[0]
-        if is_deck_url(text):
-            deck_text = get_deck_text_from_url(text)
+        if deck_service.is_deck_url(text):
+            deck_text = deck_service.get_deck_text_from_url(text)
         else:
             return
         if len(texts) >= 2:
@@ -557,7 +568,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     else:
         return
 
-    deck_img = await generate_deck_image(deck_text, player_id, match_name, deck_name=deck_name, result=result)
+    deck_img = await deck_service.generate_deck_image(
+        deck_text,
+        player_id,
+        match_name,
+        deck_name=deck_name,
+        result=result,
+    )
     if not deck_img:
         await deck_pic.finish("卡组图像生成失败！")
 

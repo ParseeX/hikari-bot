@@ -12,8 +12,9 @@ import cairosvg
 import fitz
 from PIL import Image, ImageDraw, ImageFont
 
-from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
-from hikari_bot.services.ygocard import get_card_info_by_id
+from hikari_bot.core.constants import DATA_DIR, PDF_DIR, RESOURCES_DIR
+from hikari_bot.core.logger import log_message
+from hikari_bot.services.ygocard import get_card_info_by_id, get_ygopic
 
 deck_icon_file = os.path.join(RESOURCES_DIR, 'deck_icon.svg')
 decklist_template = os.path.join(RESOURCES_DIR, 'deck_cn.pdf')
@@ -149,7 +150,7 @@ async def batch_get_images(card_ids):
             try:
                 img_data = await get_ygopic(card_id)
                 if img_data:
-                    image = Image.open(BytesIO(img_data))
+                    image = Image.open(io.BytesIO(img_data))
                     # 缩小图片尺寸以节省内存
                     image = image.resize((100, 145), Image.Resampling.LANCZOS)
                     return image

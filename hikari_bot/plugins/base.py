@@ -11,13 +11,16 @@ base.py — Bot 基础功能插件
 
 import asyncio
 import os
-import re
 from datetime import datetime
 
-from nonebot import get_driver, on_message, on_notice, on_request
+from nonebot import get_driver, on_message, on_request
 from nonebot.adapters.onebot.v11 import (
-    Bot, Event, FriendRequestEvent, GroupMessageEvent, GroupRequestEvent,
-    Message, MessageEvent, PrivateMessageEvent,
+    Bot,
+    FriendRequestEvent,
+    GroupMessageEvent,
+    GroupRequestEvent,
+    Message,
+    MessageEvent,
 )
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
@@ -26,7 +29,13 @@ from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import get_bot_startup_info, log_message, log_read
-from hikari_bot.core.whitelist import *
+from hikari_bot.core.whitelist import (
+    add_group_to_whitelist,
+    get_whitelist,
+    is_allowed_group,
+    message_superusers,
+    save_whitelist,
+)
 from hikari_bot.plugins.monitors.mycard import ws_status_check
 
 

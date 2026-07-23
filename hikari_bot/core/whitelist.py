@@ -1,8 +1,7 @@
 import json
 import os
 
-from nonebot import get_bot, get_driver
-from nonebot.adapters.onebot.v11 import Bot
+from nonebot import get_bot
 
 from hikari_bot.core.constants import DATA_DIR, ADMIN
 from hikari_bot.core.logger import log_message

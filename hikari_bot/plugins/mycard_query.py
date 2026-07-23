@@ -24,7 +24,7 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, Message
 from nonebot.params import CommandArg, EventMessage
 
 from hikari_bot.core.commands import on_cmd
-from hikari_bot.services.mycard import *
+from hikari_bot.services import mycard as mycard_service
 
 
 def _is_zero_delta_match(record: dict, user_id: str) -> bool:
@@ -72,11 +72,11 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
         at_qq = at_targets[0] if at_targets else None
 
         if at_qq:
-            user_id = get_mycard_user().get(str(at_qq))
+            user_id = mycard_service.get_mycard_user().get(str(at_qq))
             if not user_id:
                 await mycard_query.finish("对方未绑定 MyCard 用户名！")
         else:
-            user_id = get_mycard_user().get(str(event.user_id))
+            user_id = mycard_service.get_mycard_user().get(str(event.user_id))
             if not user_id:
                 await mycard_query.finish("请先绑定或提供 MyCard 用户名！")
     
@@ -98,7 +98,7 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
     if year > current_year or (year == current_year and month > current_month):
         return
 
-    records = await mycard_get_records(user_id, month, year)
+    records = await mycard_service.mycard_get_records(user_id, month, year)
     if records == None:
         await mycard_query.finish(f"查询失败，请稍后重试")
 
@@ -137,12 +137,12 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
                 spt.append(spt_ex[-1])
                 spt.reverse()
                 result_message = result_message + f"\n结算分数：{spt[-1]:.2f}"
-            rank = await fetch_player_history_rank(user_id, year, month)
+            rank = await mycard_service.fetch_player_history_rank(user_id, year, month)
             if rank is not None:
                 result_message = result_message + f"\n结算排名：{rank}"
         else:
             result_message = result_message + f"\n当前分数：{pt[-1]:.2f}"
-            rank = await mycard_get_player_rank(user_id)
+            rank = await mycard_service.mycard_get_player_rank(user_id)
             if rank is not None:
                 result_message = result_message + f"\n当前排名：{rank}"
 
@@ -190,7 +190,7 @@ async def _(event: MessageEvent, args: Message = CommandArg()):
     id = html.unescape(args.extract_plain_text().strip())
     if not id:
         await mycard_bind.finish("请提供要绑定的用户名！")
-    add_mycard_user(qq, id)
+    mycard_service.add_mycard_user(qq, id)
     await mycard_bind.finish("绑定成功！")
 
 
@@ -201,7 +201,7 @@ async def _(event: MessageEvent, args: Message = CommandArg()):
     id = html.unescape(args.extract_plain_text().strip())
     if not id:
         await mycard_subscribe.finish("请提供要订阅的用户名！")
-    record = await fetch_player_history(id, 1)
+    record = await mycard_service.fetch_player_history(id, 1)
     if not record or record == []:
         await mycard_subscribe.finish("用户不存在！")
     if isinstance(event, GroupMessageEvent):
@@ -210,7 +210,7 @@ async def _(event: MessageEvent, args: Message = CommandArg()):
     else:
         usertype = "private"
         qq = str(event.user_id)
-    subscribe(usertype, qq, id)
+    mycard_service.subscribe(usertype, qq, id)
     await mycard_subscribe.finish("订阅成功！")
 
 
@@ -231,7 +231,7 @@ async def _(event: MessageEvent, args: Message = CommandArg()):
     else:
         usertype = "private"
         qq = str(event.user_id)
-    unsubscribe(usertype, qq, id)
+    mycard_service.unsubscribe(usertype, qq, id)
     await mycard_unsubscribe.finish("退订成功！")
 
 
@@ -245,11 +245,11 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
         user_id = html.unescape(input)
     else:
-        user_id = get_mycard_user()[str(event.user_id)]
+        user_id = mycard_service.get_mycard_user()[str(event.user_id)]
     if not user_id:
         await mycard_query.finish("请先绑定或提供用户名！")
 
-    firstwin = await is_first_win(user_id)
+    firstwin = await mycard_service.is_first_win(user_id)
     if firstwin:
         await mycard_firstwin.finish(f"{user_id}已完成今日首赢！")
     else:
@@ -274,7 +274,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
     if at_targets:
         # 如果有@某人，查询被@的人的绑定信息
         qq = at_targets[0]
-        user_id = get_mycard_user().get(str(qq))
+        user_id = mycard_service.get_mycard_user().get(str(qq))
         if user_id:
             await mycard_whois.finish(f"该用户绑定的 MyCard 用户名为：{user_id}")
         else:
@@ -282,7 +282,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
     elif input_text := args.extract_plain_text().strip():
         # 如果有输入参数，作为MyCard用户名反向查找QQ号
         mycard_username = html.unescape(input_text)
-        user_list = get_mycard_user()
+        user_list = mycard_service.get_mycard_user()
         found_qq_list = []
         for qq, username in user_list.items():
             if username == mycard_username:
@@ -296,7 +296,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
     else:
         # 如果没有@也没有参数，查询自己的绑定信息
         qq = str(event.user_id)
-        user_id = get_mycard_user().get(str(qq))
+        user_id = mycard_service.get_mycard_user().get(str(qq))
         if user_id:
             await mycard_whois.finish(f"你绑定的 MyCard 用户名为：{user_id}")
         else:
@@ -313,11 +313,11 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
         user_id = html.unescape(input)
     else:
-        user_id = get_mycard_user().get(str(event.user_id))
+        user_id = mycard_service.get_mycard_user().get(str(event.user_id))
     if not user_id:
         await mycard_winrate.finish("请先绑定或提供用户名！")
 
-    records = await fetch_player_history(user_id)
+    records = await mycard_service.fetch_player_history(user_id)
     if records == None:
         await mycard_winrate.finish(f"查询失败，请稍后重试")
 

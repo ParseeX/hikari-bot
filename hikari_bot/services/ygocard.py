@@ -3,10 +3,8 @@ import json
 import os
 import random
 import sqlite3
-from io import BytesIO
 
 import aiohttp
-from PIL import Image
 
 from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.core.logger import log_message
