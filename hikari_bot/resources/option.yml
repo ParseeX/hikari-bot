@@ -10,7 +10,7 @@ client:
     type: curl_cffi
   retry_times: 5
 dir_rule:
-  base_dir: /home/xyk/hikari-bot/hikari_bot/data/jm/tmp
+  base_dir: ${JM_TMP_DIR}
   normalize_zh: null
   rule: Bd_Aid
 download:
@@ -30,8 +30,8 @@ plugins:
   after_album:
     - plugin: img2pdf
       kwargs:
-        pdf_dir: /home/xyk/hikari-bot/hikari_bot/data/jm
+        pdf_dir: ${JM_PDF_DIR}
         filename_rule: Aid
         encrypt:
-          password: 350234
+          password: ${JM_PDF_PASSWORD}
 version: '2.1'

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import aiohttp
 
+from hikari_bot.core.config import settings
 from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.core.logger import log_message
 
@@ -14,13 +15,16 @@ API_CONTESTANTS = "contestants?tournament_id={id}&page={page}&token="
 API_CHECK_IN = "contestants/verify?token="
 API_QUIT = "contestants/quit?token="
 API_PAIRING = "battles/all?tournament_id={id}&round={round}&token="
-TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjc4MDI2NSwiaXNzIjoiaHR0cDovL2FwaS5qaWh1YW5zaGUuY29tL2FwaS93ZWNoYXQvbG9naW4iLCJpYXQiOjE3NTA2NjQwODIsImV4cCI6MTc1NTg0ODA4MiwibmJmIjoxNzUwNjY0MDgyLCJqdGkiOiIzVXVzaERKTWw2clhaT1RwIn0.IX0E-qKOqKF2l9Me7NT6VomTR66erms1651qW7KC-xQ"
 
 WINDOENT_BASE_API = "https://yugiohmatchapi.windoent.com/"
 API_MATCH_SEARCH = "v1/match"
 API_MATCH_INFO = "v1/match/info/"
 
 match_state_file = os.path.join(DATA_DIR, 'match_state.json')
+
+
+def _jihuanshe_token() -> str:
+    return settings.require("JIHUANSHE_TOKEN", settings.jihuanshe_token)
 
 async def search_by_keyword(keyword: str):
     url = f"{WINDOENT_BASE_API}{API_MATCH_SEARCH}"
@@ -90,7 +94,7 @@ def get_next_friday():
     return next_friday.strftime("%Y-%m-%d")
 
 async def start_tournament(match_name):
-    url = f"{JIHUANSHE_BASE_API}{API_NEW_TOURNAMENT}{TOKEN}"
+    url = f"{JIHUANSHE_BASE_API}{API_NEW_TOURNAMENT}{_jihuanshe_token()}"
     params = {
         "name": match_name,
         "started_date": get_next_friday(),
@@ -102,7 +106,11 @@ async def start_tournament(match_name):
         "max": "64",
         "payment": "0",
         "prize": "",
-        "desc": "详情加群457767939",
+        "desc": (
+            f"详情加群{settings.public_group_id}"
+            if settings.public_group_id
+            else "详情请联系赛事组织者"
+        ),
         "type": "online"
     }
     async with aiohttp.ClientSession() as session:
@@ -119,7 +127,7 @@ async def start_tournament(match_name):
             return None, None
 
 async def get_tournament_info(id, code):
-    url = f"{JIHUANSHE_BASE_API}{API_TOURNAMENT.format(id=id,code=code)}{TOKEN}"
+    url = f"{JIHUANSHE_BASE_API}{API_TOURNAMENT.format(id=id,code=code)}{_jihuanshe_token()}"
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url) as response:
@@ -139,7 +147,7 @@ async def get_contestants(id):
     next_page = True
     result = []
     while next_page:
-        url = f"{JIHUANSHE_BASE_API}{API_CONTESTANTS.format(id=id, page=page)}{TOKEN}"
+        url = f"{JIHUANSHE_BASE_API}{API_CONTESTANTS.format(id=id, page=page)}{_jihuanshe_token()}"
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.get(url) as response:
@@ -163,7 +171,7 @@ async def get_contestants(id):
 
 
 async def match_check_in(xcx_id):
-    url = f"{JIHUANSHE_BASE_API}{API_CHECK_IN}{TOKEN}"
+    url = f"{JIHUANSHE_BASE_API}{API_CHECK_IN}{_jihuanshe_token()}"
     params = {
         "contestant_id": xcx_id
     }
@@ -182,7 +190,7 @@ async def match_check_in(xcx_id):
 
 
 async def match_quit(xcx_id):
-    url = f"{JIHUANSHE_BASE_API}{API_QUIT}{TOKEN}"
+    url = f"{JIHUANSHE_BASE_API}{API_QUIT}{_jihuanshe_token()}"
     params = {
         "contestant_id": xcx_id
     }
@@ -200,7 +208,7 @@ async def match_quit(xcx_id):
             return False
         
 async def get_pairing(id, round):
-    url = f"{JIHUANSHE_BASE_API}{API_PAIRING.format(id=id, round=round)}{TOKEN}"
+    url = f"{JIHUANSHE_BASE_API}{API_PAIRING.format(id=id, round=round)}{_jihuanshe_token()}"
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url) as response:

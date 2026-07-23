@@ -7,8 +7,11 @@ jm.py — JMComic 漫画下载插件
 """
 
 import asyncio
+import json
 import os
 import shutil
+import tempfile
+from pathlib import Path
 
 from jmcomic import create_option_by_file, download_album
 
@@ -17,11 +20,38 @@ from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.commands import on_cmd
-from hikari_bot.core.constants import DATA_DIR, RESOURCES_DIR
+from hikari_bot.core.config import settings
+from hikari_bot.core.constants import RESOURCES_DIR
 from hikari_bot.core.logger import log_message
 
 
-JM_DIR = os.path.join(DATA_DIR, "jm")
+JM_DIR = str(settings.jm_data_dir)
+
+
+def _create_jm_option():
+    """Render deployment paths and the PDF password into a temporary option file."""
+    template_path = Path(RESOURCES_DIR) / "option.yml"
+    template = template_path.read_text(encoding="utf-8")
+    password = settings.require("JM_PDF_PASSWORD", settings.jm_pdf_password)
+    rendered = template.replace(
+        "${JM_TMP_DIR}", json.dumps(str(settings.jm_data_dir / "tmp"), ensure_ascii=False)
+    ).replace(
+        "${JM_PDF_DIR}", json.dumps(str(settings.jm_data_dir), ensure_ascii=False)
+    ).replace(
+        "${JM_PDF_PASSWORD}", json.dumps(password, ensure_ascii=False)
+    )
+
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".yml", encoding="utf-8", delete=False
+        ) as temp_file:
+            temp_file.write(rendered)
+            temp_path = temp_file.name
+        return create_option_by_file(temp_path)
+    finally:
+        if temp_path:
+            Path(temp_path).unlink(missing_ok=True)
 
 
 # ── 下载工具 ──────────────────────────────────────────────────────────────────────────
@@ -36,8 +66,8 @@ async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
             await bot.send(event=event, message="未添加好友无法发送文件，请先添加好友！")
 
     loop = asyncio.get_running_loop()
-    option = create_option_by_file(os.path.join(RESOURCES_DIR, "option.yml"))
     try:
+        option = _create_jm_option()
         await loop.run_in_executor(None, download_album, comic_id, option)
         # 删除 JM_DIR/tmp/comic_id 目录
         tmp_dir = os.path.join(JM_DIR, "tmp", str(comic_id))

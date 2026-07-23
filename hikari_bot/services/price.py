@@ -8,6 +8,7 @@ from typing import Optional, Iterable, Any
 
 import requests
 
+from hikari_bot.core.config import settings
 from hikari_bot.core.constants import DATA_DIR
 
 CARD_RUSH_URL = "https://cardrush.media/yugioh/buying_prices"
@@ -17,14 +18,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0",
     "Accept": "text/html",
 }
-
-# Cardrush 专用代理（SSH SOCKS5 隧道，DNS 也走远端）
-# 依赖：pip install "requests[socks]"
-CARD_RUSH_PROXIES = {
-    "http":  "socks5h://127.0.0.1:1080",
-    "https": "socks5h://127.0.0.1:1080",
-}
-
 
 def _extract_data(html: str):
     """从 __NEXT_DATA__ 里提取 JSON"""
@@ -59,8 +52,8 @@ def query(name=None, rarity=None, model_number=None, limit=100, page=None):
             CARD_RUSH_URL,
             params=params,
             headers=HEADERS,
-            proxies=CARD_RUSH_PROXIES,
-            timeout=30,
+            proxies=settings.cardrush_proxies,
+            timeout=settings.api_timeout,
         )
         r.raise_for_status()
     except Exception as exc:

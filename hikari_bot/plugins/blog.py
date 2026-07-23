@@ -4,17 +4,22 @@ from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.commands import on_cmd
-
-DEPLOY_SCRIPT = "/home/xyk/blog/deploy.sh"
-UPDATE_SCRIPT = "/home/xyk/blog/update.sh"
+from hikari_bot.core.config import settings
 
 update_blog = on_cmd("更新博客", aliases={"blog"}, permission=SUPERUSER)
 
 @update_blog.handle()
 async def _(bot: Bot, event: MessageEvent):
+    script = settings.blog_update_script
+    if not script:
+        await bot.send(event=event, message="未配置 BLOG_UPDATE_SCRIPT。")
+        return
+    if not script.is_file():
+        await bot.send(event=event, message=f"博客更新脚本不存在：{script}")
+        return
     try:
         proc = await asyncio.create_subprocess_exec(
-            "bash", UPDATE_SCRIPT,
+            "bash", str(script),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
@@ -36,9 +41,16 @@ async def _(bot: Bot, event: MessageEvent):
 deploy_blog = on_cmd("发布", aliases={"deploy"}, permission=SUPERUSER)
 @deploy_blog.handle()
 async def _(bot: Bot, event: MessageEvent):
+    script = settings.blog_deploy_script
+    if not script:
+        await bot.send(event=event, message="未配置 BLOG_DEPLOY_SCRIPT。")
+        return
+    if not script.is_file():
+        await bot.send(event=event, message=f"博客发布脚本不存在：{script}")
+        return
     try:
         proc = await asyncio.create_subprocess_exec(
-            "bash", DEPLOY_SCRIPT,
+            "bash", str(script),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )

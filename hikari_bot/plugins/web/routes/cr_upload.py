@@ -3,14 +3,14 @@ cr_upload.py — 接收本地爬虫上传的 Cardrush 价格数据，写入数�
 
 鉴权：请求头 X-API-Key 必须与环境变量 CARDRUSH_UPLOAD_TOKEN 一致。
 """
-import os
 import logging
+import secrets
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
-from nonebot import get_driver
 
+from hikari_bot.core.config import settings
 from hikari_bot.services.price import save_prices
 from hikari_bot.core.logger import log_message
 
@@ -19,8 +19,7 @@ router = APIRouter()
 # ── 鉴权 ────────────────────────────────────────────────────────────────────
 
 def _get_expected_key() -> str:
-    key = getattr(get_driver().config, "cardrush_upload_token", "") or ""
-    key = key.strip()
+    key = settings.cardrush_upload_token
     if not key:
         raise RuntimeError("CARDRUSH_UPLOAD_TOKEN is not set, all upload requests rejected")
     return key
@@ -33,7 +32,7 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
         logging.error(str(e))
         raise HTTPException(status_code=503, detail="API key not configured on server")
 
-    if not x_api_key or x_api_key != expected:
+    if not x_api_key or not secrets.compare_digest(x_api_key, expected):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 

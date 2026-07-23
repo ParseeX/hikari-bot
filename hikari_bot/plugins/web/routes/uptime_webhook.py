@@ -5,11 +5,12 @@ uptime_webhook.py - 接收 Uptime Kuma Webhook 并通知超级用户。
 """
 
 import logging
+import secrets
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from nonebot import get_driver
 
+from hikari_bot.core.config import settings
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
 
@@ -17,8 +18,7 @@ router = APIRouter()
 
 
 def _get_expected_token() -> str:
-    token = getattr(get_driver().config, "uptime_token", "") or ""
-    token = token.strip()
+    token = settings.uptime_token
     if not token:
         raise RuntimeError("UPTIME_TOKEN is not set, all uptime webhook requests rejected")
     return token
@@ -31,7 +31,7 @@ def verify_uptime_token(x_uptime_token: Optional[str] = Header(default=None)):
         logging.error(str(e))
         raise HTTPException(status_code=503, detail="Uptime token not configured on server")
 
-    if not x_uptime_token or x_uptime_token != expected:
+    if not x_uptime_token or not secrets.compare_digest(x_uptime_token, expected):
         raise HTTPException(status_code=401, detail="Invalid uptime token")
 
 
