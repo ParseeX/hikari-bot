@@ -43,6 +43,12 @@ uv lock --check
 Playwright 的 Chromium 浏览器不包含在 Python 锁文件中，因此每个新环境都需要单独执行一次
 `uv run playwright install chromium`。
 
+卡组图片渲染使用 CairoSVG，它还需要操作系统提供 Cairo 动态库：
+
+- Debian/Ubuntu 安装 `libcairo2`。
+- Windows 安装包含 `libcairo-2.dll` 的 Cairo/GTK 运行库，并将 DLL 目录加入
+  `PATH` 或 `CAIROCFFI_DLL_DIRECTORIES`。
+
 ## 生产环境配置
 
 服务默认读取项目根目录的 `.env.prod`。该文件包含密钥，已被 Git 忽略；
