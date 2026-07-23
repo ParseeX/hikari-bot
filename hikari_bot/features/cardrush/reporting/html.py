@@ -9,8 +9,8 @@ from ..models import PriceChange
 from ..parsing import rarity_jp_to_en
 
 _TEMPLATE_DIR = Path(__file__).with_name("templates")
-_PAGE_SIZE = 50
-_OVERVIEW_SIZE = 30
+_PAGE_SIZE = 35
+_OVERVIEW_SIZE = 25
 
 
 def _load_background_url() -> str | None:
@@ -78,7 +78,8 @@ def _card_html(
         )
 
     return f"""
-    <div class="card {css_class}">
+    <div class="card {css_class}"
+         data-product-id="{change.product_id}">
       <img class="card-img" src="{image_url}" loading="lazy">
       <div class="card-overlay">
         <div class="card-name">{name}</div>
@@ -137,7 +138,7 @@ def render_daily_report_html(
     image_map: Mapping[int, str] | None = None,
     min_price: int = 0,
 ) -> list[str]:
-    """Render one overview and zero or more 50-card detail HTML pages."""
+    """Render one overview and zero or more 35-card detail HTML pages."""
     del min_price  # Retained for compatibility with the existing command API.
     if not changes:
         return []
@@ -181,36 +182,29 @@ def render_daily_report_html(
         '<div class="card card-placeholder"></div>'
         * (_OVERVIEW_SIZE - len(ranked))
     )
-    date_display = (
-        f"{date_str[:4]}年{date_str[5:7]}月{date_str[8:10]}日"
-    )
-    date_display_ja = (
-        f"{date_str[:4]}年{int(date_str[5:7])}月"
-        f"{int(date_str[8:10])}日"
-    )
-    chinese_summary = (
-        f"统计了 <em>{date_display}</em> CardRush 平台买取价"
-        f"<em>500円～100,000円</em>范围内游戏王单卡价格变动情况，"
-        f"共 <em>{len(changes)}</em> 张卡发生变化。<br>"
-        f"涨价 <em class='num-up'>{up_count}</em> 张　·　"
-        f"降价 <em class='num-down'>{down_count}</em> 张　·　"
-        f"新增 <em class='num-new'>{new_count}</em> 张"
-    )
-    japanese_summary = (
-        f"<em>{date_display_ja}</em>のCardRushプラットフォームにおける"
-        f"買取価格<em>500円〜100,000円</em>の遊戯王カード価格変動情報。"
-        f"変動計 <em>{len(changes)}</em> 枚。<br>"
-        f"値上がり <em class='num-up'>{up_count}</em> 枚　·　"
-        f"値下がり <em class='num-down'>{down_count}</em> 枚　·　"
-        f"新規 <em class='num-new'>{new_count}</em> 枚"
-    )
     overview_body = f"""
   <div class="overview-extra">
-    <div class="overview-desc">
-      <div class="overview-desc-zh">{chinese_summary}</div>
-      <div class="overview-desc-ja">{japanese_summary}</div>
+    <div class="overview-stats">
+      <div class="stat-line stat-range">
+        <span class="stat-label">统计范围</span>
+        <strong>500～100,000円</strong>
+      </div>
+      <div class="stat-line stat-total">
+        <span class="stat-label">今日异动</span>
+        <strong>{len(changes)}</strong><span>张</span>
+      </div>
+      <div class="stat-counts">
+        <span class="num-up">↑ 涨价 {up_count}</span>
+        <span class="num-down">↓ 降价 {down_count}</span>
+        <span class="num-new">新增 {new_count}</span>
+      </div>
+      <div class="stat-ja">
+        買取価格の変動：{len(changes)}枚
+      </div>
     </div>
-    <div class="overview-section-title"><span>異動 TOP {_OVERVIEW_SIZE}</span></div>
+    <div class="overview-section-title">
+      <span>异动 TOP {_OVERVIEW_SIZE}</span>
+    </div>
   </div>
   <div class="grid grid-overview">{overview_cards}
   </div>"""
