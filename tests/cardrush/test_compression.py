@@ -30,29 +30,30 @@ def report_like_png() -> bytes:
     return buffer.getvalue()
 
 
-def test_compress_for_qq_hits_target_without_resizing():
+def test_compress_for_qq_returns_webp_without_resizing():
     result = compress_for_qq(
         report_like_png(),
-        target_bytes=350_000,
+        target_bytes=200_000,
     )
 
-    assert result.startswith(b"\xff\xd8")
-    assert len(result) <= 350_000
+    assert result.startswith(b"RIFF")
+    assert result[8:12] == b"WEBP"
+    assert len(result) <= 200_000
     with Image.open(BytesIO(result)) as image:
-        assert image.format == "JPEG"
+        assert image.format == "WEBP"
         assert image.size == (1080, 1920)
 
 
-def test_compress_for_qq_returns_quality_floor_without_resizing(
+def test_compress_for_qq_returns_quality_floor_when_target_is_missed(
     monkeypatch,
 ):
     calls = []
 
-    def fake_encode(image, quality, subsampling):
-        calls.append((image.size, quality, subsampling))
+    def fake_encode(image, quality):
+        calls.append((image.size, quality))
         return bytes(500)
 
-    monkeypatch.setattr(compression, "_encode_jpeg", fake_encode)
+    monkeypatch.setattr(compression, "_encode_webp", fake_encode)
 
     result = compress_for_qq(
         report_like_png(),
@@ -61,37 +62,11 @@ def test_compress_for_qq_returns_quality_floor_without_resizing(
 
     assert len(result) == 500
     assert calls == [
-        ((1080, 1920), quality, subsampling)
-        for subsampling in (0, 1)
-        for quality in (82, 80, 78, 76, 74, 72)
-    ]
-
-
-def test_compress_for_qq_uses_422_fallback_before_floor(
-    monkeypatch,
-):
-    calls = []
-
-    def fake_encode(image, quality, subsampling):
-        calls.append((quality, subsampling))
-        return bytes(500 if subsampling == 0 else 90)
-
-    monkeypatch.setattr(compression, "_encode_jpeg", fake_encode)
-
-    result = compress_for_qq(
-        report_like_png(),
-        target_bytes=100,
-    )
-
-    assert len(result) == 90
-    assert calls == [
-        (82, 0),
-        (80, 0),
-        (78, 0),
-        (76, 0),
-        (74, 0),
-        (72, 0),
-        (82, 1),
+        ((1080, 1920), 80),
+        ((1080, 1920), 75),
+        ((1080, 1920), 70),
+        ((1080, 1920), 65),
+        ((1080, 1920), 60),
     ]
 
 

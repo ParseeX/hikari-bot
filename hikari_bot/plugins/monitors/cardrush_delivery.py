@@ -7,13 +7,15 @@ from PIL import Image
 from hikari_bot.core.logger import log_message
 from hikari_bot.features.cardrush.reporting import compress_for_qq
 
-_TARGET_BYTES = 350_000
-_WARNING_BYTES = 450_000
+_TARGET_BYTES = 200_000
+_WARNING_BYTES = 230_000
 
 
-def _image_size(image_bytes: bytes) -> tuple[int, int]:
+def _image_info(
+    image_bytes: bytes,
+) -> tuple[int, int, str]:
     with Image.open(BytesIO(image_bytes)) as image:
-        return image.size
+        return image.width, image.height, image.format or "UNKNOWN"
 
 
 async def prepare_qq_pages(
@@ -28,7 +30,7 @@ async def prepare_qq_pages(
             page,
             target_bytes=target_bytes,
         )
-        width, height = _image_size(compressed)
+        width, height, image_format = _image_info(compressed)
         warning = (
             f", WARNING: above {_WARNING_BYTES} bytes"
             if len(compressed) > _WARNING_BYTES
@@ -37,7 +39,7 @@ async def prepare_qq_pages(
         await log_message(
             f"[cardrush] QQ image page {index}/{total}: "
             f"{len(page)} -> {len(compressed)} bytes, "
-            f"{width}x{height}{warning}"
+            f"{width}x{height} {image_format}{warning}"
         )
         compressed_pages.append(compressed)
     return compressed_pages

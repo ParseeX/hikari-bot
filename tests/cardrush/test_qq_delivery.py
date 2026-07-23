@@ -17,21 +17,21 @@ delivery = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(delivery)
 
 
-def jpeg_bytes(size=(1080, 1920)) -> bytes:
+def webp_bytes(size=(1080, 1920)) -> bytes:
     image = Image.new("RGB", size, "#081020")
     buffer = BytesIO()
-    image.save(buffer, format="JPEG")
+    image.save(buffer, format="WEBP")
     return buffer.getvalue()
 
 
-def test_prepare_qq_pages_uses_target_and_logs_dimensions(
+def test_prepare_qq_pages_uses_webp_target_and_logs_format(
     monkeypatch,
 ):
     calls = []
     logs = []
-    compressed = jpeg_bytes()
+    compressed = webp_bytes()
 
-    def fake_compress(page, target_bytes=350_000):
+    def fake_compress(page, target_bytes=200_000):
         calls.append((page, target_bytes))
         return compressed
 
@@ -44,9 +44,9 @@ def test_prepare_qq_pages_uses_target_and_logs_dimensions(
     result = asyncio.run(delivery.prepare_qq_pages([b"one"]))
 
     assert result == [compressed]
-    assert calls == [(b"one", 350_000)]
-    assert "page 1/1" in logs[0]
+    assert calls == [(b"one", 200_000)]
     assert "1080x1920" in logs[0]
+    assert "WEBP" in logs[0]
     assert "WARNING" not in logs[0]
 
 
@@ -55,8 +55,8 @@ def test_prepare_qq_pages_warns_above_observation_limit(
 ):
     logs = []
 
-    def fake_compress(page, target_bytes=350_000):
-        return jpeg_bytes() + bytes(451_000)
+    def fake_compress(page, target_bytes=200_000):
+        return bytes(230_001)
 
     async def fake_log(message):
         logs.append(message)
@@ -65,10 +65,10 @@ def test_prepare_qq_pages_warns_above_observation_limit(
     monkeypatch.setattr(delivery, "log_message", fake_log)
     monkeypatch.setattr(
         delivery,
-        "_image_size",
-        lambda data: (1080, 1920),
+        "_image_info",
+        lambda data: (1080, 1920, "WEBP"),
     )
 
     asyncio.run(delivery.prepare_qq_pages([b"one"]))
 
-    assert "WARNING: above 450000 bytes" in logs[0]
+    assert "WARNING: above 230000 bytes" in logs[0]
