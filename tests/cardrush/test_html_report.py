@@ -1,8 +1,14 @@
 import re
+from pathlib import Path
 
 from hikari_bot.features.cardrush.models import PriceChange
 from hikari_bot.features.cardrush.reporting.html import (
     render_daily_report_html,
+)
+
+_CSS_PATH = Path(
+    "hikari_bot/features/cardrush/reporting/templates/"
+    "daily_report.css"
 )
 
 
@@ -29,6 +35,17 @@ def product_ids(page: str) -> list[int]:
         int(value)
         for value in re.findall(r'data-product-id="(\d+)"', page)
     ]
+
+
+def css_block(selector: str) -> str:
+    css = _CSS_PATH.read_text(encoding="utf-8")
+    match = re.search(
+        rf"^\s*{re.escape(selector)}\s*\{{([^}}]+)\}}",
+        css,
+        re.DOTALL | re.MULTILINE,
+    )
+    assert match
+    return match.group(1)
 
 
 def test_html_report_uses_top_25_and_35_card_detail_pages():
@@ -86,3 +103,16 @@ def test_html_report_embeds_mobile_portrait_layout():
     )
     assert "font-size: 18px" in page
     assert "font-size: 28px" in page
+
+
+def test_portrait_layout_anchors_watermark_and_uses_page_card_heights():
+    card = css_block(".card")
+    overview_card = css_block(".grid-overview .card")
+    watermark = css_block(".watermark")
+
+    assert "height: 238px;" in card
+    assert "height: 270px;" in overview_card
+    assert "position: absolute;" in watermark
+    assert "right: 2px;" in watermark
+    assert "bottom: 0;" in watermark
+    assert "margin-top:" not in watermark
