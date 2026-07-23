@@ -13,7 +13,8 @@ from ..models import PriceChange
 from .html import render_daily_report_html
 
 _CARD_IMAGE_URL = (
-    "https://cdn.233.momobako.com/ygopro/pics/{product_id}.jpg"
+    "https://files.cardrush.media/yugioh/ocha_products/"
+    "{product_id}.webp"
 )
 
 

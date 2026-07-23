@@ -5,16 +5,21 @@ cr_upload.py — 接收本地爬虫上传的 Cardrush 价格数据，写入数�
 """
 import logging
 import secrets
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 
 from hikari_bot.core.config import settings
-from hikari_bot.services.price import save_prices
 from hikari_bot.core.logger import log_message
+from hikari_bot.features.cardrush import (
+    CardrushError,
+    PriceRecord as DomainPriceRecord,
+    get_default_cardrush_service,
+)
 
 router = APIRouter()
+service = get_default_cardrush_service()
 
 # ── 鉴权 ────────────────────────────────────────────────────────────────────
 
@@ -55,21 +60,26 @@ class UploadPayload(BaseModel):
 
 @router.post("/cr_upload", dependencies=[Depends(verify_api_key)])
 async def cr_upload(payload: UploadPayload):
-    prices_data: list[dict[str, Any]] = [r.model_dump() for r in payload.prices]
+    records = [
+        DomainPriceRecord.from_mapping(record.model_dump())
+        for record in payload.prices
+    ]
     try:
-        saved = await _run_save(prices_data)
-    except Exception as e:
-        await log_message(f"[cr_upload] save_prices failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        saved = await service.save_prices(records)
+    except CardrushError as error:
+        await log_message(
+            f"[cr_upload] save_prices failed: {error}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        ) from error
     if saved > 0:
-        await log_message(f"[cr_upload] Finish checking with {saved} change(s).")
-    return {"ok": True, "received": len(prices_data), "saved": saved}
-
-
-# save_prices 是同步函数，用线程池运行避免阻塞事件循环
-import asyncio
-import functools
-
-async def _run_save(prices_data):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, functools.partial(save_prices, prices_data))
+        await log_message(
+            f"[cr_upload] Finish checking with {saved} change(s)."
+        )
+    return {
+        "ok": True,
+        "received": len(records),
+        "saved": saved,
+    }
