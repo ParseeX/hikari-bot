@@ -37,6 +37,9 @@ from hikari_bot.features.cardrush.reporting import (
     format_daily_report,
     parse_date_arg,
 )
+from hikari_bot.plugins.monitors.cardrush_delivery import (
+    prepare_qq_pages,
+)
 from hikari_bot.services.bilibili import post_article_with_images
 
 service = get_default_cardrush_service()
@@ -271,11 +274,12 @@ async def _(
             f"正在下载 {len(changes)} 张卡图，请稍候…",
         )
         pages = await report_workflow.render_for_date(date_str)
+        qq_pages = await prepare_qq_pages(pages)
         await bot.send(
             event,
-            f"下载完毕，正在发送 {len(pages)} 页图报…",
+            f"下载完毕，正在发送 {len(qq_pages)} 页图报…",
         )
-        for page in pages:
+        for page in qq_pages:
             encoded = base64.b64encode(page).decode()
             await bot.send(
                 event,
@@ -366,9 +370,10 @@ async def _auto_send_daily_report():
             )
             return
 
+        qq_screenshots = await prepare_qq_pages(screenshots)
         bot = get_bot()
         for user_id in ADMIN:
-            for screenshot in screenshots:
+            for screenshot in qq_screenshots:
                 encoded = base64.b64encode(screenshot).decode()
                 await bot.send_private_msg(
                     user_id=int(user_id),

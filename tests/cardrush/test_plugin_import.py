@@ -70,3 +70,14 @@ def test_upload_route_preserves_response_shape(monkeypatch):
     response = asyncio.run(module.cr_upload(payload))
 
     assert response == {"ok": True, "received": 1, "saved": 1}
+
+
+def test_qq_delivery_uses_compressed_pages_but_bilibili_keeps_originals():
+    source = Path(
+        "hikari_bot/plugins/monitors/cardrush.py"
+    ).read_text(encoding="utf-8")
+
+    assert source.count("await prepare_qq_pages(") == 2
+    assert "for page in qq_pages:" in source
+    assert "for screenshot in qq_screenshots:" in source
+    assert "post_article_with_images(screenshots, date_str)" in source
