@@ -5,12 +5,14 @@ from pathlib import Path
 from typing import Protocol
 
 import aiohttp
+from PIL import UnidentifiedImageError
 
 from hikari_bot.services.ygocard import get_unknown_card
 
 from ..errors import CardrushRenderError
 from ..models import PriceChange
 from .html import render_daily_report_html
+from .thumbnails import write_card_thumbnail
 
 _CARD_IMAGE_URL = (
     "https://files.cardrush.media/yugioh/ocha_products/"
@@ -63,7 +65,10 @@ class AiohttpCardImageFetcher:
         if not unknown_path.exists():
             unknown_data = await get_unknown_card()
             if unknown_data:
-                unknown_path.write_bytes(unknown_data)
+                try:
+                    write_card_thumbnail(unknown_data, unknown_path)
+                except (OSError, UnidentifiedImageError):
+                    pass
         unknown_url = (
             unknown_path.resolve().as_uri()
             if unknown_path.exists()
@@ -74,7 +79,7 @@ class AiohttpCardImageFetcher:
             session: aiohttp.ClientSession,
             product_id: int,
         ) -> None:
-            destination = image_dir / f"{product_id}.webp"
+            destination = image_dir / f"{product_id}.jpg"
             if destination.exists():
                 result[product_id] = destination.resolve().as_uri()
                 return
@@ -91,8 +96,9 @@ class AiohttpCardImageFetcher:
                             timeout=request_timeout,
                         ) as response:
                             if response.status == 200:
-                                destination.write_bytes(
-                                    await response.read()
+                                write_card_thumbnail(
+                                    await response.read(),
+                                    destination,
                                 )
                                 result[product_id] = (
                                     destination.resolve().as_uri()
