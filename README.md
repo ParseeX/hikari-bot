@@ -1,6 +1,48 @@
 # hikari-bot
 A yu-gi-oh bot for qq group 457767939
 
+## 安装与启动
+
+项目支持 Python 3.10～3.13，并使用 [uv](https://docs.astral.sh/uv/) 管理依赖。
+
+安装开发环境：
+
+```powershell
+uv sync
+uv run playwright install chromium
+```
+
+启动机器人：
+
+```powershell
+uv run python bot.py
+```
+
+生产环境不安装开发工具：
+
+```powershell
+uv sync --no-dev
+uv run playwright install chromium
+uv run python bot.py
+```
+
+运行 B 站扫码登录脚本时，额外安装可选依赖：
+
+```powershell
+uv sync --extra bili-login
+uv run python scripts/bili_login.py
+```
+
+修改 `pyproject.toml` 中的依赖后运行 `uv lock`，并同时提交
+`pyproject.toml` 与 `uv.lock`。可用以下命令检查锁文件是否为最新：
+
+```powershell
+uv lock --check
+```
+
+Playwright 的 Chromium 浏览器不包含在 Python 锁文件中，因此每个新环境都需要单独执行一次
+`uv run playwright install chromium`。
+
 ## 生产环境配置
 
 服务默认读取项目根目录的 `.env.prod`。该文件包含密钥，已被 Git 忽略；
