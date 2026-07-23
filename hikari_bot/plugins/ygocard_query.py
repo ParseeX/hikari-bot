@@ -3,7 +3,7 @@ ygocard_query.py — 游戏王卡片查询插件
 
 功能：
   - 随机一卡、每日一卡（按用户 ID + 日期生成确定种子）
-  - 卡图、卡密、效果文本、FAQ 裁定查询
+  - 卡图、卡密、效果文本查询
   - 本地卡片数据库更新
   - 共界计算器（Metaltronus）
 """
@@ -139,65 +139,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         result = result + effect
 
         await ygo_card_effect.finish(result)
-
-
-ygo_card_faq = on_cmd("裁定查询", aliases={"游戏王裁定", "裁定"}, priority=5)
-@ygo_card_faq.handle()
-async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
-    if input:=args.extract_plain_text().strip().split():
-        card_info = await get_card_info(input[0])
-
-        if not card_info:
-            await ygo_card_faq.finish("未找到对应卡片！")
-            return
-
-        faq_ids = card_info["faqs"]
-
-        if len(faq_ids) == 0:
-            await ygo_card_faq.finish("暂无相关裁定！")
-            return
-        
-        message_2 = []
-
-        for faq_id in faq_ids:
-            question, answer = await get_qa_by_id(faq_id)
-            message_1 = []
-            if question and answer:
-                if len(input) > 1 and not input[1] in question and not input[1] in answer:
-                    continue
-                message_1.append({"type": "node", "data": {"name": "Q", "uin": event.user_id, "content": question}})
-                message_1.append({"type": "node", "data": {"name": "A", "uin": bot.self_id, "content": answer}})
-                try:
-                    response = await bot.call_api(
-                        "send_group_forward_msg",
-                        group_id="347041546",
-                        messages=message_1
-                    )
-                    message_id = response["message_id"]
-                    message_2.append({"type": "node", "data": {"name": "Q&A", "uin": bot.self_id, "id": message_id}})
-
-                    if len(message_2) == 10:
-                        break
-
-                except Exception as e:
-                    await log_message(f"[ygo_card_faq] Failed to send FAQ message: {e}")
-                    await ygo_card_faq.finish("查询失败！")
-                    return
-
-        if len(message_2) == 0:
-            await ygo_card_faq.finish("暂无相关裁定！")
-            return
-        
-        group_id = getattr(event, "group_id", None)
-        try:
-            if group_id:  # 如果是群消息
-                await bot.call_api("send_group_forward_msg", group_id=group_id, messages=message_2)
-            else:  # 如果是私聊消息
-                await bot.call_api("send_private_forward_msg", user_id=event.user_id, messages=message_2)
-        except Exception as e:
-            await log_message(f"[ygo_card_faq] Failed to send FAQ message: {e}")
-            await ygo_card_faq.finish("查询失败！")
-            return
 
 
 # ── 数据库维护 ─────────────────────────────────────────────────────────────────────────

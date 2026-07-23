@@ -6,8 +6,6 @@ import sqlite3
 from io import BytesIO
 
 import aiohttp
-from bs4 import BeautifulSoup
-from bs4.element import NavigableString
 from PIL import Image
 
 from hikari_bot.core.constants import DATA_DIR
@@ -16,7 +14,6 @@ from hikari_bot.core.logger import log_message
 IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
 IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
 CARD_SEARCH = "https://ygocdb.com/api/v0/?search="
-FAQ = "https://ygocdb.com/faq/"
 
 YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
 MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
@@ -197,37 +194,6 @@ async def get_card_info(keyword: str):
             await log_message(f"[get_card_info] Exception occurred while fetching data: {e}")
             return None
         
-async def get_qa_by_id(id: int):
-    """根据卡片ID获取FAQ问答信息"""
-    url = FAQ + str(id)
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    html = await response.text()  # 获取网页 HTML
-                    soup = BeautifulSoup(html, 'html.parser')  # 使用 BeautifulSoup 解析
-                    for br_tag in soup.find_all('br'):
-                        br_tag.replace_with(NavigableString("\n"))
-                    q_div = soup.find('div', class_='qa question')
-                    a_div = soup.find('div', class_='qa answer')
-                    if q_div:
-                        question = q_div.get_text()
-                    else:
-                        question = None
-                    
-                    if a_div:
-                        answer = a_div.get_text()
-                    else:
-                        answer = None
-
-                    return question, answer
-                else:
-                    await log_message(f"[get_qa_by_id] Failed to fetch data: {response.status}")
-                    return None, None
-    except Exception as e:
-            await log_message(f"[get_qa_by_id] Exception occurred while fetching data: {e}")
-            return None, None
-
 # ==================== 工具函数 ====================
 
 def is_card_id(keyword: str):
