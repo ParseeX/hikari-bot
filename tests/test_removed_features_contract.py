@@ -71,3 +71,19 @@ def test_help_command_and_resources_are_removed():
         ".crossnote",
     ):
         assert not (ROOT / relative).exists()
+
+
+def test_docs_do_not_advertise_removed_features_or_settings():
+    env_example = _source(".env.example")
+    readme = _source("README.md")
+
+    for removed_setting in (
+        "COMMAND_START",
+        "FAQ_RELAY_GROUP_ID",
+        "PUBLIC_DECK_URL",
+    ):
+        assert removed_setting not in env_example
+        assert removed_setting not in readme
+
+    assert "查裁定" not in readme
+    assert "- 帮助" not in readme

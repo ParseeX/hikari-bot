@@ -1,6 +1,39 @@
 # hikari-bot
 A yu-gi-oh bot for qq group 457767939
 
+## 生产环境配置
+
+服务默认读取项目根目录的 `.env.prod`。该文件包含密钥，已被 Git 忽略；
+请从 `.env.example` 复制后填写，不要提交真实值。也可以在启动进程中设置
+`HIKARI_ENV_FILE=/absolute/path/to/.env.prod` 指定其他位置。
+
+现有部署至少应配置：
+
+```dotenv
+ONEBOT_ACCESS_TOKEN=replace-me
+SUPERUSERS=["你的QQ号"]
+CARDRUSH_UPLOAD_TOKEN=replace-me
+UPTIME_TOKEN=replace-me
+JIHUANSHE_TOKEN=replace-with-a-fresh-token
+API_TIMEOUT=120.0
+PARSER_DISABLED_PLATFORMS=["twitter", "douyin"]
+```
+
+按启用功能追加以下配置：
+
+```dotenv
+CARDRUSH_PROXY_URL=socks5h://127.0.0.1:1080
+PUBLIC_GROUP_ID=群号
+BLOG_DEPLOY_SCRIPT=/absolute/path/to/deploy.sh
+BLOG_UPDATE_SCRIPT=/absolute/path/to/update.sh
+JM_DATA_DIR=/absolute/path/to/jm-data
+JM_PDF_PASSWORD=replace-me
+```
+
+`JIHUANSHE_TOKEN` 和 `JM_PDF_PASSWORD` 曾经硬编码在仓库中，部署时请使用新值，
+不要继续使用 Git 历史中出现过的旧值。未配置某项可选集成时，对应功能会给出配置错误，
+不会让整个 Bot 在启动阶段失败。
+
 专为游戏王玩家设计的 QQ Bot，主要支持以下功能：
 
 ## 🎴卡片查询功能
@@ -12,7 +45,6 @@ A yu-gi-oh bot for qq group 457767939
   
 - 查效果 - 查询卡片效果文本
 - 查卡密 - 查询卡片密码（ID）
-- 查裁定 - 查询卡片相关裁定信息
 - 卡价查询 - 支持查询日本卡价信息
 - 支持价格比较和保存功能
 
@@ -45,7 +77,6 @@ A yu-gi-oh bot for qq group 457767939
   
 ## 📱 通用功能
 ### 系统管理
-- 帮助 - 显示功能帮助图片
 - 重载插件 - 从Git拉取最新代码并重启
 - Bot上线通知功能
 - 接收手机短信转发
