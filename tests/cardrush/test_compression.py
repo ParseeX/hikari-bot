@@ -48,8 +48,8 @@ def test_compress_for_qq_returns_quality_floor_without_resizing(
 ):
     calls = []
 
-    def fake_encode(image, quality):
-        calls.append((image.size, quality))
+    def fake_encode(image, quality, subsampling):
+        calls.append((image.size, quality, subsampling))
         return bytes(500)
 
     monkeypatch.setattr(compression, "_encode_jpeg", fake_encode)
@@ -61,12 +61,37 @@ def test_compress_for_qq_returns_quality_floor_without_resizing(
 
     assert len(result) == 500
     assert calls == [
-        ((1080, 1920), 82),
-        ((1080, 1920), 80),
-        ((1080, 1920), 78),
-        ((1080, 1920), 76),
-        ((1080, 1920), 74),
-        ((1080, 1920), 72),
+        ((1080, 1920), quality, subsampling)
+        for subsampling in (0, 1)
+        for quality in (82, 80, 78, 76, 74, 72)
+    ]
+
+
+def test_compress_for_qq_uses_422_fallback_before_floor(
+    monkeypatch,
+):
+    calls = []
+
+    def fake_encode(image, quality, subsampling):
+        calls.append((quality, subsampling))
+        return bytes(500 if subsampling == 0 else 90)
+
+    monkeypatch.setattr(compression, "_encode_jpeg", fake_encode)
+
+    result = compress_for_qq(
+        report_like_png(),
+        target_bytes=100,
+    )
+
+    assert len(result) == 90
+    assert calls == [
+        (82, 0),
+        (80, 0),
+        (78, 0),
+        (76, 0),
+        (74, 0),
+        (72, 0),
+        (82, 1),
     ]
 
 
