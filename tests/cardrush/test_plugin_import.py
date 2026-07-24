@@ -30,7 +30,6 @@ def test_plugin_keeps_command_and_schedule_declarations():
         '"卡价图报"',
         '"卡价日报"',
         '"重置卡价数据库"',
-        '"发布B站动态"',
     ):
         assert command in source
     assert "minutes=15" in source
@@ -72,7 +71,7 @@ def test_upload_route_preserves_response_shape(monkeypatch):
     assert response == {"ok": True, "received": 1, "saved": 1}
 
 
-def test_qq_delivery_uses_compressed_pages_but_bilibili_keeps_originals():
+def test_qq_delivery_uses_compressed_pages_and_forward_targets():
     source = Path(
         "hikari_bot/plugins/monitors/cardrush.py"
     ).read_text(encoding="utf-8")
@@ -83,4 +82,3 @@ def test_qq_delivery_uses_compressed_pages_but_bilibili_keeps_originals():
     assert "from hikari_bot.core.config import settings" in source
     assert "group_id=int(settings.public_group_id)" in source
     assert "public group failed" in source
-    assert "post_article_with_images(screenshots, date_str)" in source

@@ -1020,12 +1020,6 @@ dependencies = [
     { name = "requests", extra = ["socks"] },
 ]
 
-[package.optional-dependencies]
-bili-login = [
-    { name = "bilibili-api-python" },
-    { name = "qrcode-terminal" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "pyflakes" },
@@ -1037,7 +1031,6 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.10.0,<4.0.0" },
     { name = "beautifulsoup4", specifier = ">=4.12.0,<5.0.0" },
-    { name = "bilibili-api-python", marker = "extra == 'bili-login'", specifier = ">=17.4.2,<18.0.0" },
     { name = "cairosvg", specifier = ">=2.7.0,<3.0.0" },
     { name = "fastapi", specifier = ">=0.115.0,<1.0.0" },
     { name = "fonttools", specifier = ">=4.53.0,<5.0.0" },
@@ -1057,11 +1050,8 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0,<2.0.0" },
     { name = "python-multipart", specifier = ">=0.0.9,<1.0.0" },
     { name = "pytz", specifier = ">=2024.1" },
-    { name = "qrcode-terminal", marker = "extra == 'bili-login'", specifier = ">=0.8,<1.0" },
     { name = "requests", extras = ["socks"], specifier = ">=2.32.0,<3.0.0" },
 ]
-provides-extras = ["bili-login"]
-
 [package.metadata.requires-dev]
 dev = [
     { name = "pyflakes", specifier = ">=3.2.0,<4.0.0" },

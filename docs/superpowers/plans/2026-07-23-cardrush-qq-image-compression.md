@@ -264,7 +264,7 @@ def test_prepare_qq_pages_compresses_each_page_once_and_logs_sizes(
 在 `tests/cardrush/test_plugin_import.py` 增加：
 
 ```python
-def test_qq_delivery_uses_compressed_pages_but_bilibili_keeps_originals():
+def test_qq_delivery_uses_compressed_pages_and_forward_targets():
     source = Path(
         "hikari_bot/plugins/monitors/cardrush.py"
     ).read_text(encoding="utf-8")

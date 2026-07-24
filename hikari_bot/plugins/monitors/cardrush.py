@@ -44,7 +44,6 @@ from hikari_bot.features.cardrush.reporting import (
 )
 from hikari_bot.plugins.monitors.cardrush_delivery import prepare_qq_pages
 from hikari_bot.plugins.monitors.cardrush_forward import send_qq_forward
-from hikari_bot.services.bilibili import post_article_with_images
 
 # 命令和定时任务共用同一个服务与渲染器，避免重复初始化，也方便未来接入网站。
 service = get_default_cardrush_service()
@@ -370,10 +369,7 @@ async def _scheduled_job():
 
 
 async def _auto_send_daily_report():
-    """生成日报后投递 QQ 合并转发，并把原图发布到 B 站。
-
-    QQ 使用压缩后的副本；B 站继续使用渲染得到的原始截图，以免影响文章清晰度。
-    """
+    """生成日报并投递 QQ 合并转发。"""
     date_str = date.today().isoformat()
     try:
         screenshots = await report_workflow.render_for_date(date_str)
@@ -411,8 +407,6 @@ async def _auto_send_daily_report():
             f"[cardrush_auto] Report sent to {ADMIN} "
             f"({len(screenshots)} page(s))."
         )
-        # QQ 投递完成后再发布原图；两条链路互相隔离，便于分别排查失败原因。
-        await post_article_with_images(screenshots, date_str)
     except Exception as error:
         await log_message(
             f"[cardrush_auto] Auto report failed: {error}"
@@ -430,41 +424,6 @@ reset_db = on_cmd("重置卡价数据库", permission=SUPERUSER)
 async def _(bot: Bot, event: MessageEvent):
     await service.reset_database()
     await bot.send(event, "数据库已清空重建。")
-
-
-bili_post = on_cmd("发布B站动态", permission=SUPERUSER)
-
-@bili_post.handle()
-async def _(bot: Bot, event: MessageEvent):
-    date_str = date.today().isoformat()
-    await bot.send(
-        event,
-        f"开始生成并发布 {date_str} 日报到 B 站，请稍候…",
-    )
-    try:
-        screenshots = await report_workflow.render_for_date(date_str)
-        if not screenshots:
-            await bot.send(
-                event,
-                "今日无价格变动数据，无法生成日报。",
-            )
-            return
-        succeeded = await post_article_with_images(
-            screenshots,
-            date_str,
-        )
-        if succeeded:
-            await bot.send(
-                event,
-                "B 站动态已提交，将在定时时间发布。",
-            )
-        else:
-            await bot.send(
-                event,
-                "B 站动态发布失败，请查看日志。",
-            )
-    except Exception as error:
-        await bot.send(event, f"发布失败：{error}")
 
 
 driver = get_driver()

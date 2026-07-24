@@ -1289,7 +1289,6 @@ def test_plugin_keeps_command_and_schedule_declarations():
         '"卡价图报"',
         '"卡价日报"',
         '"重置卡价数据库"',
-        '"发布B站动态"',
     ):
         assert command in source
     assert 'minutes=15' in source

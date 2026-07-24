@@ -55,11 +55,7 @@ def test_runtime_and_optional_dependencies_are_declared():
         "jmcomic",
     } <= runtime
 
-    optional = metadata["project"]["optional-dependencies"]
-    assert {
-        _dependency_name(specifier)
-        for specifier in optional["bili-login"]
-    } == {"bilibili-api-python", "qrcode-terminal"}
+    assert "optional-dependencies" not in metadata["project"]
 
 
 def test_uv_and_development_groups_are_configured():

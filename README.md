@@ -26,13 +26,6 @@ uv run playwright install chromium
 uv run python bot.py
 ```
 
-运行 B 站扫码登录脚本时，额外安装可选依赖：
-
-```powershell
-uv sync --extra bili-login
-uv run python scripts/bili_login.py
-```
-
 修改 `pyproject.toml` 中的依赖后运行 `uv lock`，并同时提交
 `pyproject.toml` 与 `uv.lock`。可用以下命令检查锁文件是否为最新：
 
