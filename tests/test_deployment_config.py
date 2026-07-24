@@ -23,6 +23,7 @@ def test_update_script_syncs_code_dependencies_and_bot_service():
 
     assert script.startswith("#!/usr/bin/env bash")
     assert "set -Eeuo pipefail" in script
+    assert 'export PATH="$HOME/.local/bin:$PATH"' in script
     assert "HIKARI_BOT_DIR:-$HOME/hikari-bot" in script
     assert "git fetch origin main" in script
     assert "git reset --hard origin/main" in script

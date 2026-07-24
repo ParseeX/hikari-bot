@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+export PATH="$HOME/.local/bin:$PATH"
+
 project_dir="${HIKARI_BOT_DIR:-$HOME/hikari-bot}"
 
 cd "$project_dir"
