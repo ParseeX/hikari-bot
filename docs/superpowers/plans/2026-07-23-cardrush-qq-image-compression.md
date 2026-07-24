@@ -418,7 +418,7 @@ Run:
 
 ```powershell
 .\.venv\Scripts\python.exe -m compileall -q bot.py hikari_bot scripts
-.\.venv\Scripts\python.exe -m pyflakes hikari_bot/features/cardrush hikari_bot/plugins/monitors/cardrush.py hikari_bot/plugins/monitors/cardrush_delivery.py hikari_bot/plugins/web/routes/cr_upload.py
+.\.venv\Scripts\python.exe -m pyflakes hikari_bot/features/cardrush hikari_bot/plugins/monitors/cardrush.py hikari_bot/plugins/monitors/cardrush_delivery.py
 ```
 
 Expected: 两条命令退出码均为 `0`，pyflakes 无输出。

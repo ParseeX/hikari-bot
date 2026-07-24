@@ -53,7 +53,6 @@ Playwright 的 Chromium 浏览器不包含在 Python 锁文件中，因此每个
 ```dotenv
 ONEBOT_ACCESS_TOKEN=replace-me
 SUPERUSERS=["你的QQ号"]
-CARDRUSH_UPLOAD_TOKEN=replace-me
 UPTIME_TOKEN=replace-me
 JIHUANSHE_TOKEN=replace-with-a-fresh-token
 API_TIMEOUT=120.0

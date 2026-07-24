@@ -498,7 +498,7 @@ Run:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m compileall -q bot.py hikari_bot scripts
-.\.venv\Scripts\python.exe -m pyflakes hikari_bot/features/cardrush hikari_bot/plugins/monitors/cardrush.py hikari_bot/plugins/monitors/cardrush_delivery.py hikari_bot/plugins/web/routes/cr_upload.py
+.\.venv\Scripts\python.exe -m pyflakes hikari_bot/features/cardrush hikari_bot/plugins/monitors/cardrush.py hikari_bot/plugins/monitors/cardrush_delivery.py
 ```
 
 Expected: pytest 全部通过，compileall 和 pyflakes 退出码为 0。

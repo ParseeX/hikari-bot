@@ -1,6 +1,4 @@
 import ast
-import asyncio
-import importlib.util
 from pathlib import Path
 
 
@@ -35,40 +33,6 @@ def test_plugin_keeps_command_and_schedule_declarations():
     assert "minutes=15" in source
     assert 'hour=22, minute=20, timezone="Asia/Tokyo"' in source
     assert len(source.splitlines()) < 460
-
-
-def test_upload_route_preserves_response_shape(monkeypatch):
-    path = Path("hikari_bot/plugins/web/routes/cr_upload.py")
-    spec = importlib.util.spec_from_file_location(
-        "cardrush_test_cr_upload",
-        path,
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    class FakeService:
-        async def save_prices(self, records):
-            assert len(records) == 1
-            return 1
-
-    monkeypatch.setattr(module, "service", FakeService())
-    payload = module.UploadPayload(
-        prices=[
-            module.PriceRecord(
-                product_id=1,
-                name="青眼の白龍",
-                price=3200,
-                rarity="ウルトラ",
-                model_number="QCAC-JP001",
-                updated_at="2026-07-23T00:00:00.000Z",
-            )
-        ]
-    )
-
-    response = asyncio.run(module.cr_upload(payload))
-
-    assert response == {"ok": True, "received": 1, "saved": 1}
 
 
 def test_qq_delivery_uses_compressed_pages_and_forward_targets():

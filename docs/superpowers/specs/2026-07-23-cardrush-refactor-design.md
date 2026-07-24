@@ -6,7 +6,6 @@ Cardrush 功能目前主要分布在：
 
 - `hikari_bot/plugins/monitors/cardrush.py`：NoneBot 命令、参数解析、价格曲线、文字日报、HTML 日报、卡图下载、Playwright 截图、定时任务、管理员通知和 B 站发布。
 - `hikari_bot/services/price.py`：Cardrush 页面抓取、SQLite 建表和读写、价格查询、历史查询及日报数据计算。
-- `hikari_bot/plugins/web/routes/cr_upload.py`：接收外部爬虫上传的价格数据。
 
 这些职责相互耦合，导致机器人插件和价格服务文件过大，手动图报、自动图报与 B 站发布之间存在重复渲染流程，临时目录也存在并发清理风险。
 
@@ -57,7 +56,6 @@ hikari_bot/features/cardrush/
       daily_report.css
 
 hikari_bot/plugins/monitors/cardrush.py
-hikari_bot/plugins/web/routes/cr_upload.py
 hikari_bot/services/price.py
 ```
 
@@ -195,7 +193,6 @@ scheduler
 ### 价格上传
 
 ```text
-POST /cr_upload
 → Pydantic 校验
 → 转换为 PriceRecord
 → CardrushService.save_prices
@@ -335,7 +332,6 @@ tests/cardrush/
 6. 提取 parsing、chart、text 和 html。
 7. 合并 renderer 和 report workflow。
 8. 将 Cardrush 插件缩为适配层。
-9. 将 `/cr_upload` 改为调用 Service。
 10. 执行完整测试、静态检查和真实渲染验证。
 
 每一步均保持测试通过，不进行一次性整体重写。
@@ -344,7 +340,6 @@ tests/cardrush/
 
 - 原有 Cardrush 命令均能注册。
 - 命令名、别名、权限、回复格式和 scheduler 配置不变。
-- `/cr_upload` 请求和响应格式不变。
 - 原 SQLite 数据无需迁移即可读取。
 - 重构前后数据库 schema 一致。
 - 手动、自动和 B 站报表共用同一渲染流程。

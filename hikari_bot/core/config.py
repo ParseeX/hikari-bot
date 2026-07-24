@@ -111,10 +111,6 @@ class Settings:
         default_factory=lambda: _positive_float("API_TIMEOUT", 120.0)
     )
 
-    cardrush_upload_token: str = field(
-        default_factory=lambda: os.getenv("CARDRUSH_UPLOAD_TOKEN", "").strip(),
-        repr=False,
-    )
     uptime_token: str = field(
         default_factory=lambda: os.getenv("UPTIME_TOKEN", "").strip(),
         repr=False,
