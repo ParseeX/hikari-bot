@@ -149,7 +149,6 @@ def get_subscribe_list() -> dict:
 def save_subscribe_list(subscribe_list: dict) -> None:
     """整体保存订阅列表，兼容既有调用接口。"""
     get_state_store().replace_subscriptions(subscribe_list)
-    _subscribe_cache = subscribe_list
 
 
 def subscribe(usertype: str, qq: str, mycard_id: str) -> None:
