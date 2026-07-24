@@ -82,6 +82,28 @@ JM_PDF_PASSWORD=replace-me
 不要继续使用 Git 历史中出现过的旧值。未配置某项可选集成时，对应功能会给出配置错误，
 不会让整个 Bot 在启动阶段失败。
 
+## GitHub Actions 自动部署
+
+`main` 分支 push 后，GitHub Actions 会通过 SSH 执行服务器上的
+`$HOME/hikari-bot/update.sh`。请在仓库 Settings → Secrets and variables → Actions
+中配置：
+
+- `SERVER_HOST`：服务器地址
+- `SERVER_USER`：SSH 用户
+- `SERVER_SSH_KEY`：SSH 私钥
+- `SERVER_PORT`：可选 SSH 端口，未配置时使用 22
+
+服务器上需要先将本仓库部署到 `$HOME/hikari-bot`，并保证以下文件可执行：
+
+```text
+$HOME/hikari-bot/update.sh
+```
+
+脚本默认进入 `$HOME/hikari-bot`，也支持通过 `HIKARI_BOT_DIR` 指定其他项目目录；
+它会同步 `origin/main`、执行 `uv sync --no-dev`，并重启 `bot.service`。
+SSH 用户需要被授予执行 `sudo systemctl restart bot.service` 的权限，建议只允许
+该条 systemd 重启命令，不要授予完整 sudo 权限。
+
 专为游戏王玩家设计的 QQ Bot，主要支持以下功能：
 
 ## 🎴卡片查询功能
