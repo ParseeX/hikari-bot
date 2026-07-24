@@ -43,7 +43,6 @@ def test_runtime_and_optional_dependencies_are_declared():
         "fastapi",
         "pydantic",
         "python-multipart",
-        "jinja2",
         "beautifulsoup4",
         "pillow",
         "matplotlib",

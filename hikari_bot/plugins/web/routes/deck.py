@@ -1,10 +1,6 @@
-from pathlib import Path
-
 from fastapi import APIRouter, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse, StreamingResponse
 
-from hikari_bot.core.constants import WEB_DIR
 from hikari_bot.services.ygodeck import (
     generate_deck_list_pdf,
     get_deck_text_from_url,
@@ -14,16 +10,8 @@ from hikari_bot.services.ygodeck import (
 )
 
 router = APIRouter()
-BASE_DIR = Path(WEB_DIR)
-TEMPLATE_DIR = BASE_DIR / "templates"
 
-templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
-
-@router.get("/deck", response_class=HTMLResponse)
-async def index(request: Request):
-    return templates.TemplateResponse("deck.html", {"request": request})
-
-@router.post("/deck/generate", response_class=HTMLResponse)
+@router.post("/deck/generate")
 async def generate(
     request: Request,
     input_type: str = Form(...),
