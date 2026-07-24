@@ -64,8 +64,6 @@ PARSER_DISABLED_PLATFORMS=["twitter", "douyin"]
 ```dotenv
 CARDRUSH_PROXY_URL=socks5h://127.0.0.1:1080
 PUBLIC_GROUP_ID=群号
-BLOG_DEPLOY_SCRIPT=/absolute/path/to/deploy.sh
-BLOG_UPDATE_SCRIPT=/absolute/path/to/update.sh
 JM_DATA_DIR=/absolute/path/to/jm-data
 JM_PDF_PASSWORD=replace-me
 ```

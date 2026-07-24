@@ -87,3 +87,14 @@ def test_docs_do_not_advertise_removed_features_or_settings():
 
     assert "查裁定" not in readme
     assert "- 帮助" not in readme
+
+
+def test_blog_plugin_and_settings_are_removed():
+    assert not (ROOT / "hikari_bot/plugins/blog.py").exists()
+    assert {"blog_deploy_script", "blog_update_script"}.isdisjoint(_settings_fields())
+
+    env_example = _source(".env.example")
+    readme = _source("README.md")
+    for removed_setting in ("BLOG_DEPLOY_SCRIPT", "BLOG_UPDATE_SCRIPT"):
+        assert removed_setting not in env_example
+        assert removed_setting not in readme

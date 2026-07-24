@@ -130,12 +130,6 @@ class Settings:
     public_group_id: str | None = field(
         default_factory=lambda: os.getenv("PUBLIC_GROUP_ID", "").strip() or None
     )
-    blog_deploy_script: Path | None = field(
-        default_factory=lambda: _optional_path("BLOG_DEPLOY_SCRIPT")
-    )
-    blog_update_script: Path | None = field(
-        default_factory=lambda: _optional_path("BLOG_UPDATE_SCRIPT")
-    )
     jm_data_dir: Path = field(
         default_factory=lambda: _path("JM_DATA_DIR", PACKAGE_ROOT / "data" / "jm")
     )
