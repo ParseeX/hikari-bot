@@ -1,55 +1,28 @@
-import json
-import os
+import asyncio
 
 from nonebot import get_bot
 
-from hikari_bot.core.constants import DATA_DIR, ADMIN
+from hikari_bot.core.constants import ADMIN
 from hikari_bot.core.logger import log_message
-
-whitelist_file = os.path.join(DATA_DIR, 'whitelist.json')
-
-# 内存缓存
-_whitelist_cache = None
-
-async def _load_whitelist_from_file():
-    """从文件加载白名单到内存"""
-    try:
-        with open(whitelist_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        await log_message(f"[whitelist] File not found: {whitelist_file}")
-        return {"groups": [], "users": []}
-    except json.JSONDecodeError:
-        await log_message(f"[whitelist] JSON decode error in file: {whitelist_file}")
-        return {"groups": [], "users": []}
+from hikari_bot.persistence import get_state_store
 
 async def get_whitelist():
-    """获取白名单（从内存缓存）"""
-    global _whitelist_cache
-    if _whitelist_cache is None:
-        _whitelist_cache = await _load_whitelist_from_file()
-    return _whitelist_cache
+    """读取白名单快照；每次查询数据库以避免多任务缓存过期。"""
+    return await asyncio.to_thread(get_state_store().get_whitelist)
 
 async def save_whitelist(whitelist):
-    """保存白名单到文件并更新内存缓存"""
-    global _whitelist_cache
-    with open(whitelist_file, 'w', encoding='utf-8') as f:
-        json.dump(whitelist, f, indent=4, ensure_ascii=False)
-    _whitelist_cache = whitelist
+    """整体替换白名单，保留原有 groups/users 数据结构。"""
+    groups = whitelist.get("groups", [])
+    users = whitelist.get("users", [])
+    await asyncio.to_thread(get_state_store().replace_whitelist, groups, users)
 
 async def add_group_to_whitelist(group_id):
-    """添加群组到白名单"""
-    whitelist = await get_whitelist()
-    if group_id not in whitelist["groups"]:
-        whitelist["groups"].append(group_id)
-        await save_whitelist(whitelist)
-        return True
-    return False
+    """添加群组到白名单；已存在时返回 False。"""
+    return await asyncio.to_thread(get_state_store().add_group, str(group_id))
 
 async def is_allowed_group(group_id) -> bool:
-    """检查群组是否在白名单中"""
-    whitelist = await get_whitelist()
-    return group_id in whitelist["groups"]
+    """检查群组是否在白名单中。"""
+    return await asyncio.to_thread(get_state_store().is_group_allowed, str(group_id))
     
 async def message_superusers(message: str):
     """向所有超级用户发送消息"""

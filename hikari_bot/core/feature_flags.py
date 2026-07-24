@@ -1,38 +1,24 @@
-import json
-import os
+import asyncio
 
-from hikari_bot.core.constants import DATA_DIR
-from hikari_bot.core.logger import log_message
+from hikari_bot.persistence import get_state_store
 
-FLAGS_FILE = os.path.join(DATA_DIR, "feature_flags.json")
-
-async def _load_flags() -> dict:
-    try:
-        with open(FLAGS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        await log_message(f"[feature_flags] Exception occurred while loading flags: {e}")
-        return {}
-
-async def _save_flags(flags: dict) -> None:
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(FLAGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(flags, f, ensure_ascii=False, indent=2)
 
 async def get_notify_enabled() -> bool:
-    flags = await _load_flags()
-    return flags.get("mycard_notify", True)
+    """读取 MyCard 通知开关；未配置时默认开启。"""
+    return await asyncio.to_thread(
+        get_state_store().get_flag, "mycard_notify", True
+    )
 
 async def set_notify_enabled(value: bool) -> None:
-    flags = await _load_flags()
-    flags["mycard_notify"] = bool(value)
-    await _save_flags(flags)
+    """设置 MyCard 通知开关，不阻塞事件循环。"""
+    await asyncio.to_thread(get_state_store().set_flag, "mycard_notify", bool(value))
 
 async def get_mensa_enabled() -> bool:
-    flags = await _load_flags()
-    return flags.get("mensa_monitor", True)
+    """读取食堂监控开关；未配置时默认开启。"""
+    return await asyncio.to_thread(
+        get_state_store().get_flag, "mensa_monitor", True
+    )
 
 async def set_mensa_enabled(value: bool) -> None:
-    flags = await _load_flags()
-    flags["mensa_monitor"] = bool(value)
-    await _save_flags(flags)
+    """设置食堂监控开关，不阻塞事件循环。"""
+    await asyncio.to_thread(get_state_store().set_flag, "mensa_monitor", bool(value))
