@@ -94,16 +94,7 @@ class StateRepository:
     def replace_whitelist(self, groups: list[str], users: list[str]) -> None:
         """用给定内容整体替换白名单，供兼容旧保存接口和首次迁移使用。"""
         with self.database.transaction() as connection:
-            connection.execute("DELETE FROM whitelist_groups")
-            connection.execute("DELETE FROM whitelist_users")
-            connection.executemany(
-                "INSERT INTO whitelist_groups(group_id) VALUES (?)",
-                [(value,) for value in sorted(set(map(str, groups)))],
-            )
-            connection.executemany(
-                "INSERT INTO whitelist_users(user_id) VALUES (?)",
-                [(value,) for value in sorted(set(map(str, users)))],
-            )
+            self._replace_whitelist(connection, groups, users)
 
     def add_group(self, group_id: str) -> bool:
         """新增群白名单；已存在时返回 False。"""
@@ -131,13 +122,8 @@ class StateRepository:
 
     def replace_bindings(self, bindings: dict[str, str]) -> None:
         """整体替换绑定表，供兼容旧保存接口和首次迁移使用。"""
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with self.database.transaction() as connection:
-            connection.execute("DELETE FROM mycard_bindings")
-            connection.executemany(
-                "INSERT INTO mycard_bindings(qq_id, username, updated_at) VALUES (?, ?, ?)",
-                [(str(qq_id), str(username), now) for qq_id, username in bindings.items()],
-            )
+            self._replace_bindings(connection, bindings)
 
     def set_binding(self, qq_id: str, username: str) -> None:
         """新增或更新单个 QQ 的 MyCard 绑定。"""
@@ -173,16 +159,8 @@ class StateRepository:
 
     def replace_subscriptions(self, subscriptions: dict[str, list[list[str]]]) -> None:
         """整体替换订阅表，供兼容旧保存接口和首次迁移使用。"""
-        rows = self._subscription_rows(subscriptions)
         with self.database.transaction() as connection:
-            connection.execute("DELETE FROM mycard_subscriptions")
-            connection.executemany(
-                """
-                INSERT INTO mycard_subscriptions(username, target_type, target_id)
-                VALUES (?, ?, ?)
-                """,
-                rows,
-            )
+            self._replace_subscriptions(connection, subscriptions)
 
     def subscribe(self, target_type: str, target_id: str, username: str) -> bool:
         """新增订阅；订阅已存在时返回 False。"""
@@ -220,10 +198,81 @@ class StateRepository:
             )
         return cursor.rowcount > 0
 
+    def has_state(self, connection: sqlite3.Connection) -> bool:
+        """判断任一受管状态表是否已有记录。"""
+        for table in (
+            "feature_flags",
+            "whitelist_groups",
+            "whitelist_users",
+            "mycard_bindings",
+            "mycard_subscriptions",
+        ):
+            if connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone():
+                return True
+        return False
+
+    def import_legacy_state(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        flags: dict[str, bool],
+        groups: list[str],
+        users: list[str],
+        bindings: dict[str, str],
+        subscriptions: dict[str, list[list[str]]],
+    ) -> None:
+        """在调用方控制的单个事务中导入所有旧状态。"""
+        connection.execute("DELETE FROM feature_flags")
+        connection.executemany(
+            "INSERT INTO feature_flags(name, enabled) VALUES (?, ?)",
+            [(name, int(enabled)) for name, enabled in flags.items()],
+        )
+        self._replace_whitelist(connection, groups, users)
+        self._replace_bindings(connection, bindings)
+        self._replace_subscriptions(connection, subscriptions)
+
     @staticmethod
     def _validate_target_type(target_type: str) -> None:
         if target_type not in {"group", "private"}:
             raise PersistenceError(f"不支持的订阅目标类型：{target_type}")
+
+    @staticmethod
+    def _replace_whitelist(
+        connection: sqlite3.Connection, groups: list[str], users: list[str]
+    ) -> None:
+        connection.execute("DELETE FROM whitelist_groups")
+        connection.execute("DELETE FROM whitelist_users")
+        connection.executemany(
+            "INSERT INTO whitelist_groups(group_id) VALUES (?)",
+            [(value,) for value in sorted(set(map(str, groups)))],
+        )
+        connection.executemany(
+            "INSERT INTO whitelist_users(user_id) VALUES (?)",
+            [(value,) for value in sorted(set(map(str, users)))],
+        )
+
+    @staticmethod
+    def _replace_bindings(
+        connection: sqlite3.Connection, bindings: dict[str, str]
+    ) -> None:
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        connection.execute("DELETE FROM mycard_bindings")
+        connection.executemany(
+            "INSERT INTO mycard_bindings(qq_id, username, updated_at) VALUES (?, ?, ?)",
+            [(str(qq_id), str(username), now) for qq_id, username in bindings.items()],
+        )
+
+    def _replace_subscriptions(
+        self, connection: sqlite3.Connection, subscriptions: dict[str, list[list[str]]]
+    ) -> None:
+        connection.execute("DELETE FROM mycard_subscriptions")
+        connection.executemany(
+            """
+            INSERT INTO mycard_subscriptions(username, target_type, target_id)
+            VALUES (?, ?, ?)
+            """,
+            self._subscription_rows(subscriptions),
+        )
 
     def _subscription_rows(
         self, subscriptions: dict[str, list[list[str]]]
