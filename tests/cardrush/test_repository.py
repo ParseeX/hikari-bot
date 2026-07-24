@@ -35,6 +35,16 @@ def test_initialize_preserves_current_schema(tmp_path):
     assert "changed_at TEXT NOT NULL" in schema[-1][2]
 
 
+def test_initialize_enables_shared_sqlite_wal_policy(tmp_path):
+    db_path = tmp_path / "prices.db"
+    PriceRepository(db_path).initialize()
+
+    with sqlite3.connect(db_path) as connection:
+        journal_mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
+
+    assert journal_mode == "wal"
+
+
 def test_save_records_only_on_change_and_marks_missing_as_zero(tmp_path):
     repository = PriceRepository(tmp_path / "prices.db")
     first = [

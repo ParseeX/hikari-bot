@@ -3,6 +3,8 @@ from collections.abc import Iterable, Sequence
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from hikari_bot.persistence.database import PersistenceError, configure_sqlite_connection
+
 from .errors import CardrushRepositoryError
 from .models import PriceChange, PricePoint, PriceRecord, PriceSnapshot
 
@@ -26,9 +28,15 @@ class PriceRepository:
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = str(db_path)
 
+    def _connect(self) -> sqlite3.Connection:
+        """创建使用统一 SQLite 并发策略的 Cardrush 专用连接。"""
+        connection = sqlite3.connect(self.db_path, timeout=5.0)
+        configure_sqlite_connection(connection)
+        return connection
+
     def initialize(self) -> None:
         try:
-            with sqlite3.connect(self.db_path) as connection:
+            with self._connect() as connection:
                 connection.execute(
                     """
                     CREATE TABLE IF NOT EXISTS card_price_history (
@@ -56,17 +64,17 @@ class PriceRepository:
                     ON card_price_history(changed_at)
                     """
                 )
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush database initialization failed: {exc}"
             ) from exc
 
     def reset(self) -> None:
         try:
-            with sqlite3.connect(self.db_path) as connection:
+            with self._connect() as connection:
                 connection.execute("DROP TABLE IF EXISTS card_price_history")
             self.initialize()
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush database reset failed: {exc}"
             ) from exc
@@ -98,7 +106,7 @@ class PriceRepository:
         count = 0
 
         try:
-            with sqlite3.connect(self.db_path) as connection:
+            with self._connect() as connection:
                 cursor = connection.cursor()
                 for record in records:
                     seen_product_ids.add(record.product_id)
@@ -176,7 +184,7 @@ class PriceRepository:
                     )
                     count += 1
             return count
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush price save failed: {exc}"
             ) from exc
@@ -208,7 +216,7 @@ class PriceRepository:
 
         where = " AND ".join(conditions)
         try:
-            with sqlite3.connect(self.db_path) as connection:
+            with self._connect() as connection:
                 rows = connection.execute(
                     f"""
                     WITH ranked AS (
@@ -240,7 +248,7 @@ class PriceRepository:
                     """,
                     [*params, limit],
                 ).fetchall()
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush price search failed: {exc}"
             ) from exc
@@ -267,7 +275,7 @@ class PriceRepository:
     def get_history(self, product_id: int) -> list[PricePoint]:
         self.initialize()
         try:
-            with sqlite3.connect(self.db_path) as connection:
+            with self._connect() as connection:
                 rows = connection.execute(
                     """
                     SELECT price, changed_at
@@ -277,7 +285,7 @@ class PriceRepository:
                     """,
                     (product_id,),
                 ).fetchall()
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush price history query failed: {exc}"
             ) from exc
@@ -312,7 +320,7 @@ class PriceRepository:
             exclude_params = []
 
         try:
-            with sqlite3.connect(self.db_path) as connection:
+            with self._connect() as connection:
                 rows = connection.execute(
                     f"""
                     WITH
@@ -369,7 +377,7 @@ class PriceRepository:
                         *exclude_params,
                     ],
                 ).fetchall()
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush daily changes query failed: {exc}"
             ) from exc
@@ -426,7 +434,7 @@ class PriceRepository:
         if not series_where:
             raise ValueError("series_keywords 不能为空")
         try:
-            with sqlite3.connect(self.db_path) as connection:
+            with self._connect() as connection:
                 rows = connection.execute(
                     f"""
                     WITH ranked AS (
@@ -458,7 +466,7 @@ class PriceRepository:
                     """,
                     [*params, limit],
                 ).fetchall()
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush series price query failed: {exc}"
             ) from exc
