@@ -1,4 +1,8 @@
-"""Cardrush commands, schedules, and OneBot delivery adapters."""
+"""Cardrush 的命令、定时任务以及 OneBot 投递适配层。
+
+Cardrush 的业务逻辑位于 ``hikari_bot.features.cardrush``；本模块只负责
+把 NoneBot 事件转换成服务调用，并把生成的文字或图片发送到 QQ。
+"""
 
 import asyncio
 import base64
@@ -42,6 +46,7 @@ from hikari_bot.plugins.monitors.cardrush_delivery import prepare_qq_pages
 from hikari_bot.plugins.monitors.cardrush_forward import send_qq_forward
 from hikari_bot.services.bilibili import post_article_with_images
 
+# 命令和定时任务共用同一个服务与渲染器，避免重复初始化，也方便未来接入网站。
 service = get_default_cardrush_service()
 report_renderer = DailyReportRenderer()
 report_workflow = DailyReportWorkflow(service, report_renderer)
@@ -234,6 +239,7 @@ async def price_curve_draw(
 
 
 def _report_date(argument: str) -> str:
+    """解析可选的 ``M.D`` 日期参数；未提供参数时使用当天日期。"""
     if not argument:
         return date.today().isoformat()
     for part in argument.split():
@@ -333,6 +339,7 @@ async def _(
 
 
 async def check_price_changes():
+    """刷新价格并记录本轮检测到的变化数量。"""
     count = await service.refresh_prices()
     if count > 0:
         await log_message(
@@ -341,6 +348,7 @@ async def check_price_changes():
 
 
 async def scheduled_price_check():
+    """执行价格刷新，遇到临时错误时按固定间隔重试。"""
     max_retries = 5
     for attempt in range(1, max_retries + 1):
         try:
@@ -362,6 +370,10 @@ async def _scheduled_job():
 
 
 async def _auto_send_daily_report():
+    """生成日报后投递 QQ 合并转发，并把原图发布到 B 站。
+
+    QQ 使用压缩后的副本；B 站继续使用渲染得到的原始截图，以免影响文章清晰度。
+    """
     date_str = date.today().isoformat()
     try:
         screenshots = await report_workflow.render_for_date(date_str)
@@ -372,10 +384,12 @@ async def _auto_send_daily_report():
             )
             return
 
+        # QQ 使用更小的 WebP 副本，B 站仍保留原始截图。
         qq_screenshots = await prepare_qq_pages(screenshots)
         bot = get_bot()
         if settings.public_group_id:
             try:
+                # 配置的公开群与管理员收到相同的一层合并转发，不需要中转群。
                 await send_qq_forward(
                     bot,
                     qq_screenshots,
@@ -397,6 +411,7 @@ async def _auto_send_daily_report():
             f"[cardrush_auto] Report sent to {ADMIN} "
             f"({len(screenshots)} page(s))."
         )
+        # QQ 投递完成后再发布原图；两条链路互相隔离，便于分别排查失败原因。
         await post_article_with_images(screenshots, date_str)
     except Exception as error:
         await log_message(
