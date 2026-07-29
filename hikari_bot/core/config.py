@@ -123,6 +123,16 @@ class Settings:
         default_factory=lambda: os.getenv("JM_PDF_PASSWORD", "").strip(),
         repr=False,
     )
+    nas_power_url: str = field(
+        default_factory=lambda: os.getenv("NAS_POWER_URL", "").strip(),
+    )
+    nas_power_token: str = field(
+        default_factory=lambda: os.getenv("NAS_POWER_TOKEN", "").strip(),
+        repr=False,
+    )
+    nas_power_timeout: float = field(
+        default_factory=lambda: _positive_float("NAS_POWER_TIMEOUT", 15.0)
+    )
 
     cardrush_proxy_url: str | None = field(
         default_factory=lambda: os.getenv("CARDRUSH_PROXY_URL", "").strip() or None
