@@ -60,8 +60,8 @@ async def _handle_power_command(matcher, event: MessageEvent, action: str, args:
         await matcher.finish("NAS 电源服务返回异常。")
 
     if action == "wake":
-        await matcher.finish("已发送开机请求；电脑通常会在约一分钟内启动。")
-    await matcher.finish("已发送正常关机请求；Windows 将在约 5 秒后关机。")
+        await matcher.finish("已发送开机请求。")
+    await matcher.finish("已发送关机请求。")
 
 
 nas_wake = on_cmd("开机", priority=5, block=True)
