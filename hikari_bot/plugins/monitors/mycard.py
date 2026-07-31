@@ -115,7 +115,7 @@ async def handle_delete_event(bot: Bot, room_id):
             await asyncio.sleep(retry_interval)
         
         if rec is None:
-            await message_superusers(f"获取最新记录失败，已重试3分钟：{player_ids[0]} vs {player_ids[1]}")
+            await log_message(f"[mycard_subscriber] 获取最新记录失败，已重试3分钟：{player_ids[0]} vs {player_ids[1]}")
             return
 
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
