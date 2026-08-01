@@ -20,3 +20,11 @@ def test_extract_data_returns_typed_price_records():
 def test_extract_data_wraps_missing_next_data():
     with pytest.raises(CardrushClientError, match="__NEXT_DATA__"):
         CardrushClient.extract_records("<html></html>")
+
+
+def test_query_all_rejects_empty_first_page():
+    client = CardrushClient("https://example.test", {}, None)
+    client.query = lambda **kwargs: []
+
+    with pytest.raises(CardrushClientError, match="no price records"):
+        client.query_all()

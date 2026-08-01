@@ -100,6 +100,10 @@ class CardrushClient:
         page_size = 500
         while True:
             current = self.query(limit=page_size, page=page)
+            if page == 1 and not current:
+                raise CardrushClientError(
+                    "Cardrush returned no price records; refusing to update history"
+                )
             records.extend(current)
             if len(current) < page_size:
                 return records

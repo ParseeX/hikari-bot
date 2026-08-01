@@ -13,7 +13,13 @@ from .errors import (
     CardrushRenderError,
     CardrushRepositoryError,
 )
-from .models import PriceChange, PricePoint, PriceRecord, PriceSnapshot
+from .models import (
+    DatabaseRepairResult,
+    PriceChange,
+    PricePoint,
+    PriceRecord,
+    PriceSnapshot,
+)
 from .repository import PriceRepository
 from .service import CardrushService
 
@@ -38,6 +44,7 @@ __all__ = [
     "CardrushRenderError",
     "CardrushRepositoryError",
     "CardrushService",
+    "DatabaseRepairResult",
     "PriceRepository",
     "PriceChange",
     "PricePoint",

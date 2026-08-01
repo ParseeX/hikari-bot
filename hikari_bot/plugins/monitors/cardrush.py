@@ -426,6 +426,25 @@ async def _(bot: Bot, event: MessageEvent):
     await bot.send(event, "数据库已清空重建。")
 
 
+# 临时维护命令：完成一次备份和历史异常清理后删除。
+repair_db = on_cmd("修复数据库", permission=SUPERUSER)
+
+
+@repair_db.handle()
+async def _(bot: Bot, event: MessageEvent):
+    try:
+        result = await service.repair_database()
+        await repair_db.finish(
+            "数据库修复完成。\n"
+            f"删除 0 价格记录：{result.removed_zero_rows} 条\n"
+            f"删除重复价格记录：{result.removed_duplicate_rows} 条\n"
+            f"备份文件：{result.backup_path}"
+        )
+    except Exception as error:
+        await log_message(f"[cardrush] repair_database error: {error}")
+        await repair_db.finish(f"数据库修复失败：{error}")
+
+
 driver = get_driver()
 
 @driver.on_bot_connect

@@ -2,7 +2,13 @@ import asyncio
 from collections.abc import Sequence
 
 from .client import CardrushClient
-from .models import PriceChange, PricePoint, PriceRecord, PriceSnapshot
+from .models import (
+    DatabaseRepairResult,
+    PriceChange,
+    PricePoint,
+    PriceRecord,
+    PriceSnapshot,
+)
 from .repository import PriceRepository
 
 
@@ -60,17 +66,30 @@ class CardrushService:
     async def save_prices(
         self,
         records: Sequence[PriceRecord],
+        *,
+        observed_at: str | None = None,
     ) -> int:
+        kwargs = {"observed_at": observed_at} if observed_at else {}
         return await asyncio.to_thread(
             self.repository.save_prices,
             records,
+            **kwargs,
         )
 
     async def refresh_prices(self) -> int:
         if self.client is None:
             raise RuntimeError("Cardrush client is not configured")
         records = await asyncio.to_thread(self.client.query_all)
+        if not records:
+            raise RuntimeError(
+                "Cardrush returned no price records; refusing to update history"
+            )
         return await self.save_prices(records)
 
     async def reset_database(self) -> None:
         await asyncio.to_thread(self.repository.reset)
+
+    async def repair_database(self) -> DatabaseRepairResult:
+        return await asyncio.to_thread(
+            self.repository.repair_legacy_history,
+        )
