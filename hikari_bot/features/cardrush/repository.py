@@ -30,6 +30,17 @@ def _build_series_where(
     )
 
 
+def _history_sort_key(changed_at: str, row_id: int) -> tuple[int, float, int]:
+    """按真实 UTC 时间排序，兼容旧数据中的 Z 和带时区偏移格式。"""
+    try:
+        value = datetime.fromisoformat(changed_at.replace("Z", "+00:00"))
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return (0, value.astimezone(timezone.utc).timestamp(), row_id)
+    except (TypeError, ValueError):
+        return (1, 0.0, row_id)
+
+
 class PriceRepository:
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = str(db_path)
@@ -89,6 +100,12 @@ class PriceRepository:
         """备份并清理旧版本写入的 0 价格和连续重复价格点。"""
         self.initialize()
         database_path = Path(self.db_path)
+        restored_from: str | None = None
+        current_count = self._history_row_count(database_path)
+        source_backup = self._find_repair_source(
+            database_path,
+            current_count,
+        )
         timestamp = datetime.now(timezone.utc).strftime(
             "%Y%m%d%H%M%S%f"
         )
@@ -98,13 +115,10 @@ class PriceRepository:
         )
 
         try:
-            source = self._connect()
-            backup = sqlite3.connect(str(backup_path), timeout=5.0)
-            try:
-                source.backup(backup)
-            finally:
-                backup.close()
-                source.close()
+            self._backup_database(backup_path)
+            if source_backup is not None:
+                self._restore_database(source_backup)
+                restored_from = str(source_backup)
 
             with self._connect() as connection:
                 zero_cursor = connection.execute(
@@ -112,27 +126,30 @@ class PriceRepository:
                 )
                 removed_zero_rows = zero_cursor.rowcount
 
-                duplicate_ids = [
-                    row[0]
-                    for row in connection.execute(
-                        """
-                        WITH valid AS (
-                            SELECT
-                                id,
-                                price,
-                                LAG(price) OVER (
-                                    PARTITION BY product_id
-                                    ORDER BY id
-                                ) AS previous_price
-                            FROM card_price_history
-                            WHERE price > 0
-                        )
-                        SELECT id
-                        FROM valid
-                        WHERE price = previous_price
-                        """
-                    ).fetchall()
-                ]
+                rows = connection.execute(
+                    """
+                    SELECT id, product_id, price, changed_at
+                    FROM card_price_history
+                    WHERE price > 0
+                    """
+                ).fetchall()
+                product_rows: dict[int, list[tuple[int, int, str]]] = {}
+                for row_id, product_id, price, changed_at in rows:
+                    product_rows.setdefault(product_id, []).append(
+                        (row_id, price, changed_at)
+                    )
+
+                duplicate_ids: list[int] = []
+                for product_history in product_rows.values():
+                    previous_price: int | None = None
+                    for row_id, price, changed_at in sorted(
+                        product_history,
+                        key=lambda row: _history_sort_key(row[2], row[0]),
+                    ):
+                        if price == previous_price:
+                            duplicate_ids.append(row_id)
+                        else:
+                            previous_price = price
                 for row_id in duplicate_ids:
                     connection.execute(
                         "DELETE FROM card_price_history WHERE id = ?",
@@ -143,11 +160,64 @@ class PriceRepository:
                 backup_path=str(backup_path),
                 removed_zero_rows=max(removed_zero_rows, 0),
                 removed_duplicate_rows=len(duplicate_ids),
+                restored_from=restored_from,
             )
         except (sqlite3.Error, PersistenceError) as exc:
             raise CardrushRepositoryError(
                 f"Cardrush database repair failed: {exc}"
             ) from exc
+
+    def _backup_database(self, backup_path: Path) -> None:
+        source = self._connect()
+        backup = sqlite3.connect(str(backup_path), timeout=5.0)
+        try:
+            source.backup(backup)
+        finally:
+            backup.close()
+            source.close()
+
+    def _restore_database(self, source_path: Path) -> None:
+        source = sqlite3.connect(str(source_path), timeout=5.0)
+        target = self._connect()
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+            source.close()
+
+    @staticmethod
+    def _history_row_count(database_path: Path) -> int:
+        try:
+            with sqlite3.connect(str(database_path), timeout=5.0) as connection:
+                return int(
+                    connection.execute(
+                        "SELECT COUNT(*) FROM card_price_history"
+                    ).fetchone()[0]
+                )
+        except sqlite3.Error:
+            return 0
+
+    def _find_repair_source(
+        self,
+        database_path: Path,
+        current_count: int,
+    ) -> Path | None:
+        candidates: list[tuple[int, float, Path]] = []
+        pattern = (
+            f"{database_path.stem}.pre-repair-*{database_path.suffix}"
+        )
+        for candidate in database_path.parent.glob(pattern):
+            row_count = self._history_row_count(candidate)
+            if row_count <= current_count:
+                continue
+            try:
+                modified_at = candidate.stat().st_mtime
+            except OSError:
+                modified_at = 0.0
+            candidates.append((row_count, modified_at, candidate))
+        if not candidates:
+            return None
+        return max(candidates, key=lambda item: (item[0], item[1]))[2]
 
     @staticmethod
     def _get_latest_price(
@@ -159,7 +229,7 @@ class PriceRepository:
             SELECT price, changed_at
             FROM card_price_history
             WHERE product_id = ? AND price > 0
-            ORDER BY changed_at DESC, id DESC
+            ORDER BY datetime(changed_at) DESC, id DESC
             LIMIT 1
             """,
             (product_id,),
@@ -261,7 +331,7 @@ class PriceRepository:
                             changed_at,
                             ROW_NUMBER() OVER (
                                 PARTITION BY product_id
-                                ORDER BY changed_at DESC, id DESC
+                                ORDER BY datetime(changed_at) DESC, id DESC
                             ) AS rn
                         FROM card_price_history
                         WHERE {where} AND price > 0
@@ -313,7 +383,7 @@ class PriceRepository:
                     SELECT price, changed_at
                     FROM card_price_history
                     WHERE product_id = ? AND price > 0
-                    ORDER BY changed_at ASC, id ASC
+                    ORDER BY datetime(changed_at) ASC, id ASC
                     """,
                     (product_id,),
                 ).fetchall()
@@ -368,11 +438,13 @@ class PriceRepository:
                         WHERE h1.price > 0
                           AND DATE(h1.changed_at) = DATE(?)
                           AND h1.id = (
-                              SELECT MAX(id)
+                              SELECT id
                               FROM card_price_history h2
                               WHERE h2.product_id = h1.product_id
                                 AND h2.price > 0
                                 AND DATE(h2.changed_at) = DATE(?)
+                              ORDER BY datetime(h2.changed_at) DESC, h2.id DESC
+                              LIMIT 1
                           )
                     ),
                     prev_last AS (
@@ -381,11 +453,13 @@ class PriceRepository:
                         WHERE h3.price > 0
                           AND DATE(h3.changed_at) < DATE(?)
                           AND h3.id = (
-                              SELECT MAX(id)
+                              SELECT id
                               FROM card_price_history h4
                               WHERE h4.product_id = h3.product_id
                                 AND h4.price > 0
                                 AND DATE(h4.changed_at) < DATE(?)
+                              ORDER BY datetime(h4.changed_at) DESC, h4.id DESC
+                              LIMIT 1
                           )
                     )
                     SELECT
@@ -483,7 +557,7 @@ class PriceRepository:
                             changed_at,
                             ROW_NUMBER() OVER (
                                 PARTITION BY product_id
-                                ORDER BY changed_at DESC, id DESC
+                                ORDER BY datetime(changed_at) DESC, id DESC
                             ) AS rn
                         FROM card_price_history
                         WHERE price > 0

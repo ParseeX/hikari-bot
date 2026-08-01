@@ -438,7 +438,8 @@ async def _(bot: Bot, event: MessageEvent):
             "数据库修复完成。\n"
             f"删除 0 价格记录：{result.removed_zero_rows} 条\n"
             f"删除重复价格记录：{result.removed_duplicate_rows} 条\n"
-            f"备份文件：{result.backup_path}"
+            f"本次备份：{result.backup_path}\n"
+            f"恢复来源：{result.restored_from or '无（首次修复）'}"
         )
     except Exception as error:
         await log_message(f"[cardrush] repair_database error: {error}")

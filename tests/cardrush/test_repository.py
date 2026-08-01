@@ -163,6 +163,38 @@ def test_repair_legacy_history_backups_and_removes_invalid_points(tmp_path):
             "SELECT COUNT(*) FROM card_price_history"
         ).fetchone()[0] == 5
 
+    second_result = repository.repair_legacy_history()
+
+    assert second_result.restored_from == result.backup_path
+    assert [point.price for point in repository.get_history(1)] == [1000, 1300]
+
+
+def test_repair_keeps_earliest_real_timestamp_not_earliest_id(tmp_path):
+    db_path = tmp_path / "prices.db"
+    repository = PriceRepository(db_path)
+    repository.initialize()
+    with sqlite3.connect(db_path) as connection:
+        connection.executemany(
+            """
+            INSERT INTO card_price_history(
+                product_id, name, rarity, model_number, price, changed_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (1, "card-1", "SER", "TEST-JP001", 1000, "2026-06-01T00:00:00.000Z"),
+                (1, "card-1", "SER", "TEST-JP001", 1300, "2026-08-01T00:00:00.000Z"),
+                (1, "card-1", "SER", "TEST-JP001", 1300, "2026-07-01T00:00:00.000Z"),
+            ],
+        )
+
+    repository.repair_legacy_history()
+
+    history = repository.get_history(1)
+    assert [(point.price, point.changed_at) for point in history] == [
+        (1000, "2026-06-01T00:00:00.000Z"),
+        (1300, "2026-07-01T00:00:00.000Z"),
+    ]
+
 
 def test_search_and_daily_changes_return_models(tmp_path):
     repository = PriceRepository(tmp_path / "prices.db")
