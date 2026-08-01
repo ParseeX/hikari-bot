@@ -6,13 +6,7 @@ from pathlib import Path
 from hikari_bot.persistence.database import PersistenceError, configure_sqlite_connection
 
 from .errors import CardrushRepositoryError
-from .models import (
-    DatabaseRepairResult,
-    PriceChange,
-    PricePoint,
-    PriceRecord,
-    PriceSnapshot,
-)
+from .models import PriceChange, PricePoint, PriceRecord, PriceSnapshot
 
 
 def _build_series_where(
@@ -28,17 +22,6 @@ def _build_series_where(
         " AND (" + " OR ".join(clauses) + ")",
         [f"%{value}%" for value in keywords],
     )
-
-
-def _history_sort_key(changed_at: str, row_id: int) -> tuple[int, float, int]:
-    """按真实 UTC 时间排序，兼容旧数据中的 Z 和带时区偏移格式。"""
-    try:
-        value = datetime.fromisoformat(changed_at.replace("Z", "+00:00"))
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        return (0, value.astimezone(timezone.utc).timestamp(), row_id)
-    except (TypeError, ValueError):
-        return (1, 0.0, row_id)
 
 
 class PriceRepository:
@@ -95,129 +78,6 @@ class PriceRepository:
             raise CardrushRepositoryError(
                 f"Cardrush database reset failed: {exc}"
             ) from exc
-
-    def repair_legacy_history(self) -> DatabaseRepairResult:
-        """备份并清理旧版本写入的 0 价格和连续重复价格点。"""
-        self.initialize()
-        database_path = Path(self.db_path)
-        restored_from: str | None = None
-        current_count = self._history_row_count(database_path)
-        source_backup = self._find_repair_source(
-            database_path,
-            current_count,
-        )
-        timestamp = datetime.now(timezone.utc).strftime(
-            "%Y%m%d%H%M%S%f"
-        )
-        backup_path = database_path.with_name(
-            f"{database_path.stem}.pre-repair-{timestamp}"
-            f"{database_path.suffix}"
-        )
-
-        try:
-            self._backup_database(backup_path)
-            if source_backup is not None:
-                self._restore_database(source_backup)
-                restored_from = str(source_backup)
-
-            with self._connect() as connection:
-                zero_cursor = connection.execute(
-                    "DELETE FROM card_price_history WHERE price <= 0"
-                )
-                removed_zero_rows = zero_cursor.rowcount
-
-                rows = connection.execute(
-                    """
-                    SELECT id, product_id, price, changed_at
-                    FROM card_price_history
-                    WHERE price > 0
-                    """
-                ).fetchall()
-                product_rows: dict[int, list[tuple[int, int, str]]] = {}
-                for row_id, product_id, price, changed_at in rows:
-                    product_rows.setdefault(product_id, []).append(
-                        (row_id, price, changed_at)
-                    )
-
-                duplicate_ids: list[int] = []
-                for product_history in product_rows.values():
-                    previous_price: int | None = None
-                    for row_id, price, changed_at in sorted(
-                        product_history,
-                        key=lambda row: _history_sort_key(row[2], row[0]),
-                    ):
-                        if price == previous_price:
-                            duplicate_ids.append(row_id)
-                        else:
-                            previous_price = price
-                for row_id in duplicate_ids:
-                    connection.execute(
-                        "DELETE FROM card_price_history WHERE id = ?",
-                        (row_id,),
-                    )
-
-            return DatabaseRepairResult(
-                backup_path=str(backup_path),
-                removed_zero_rows=max(removed_zero_rows, 0),
-                removed_duplicate_rows=len(duplicate_ids),
-                restored_from=restored_from,
-            )
-        except (sqlite3.Error, PersistenceError) as exc:
-            raise CardrushRepositoryError(
-                f"Cardrush database repair failed: {exc}"
-            ) from exc
-
-    def _backup_database(self, backup_path: Path) -> None:
-        source = self._connect()
-        backup = sqlite3.connect(str(backup_path), timeout=5.0)
-        try:
-            source.backup(backup)
-        finally:
-            backup.close()
-            source.close()
-
-    def _restore_database(self, source_path: Path) -> None:
-        source = sqlite3.connect(str(source_path), timeout=5.0)
-        target = self._connect()
-        try:
-            source.backup(target)
-        finally:
-            target.close()
-            source.close()
-
-    @staticmethod
-    def _history_row_count(database_path: Path) -> int:
-        try:
-            with sqlite3.connect(str(database_path), timeout=5.0) as connection:
-                return int(
-                    connection.execute(
-                        "SELECT COUNT(*) FROM card_price_history"
-                    ).fetchone()[0]
-                )
-        except sqlite3.Error:
-            return 0
-
-    def _find_repair_source(
-        self,
-        database_path: Path,
-        current_count: int,
-    ) -> Path | None:
-        candidates: list[tuple[int, float, Path]] = []
-        pattern = (
-            f"{database_path.stem}.pre-repair-*{database_path.suffix}"
-        )
-        for candidate in database_path.parent.glob(pattern):
-            row_count = self._history_row_count(candidate)
-            if row_count <= current_count:
-                continue
-            try:
-                modified_at = candidate.stat().st_mtime
-            except OSError:
-                modified_at = 0.0
-            candidates.append((row_count, modified_at, candidate))
-        if not candidates:
-            return None
-        return max(candidates, key=lambda item: (item[0], item[1]))[2]
 
     @staticmethod
     def _get_latest_price(

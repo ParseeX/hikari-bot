@@ -2,13 +2,7 @@ import asyncio
 from collections.abc import Sequence
 
 from .client import CardrushClient
-from .models import (
-    DatabaseRepairResult,
-    PriceChange,
-    PricePoint,
-    PriceRecord,
-    PriceSnapshot,
-)
+from .models import PriceChange, PricePoint, PriceRecord, PriceSnapshot
 from .repository import PriceRepository
 
 
@@ -88,8 +82,3 @@ class CardrushService:
 
     async def reset_database(self) -> None:
         await asyncio.to_thread(self.repository.reset)
-
-    async def repair_database(self) -> DatabaseRepairResult:
-        return await asyncio.to_thread(
-            self.repository.repair_legacy_history,
-        )

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Sequence
 
@@ -8,16 +8,41 @@ import matplotlib.pyplot as plt
 from ..models import PricePoint
 
 
-def draw_price_chart(history: Sequence[PricePoint]) -> bytes:
-    """Render price history on its real timeline and return PNG bytes."""
+def _chart_points(
+    history: Sequence[PricePoint],
+    now: datetime,
+) -> tuple[list[datetime], list[int]]:
     dates: list[datetime] = []
     prices: list[int] = []
     for record in history:
         try:
-            dates.append(datetime.fromisoformat(record.changed_at))
+            changed_at = datetime.fromisoformat(
+                record.changed_at.replace("Z", "+00:00")
+            )
+            if changed_at.tzinfo is None:
+                changed_at = changed_at.replace(tzinfo=timezone.utc)
+            dates.append(changed_at.astimezone(timezone.utc))
             prices.append(record.price)
         except (TypeError, ValueError):
             continue
+
+    if dates and dates[-1] < now:
+        # 补一个当前时刻的同价点，让曲线明确延伸到“现在”。
+        dates.append(now)
+        prices.append(prices[-1])
+    return dates, prices
+
+
+def draw_price_chart(
+    history: Sequence[PricePoint],
+    now: datetime | None = None,
+) -> bytes:
+    """Render price history through the current time and return PNG bytes."""
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+    current_time = current_time.astimezone(timezone.utc)
+    dates, prices = _chart_points(history, current_time)
 
     if not dates:
         return b""

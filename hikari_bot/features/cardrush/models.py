@@ -54,11 +54,3 @@ class PriceChange:
     price_diff: int | None
     percent_diff: float | None
     changed_at: str
-
-
-@dataclass(frozen=True)
-class DatabaseRepairResult:
-    backup_path: str
-    removed_zero_rows: int
-    removed_duplicate_rows: int
-    restored_from: str | None = None
