@@ -102,20 +102,29 @@ async def get_ygopic(id: int, half: bool = True):
 
 
 async def get_image_by_id(id: int):
-    """根据卡片ID从指定源下载卡片图片"""
-    image_url = IMAGE_ORIGIN + str(id) + ".jpg"
+    """根据卡片 ID 下载卡图，主源不可用时回退到中文源。"""
+    image_urls = (
+        ("IMAGE_ORIGIN", IMAGE_ORIGIN + str(id) + ".jpg"),
+        ("IMAGE_CHINESE", IMAGE_CHINESE + str(id) + ".jpg"),
+    )
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(image_url) as response:
-                if response.status == 200:
-                    image_data = await response.read()   
-                    return image_data
-                else:
-                    await log_message(f"[get_image_by_id] Failed to download image: {response.status}")
-                    return None
-        except Exception as e:
-            await log_message(f"[get_image_by_id] Exception occurred while downloading image: {e}")
-            return None
+        for source_name, image_url in image_urls:
+            try:
+                async with session.get(image_url) as response:
+                    if response.status == 200:
+                        return await response.read()
+
+                    await log_message(
+                        f"[get_image_by_id] Failed to download image from "
+                        f"{source_name}: {response.status}"
+                    )
+            except Exception as e:
+                await log_message(
+                    f"[get_image_by_id] Exception occurred while downloading "
+                    f"image from {source_name}: {e}"
+                )
+
+    return None
 
 
 # ==================== 卡片信息获取 ====================
