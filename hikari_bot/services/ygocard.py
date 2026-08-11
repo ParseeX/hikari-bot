@@ -82,7 +82,7 @@ async def get_ygopic(id: int, half: bool = True):
                 return f.read()
 
     # 本地没有则下载
-    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg{'!half' if half else ''}"
+    url = f"{IMAGE_CHINESE}{id}.jpg{'!half' if half else ''}"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
