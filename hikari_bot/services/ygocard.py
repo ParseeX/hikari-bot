@@ -1,10 +1,12 @@
 import asyncio
+import io
 import json
 import os
 import random
 import sqlite3
 
 import aiohttp
+from PIL import Image
 
 from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.core.logger import log_message
@@ -12,6 +14,8 @@ from hikari_bot.core.logger import log_message
 IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
 IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
 CARD_SEARCH = "https://ygocdb.com/api/v0/?search="
+
+_CHINESE_CARD_ART_CROP = (0.1325, 0.1897, 0.87, 0.6983)
 
 YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
 MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
@@ -101,6 +105,24 @@ async def get_ygopic(id: int, half: bool = True):
         return await get_unknown_card()
 
 
+def _crop_chinese_card_art(image_data: bytes) -> bytes:
+    """裁去中文卡图模板的文字和边框，仅保留中间插画。"""
+    with Image.open(io.BytesIO(image_data)) as image:
+        width, height = image.size
+        left_ratio, top_ratio, right_ratio, bottom_ratio = _CHINESE_CARD_ART_CROP
+        crop_box = (
+            round(width * left_ratio),
+            round(height * top_ratio),
+            round(width * right_ratio),
+            round(height * bottom_ratio),
+        )
+        cropped = image.crop(crop_box).convert("RGB")
+
+        buffer = io.BytesIO()
+        cropped.save(buffer, format="JPEG", quality=95)
+        return buffer.getvalue()
+
+
 async def get_image_by_id(id: int):
     """根据卡片 ID 下载卡图，主源不可用时回退到中文源。"""
     image_urls = (
@@ -112,7 +134,10 @@ async def get_image_by_id(id: int):
             try:
                 async with session.get(image_url) as response:
                     if response.status == 200:
-                        return await response.read()
+                        image_data = await response.read()
+                        if source_name == "IMAGE_CHINESE":
+                            return _crop_chinese_card_art(image_data)
+                        return image_data
 
                     await log_message(
                         f"[get_image_by_id] Failed to download image from "

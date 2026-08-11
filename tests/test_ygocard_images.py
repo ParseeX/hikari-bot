@@ -1,5 +1,7 @@
 import asyncio
+from io import BytesIO
 
+from PIL import Image, ImageDraw
 from hikari_bot.services import ygocard
 
 
@@ -35,9 +37,14 @@ class _FakeSession:
 
 
 def test_get_image_by_id_falls_back_to_chinese_source(monkeypatch):
+    source_image = Image.new("RGB", (400, 580), "red")
+    ImageDraw.Draw(source_image).rectangle((53, 110, 347, 404), fill="blue")
+    image_buffer = BytesIO()
+    source_image.save(image_buffer, format="JPEG")
+
     session = _FakeSession([
         _FakeResponse(404),
-        _FakeResponse(200, b"chinese-image"),
+        _FakeResponse(200, image_buffer.getvalue()),
     ])
     logs: list[str] = []
 
@@ -49,7 +56,9 @@ def test_get_image_by_id_falls_back_to_chinese_source(monkeypatch):
 
     image = asyncio.run(ygocard.get_image_by_id(12345678))
 
-    assert image == b"chinese-image"
+    with Image.open(BytesIO(image)) as cropped_image:
+        assert cropped_image.size == (295, 295)
+        assert cropped_image.getpixel((147, 147))[2] > 200
     assert session.urls == [
         f"{ygocard.IMAGE_ORIGIN}12345678.jpg",
         f"{ygocard.IMAGE_CHINESE}12345678.jpg",
