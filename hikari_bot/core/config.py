@@ -133,6 +133,15 @@ class Settings:
     nas_power_timeout: float = field(
         default_factory=lambda: _positive_float("NAS_POWER_TIMEOUT", 15.0)
     )
+    ruling_assistant_api_url: str = field(
+        default_factory=lambda: os.getenv(
+            "RULING_ASSISTANT_API_URL",
+            "https://ocg-ruling-assistant.vercel.app/api/answer",
+        ).strip(),
+    )
+    ruling_assistant_timeout: float = field(
+        default_factory=lambda: _positive_float("RULING_ASSISTANT_TIMEOUT", 310.0)
+    )
 
     cardrush_proxy_url: str | None = field(
         default_factory=lambda: os.getenv("CARDRUSH_PROXY_URL", "").strip() or None
