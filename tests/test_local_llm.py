@@ -96,7 +96,19 @@ def test_local_llm_plugin_requires_admin_group_at_mention():
     assert "_mentions_bot(event.original_message, str(bot.self_id))" in source
     assert "bool(event.get_plaintext().strip())" in source
     assert "on_message(" in source
-    assert "priority=100" in source
+    assert "priority=6" in source
+
+
+def test_local_llm_runs_before_global_deck_collector():
+    local_llm_source = (ROOT / "hikari_bot/plugins/local_llm_chat.py").read_text(
+        encoding="utf-8"
+    )
+    match_source = (ROOT / "hikari_bot/plugins/ygomatch_query.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "priority=6" in local_llm_source
+    assert "collect_deck = on_message(priority=10)" in match_source
 
 
 def test_local_llm_accepts_at_mention_after_onebot_preprocessing(monkeypatch):

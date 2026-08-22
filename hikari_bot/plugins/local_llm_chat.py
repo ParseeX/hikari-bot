@@ -62,7 +62,9 @@ async def _(bot: Bot, event: MessageEvent):
 
 local_llm_chat = on_message(
     rule=Rule(_is_authorized_group_prompt),
-    priority=100,
+    # Commands use priority 5; ygomatch_query's global collector at 10 would
+    # otherwise stop every event before this restricted group-chat handler.
+    priority=6,
     block=True,
 )
 
