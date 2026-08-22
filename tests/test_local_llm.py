@@ -8,6 +8,7 @@ import pytest
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
 from nonebot.adapters.onebot.v11.bot import _check_at_me
 
+from hikari_bot.core import feature_flags
 from hikari_bot.plugins import local_llm_chat
 from hikari_bot.services import local_llm
 
@@ -161,7 +162,7 @@ def test_local_llm_plugin_requires_admin_group_at_mention():
     source = (ROOT / "hikari_bot/plugins/local_llm_chat.py").read_text(encoding="utf-8")
 
     assert "isinstance(event, GroupMessageEvent)" in source
-    assert "str(event.user_id) in ADMIN" in source
+    assert "get_local_llm_public_enabled()" in source
     assert "_mentions_bot(event.original_message, str(bot.self_id))" in source
     assert "_contains_image(event.get_message())" in source
     assert "on_message(" in source
@@ -241,3 +242,67 @@ def test_local_llm_accepts_image_only_at_mention(monkeypatch):
 
     assert not event.get_plaintext().strip()
     assert asyncio.run(local_llm_chat._is_authorized_group_prompt(bot, event))
+
+
+def test_local_llm_public_flag_persists_in_feature_store(monkeypatch):
+    class FakeStore:
+        value = False
+
+        def get_flag(self, name: str, default: bool) -> bool:
+            assert name == "local_llm_public_group"
+            assert default is False
+            return self.value
+
+        def set_flag(self, name: str, value: bool) -> None:
+            assert name == "local_llm_public_group"
+            self.value = value
+
+    store = FakeStore()
+    monkeypatch.setattr(feature_flags, "get_state_store", lambda: store)
+
+    assert asyncio.run(feature_flags.get_local_llm_public_enabled()) is False
+    asyncio.run(feature_flags.set_local_llm_public_enabled(True))
+    assert asyncio.run(feature_flags.get_local_llm_public_enabled()) is True
+
+
+def test_local_llm_public_mode_allows_non_admin_at_mention(monkeypatch):
+    bot_id = "10001"
+    event = GroupMessageEvent.model_validate(
+        {
+            "time": 0,
+            "self_id": int(bot_id),
+            "post_type": "message",
+            "sub_type": "normal",
+            "user_id": 20002,
+            "message_type": "group",
+            "message_id": 1,
+            "message": [
+                {"type": "at", "data": {"qq": bot_id}},
+                {"type": "text", "data": {"text": "hello"}},
+            ],
+            "raw_message": f"[CQ:at,qq={bot_id}]hello",
+            "font": 0,
+            "sender": {},
+            "group_id": 30003,
+        }
+    )
+
+    async def public_mode() -> bool:
+        return True
+
+    monkeypatch.setattr(local_llm_chat, "ADMIN", frozenset())
+    monkeypatch.setattr(local_llm_chat, "get_local_llm_public_enabled", public_mode)
+    bot = SimpleNamespace(self_id=bot_id)
+    _check_at_me(bot, event)
+
+    assert asyncio.run(local_llm_chat._is_authorized_group_prompt(bot, event))
+
+
+def test_local_llm_access_toggle_is_a_superuser_command():
+    source = (ROOT / "hikari_bot/plugins/local_llm_admin.py").read_text(encoding="utf-8")
+
+    assert "local_llm_access_toggle = on_cmd(" in source
+    assert "aliases=" in source
+    assert "permission=SUPERUSER" in source
+    assert "get_local_llm_public_enabled" in source
+    assert "set_local_llm_public_enabled" in source

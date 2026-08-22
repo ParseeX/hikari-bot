@@ -9,6 +9,7 @@ from nonebot.params import EventMessage
 from nonebot.rule import Rule
 
 from hikari_bot.core.constants import ADMIN
+from hikari_bot.core.feature_flags import get_local_llm_public_enabled
 from hikari_bot.services.local_llm import ImageInputError, get_local_llm_reply
 
 
@@ -36,7 +37,7 @@ async def _is_authorized_group_prompt(bot: Bot, event: MessageEvent) -> bool:
     """Accept an administrator's @-mention with text, an image, or both."""
     return (
         isinstance(event, GroupMessageEvent)
-        and str(event.user_id) in ADMIN
+        and (str(event.user_id) in ADMIN or await get_local_llm_public_enabled())
         and _mentions_bot(event.original_message, str(bot.self_id))
         and (bool(event.get_plaintext().strip()) or _contains_image(event.get_message()))
     )

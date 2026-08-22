@@ -22,3 +22,17 @@ async def get_mensa_enabled() -> bool:
 async def set_mensa_enabled(value: bool) -> None:
     """设置食堂监控开关，不阻塞事件循环。"""
     await asyncio.to_thread(get_state_store().set_flag, "mensa_monitor", bool(value))
+
+
+async def get_local_llm_public_enabled() -> bool:
+    """读取本地模型是否允许所有群成员 @ 使用；默认仅管理员。"""
+    return await asyncio.to_thread(
+        get_state_store().get_flag, "local_llm_public_group", False
+    )
+
+
+async def set_local_llm_public_enabled(value: bool) -> None:
+    """设置本地模型的群聊访问范围。"""
+    await asyncio.to_thread(
+        get_state_store().set_flag, "local_llm_public_group", bool(value)
+    )
