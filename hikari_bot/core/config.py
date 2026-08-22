@@ -142,6 +142,26 @@ class Settings:
     ruling_assistant_timeout: float = field(
         default_factory=lambda: _positive_float("RULING_ASSISTANT_TIMEOUT", 310.0)
     )
+    local_llm_api_base_url: str = field(
+        default_factory=lambda: os.getenv(
+            "LOCAL_LLM_API_BASE_URL", "http://192.168.0.100:1234/v1"
+        ).strip().rstrip("/"),
+    )
+    local_llm_model: str = field(
+        default_factory=lambda: os.getenv(
+            "LOCAL_LLM_MODEL", "qwen/qwen3.5-9b"
+        ).strip(),
+    )
+    local_llm_api_key: str = field(
+        default_factory=lambda: os.getenv("LOCAL_LLM_API_KEY", "").strip(),
+        repr=False,
+    )
+    local_llm_timeout: float = field(
+        default_factory=lambda: _positive_float("LOCAL_LLM_TIMEOUT", 180.0)
+    )
+    local_llm_system_prompt: str = field(
+        default_factory=lambda: os.getenv("LOCAL_LLM_SYSTEM_PROMPT", "").strip(),
+    )
 
     cardrush_proxy_url: str | None = field(
         default_factory=lambda: os.getenv("CARDRUSH_PROXY_URL", "").strip() or None
