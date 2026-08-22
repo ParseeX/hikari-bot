@@ -90,6 +90,17 @@ def _positive_float(name: str, default: float) -> float:
     return value
 
 
+def _positive_int(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ConfigurationError(f"{name} must be an integer") from exc
+    if value <= 0:
+        raise ConfigurationError(f"{name} must be greater than zero")
+    return value
+
+
 def _path(name: str, default: Path) -> Path:
     raw = os.getenv(name, "").strip()
     path = Path(raw).expanduser() if raw else default
@@ -158,6 +169,12 @@ class Settings:
     )
     local_llm_timeout: float = field(
         default_factory=lambda: _positive_float("LOCAL_LLM_TIMEOUT", 180.0)
+    )
+    local_llm_image_max_count: int = field(
+        default_factory=lambda: _positive_int("LOCAL_LLM_IMAGE_MAX_COUNT", 4)
+    )
+    local_llm_image_max_bytes: int = field(
+        default_factory=lambda: _positive_int("LOCAL_LLM_IMAGE_MAX_BYTES", 10 * 1024 * 1024)
     )
     local_llm_system_prompt: str = field(
         default_factory=lambda: os.getenv("LOCAL_LLM_SYSTEM_PROMPT", "").strip(),
