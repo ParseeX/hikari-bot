@@ -26,7 +26,7 @@ async def _is_authorized_group_prompt(bot: Bot, event: MessageEvent) -> bool:
     return (
         isinstance(event, GroupMessageEvent)
         and str(event.user_id) in ADMIN
-        and _mentions_bot(event.get_message(), str(bot.self_id))
+        and _mentions_bot(event.original_message, str(bot.self_id))
         and bool(event.get_plaintext().strip())
     )
 
