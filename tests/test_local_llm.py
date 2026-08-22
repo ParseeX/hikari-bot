@@ -127,3 +127,50 @@ def test_local_llm_accepts_at_mention_after_onebot_preprocessing(monkeypatch):
 
     assert event.is_tome()
     assert asyncio.run(local_llm_chat._is_authorized_group_prompt(bot, event))
+
+
+def test_local_llm_logs_mention_gate_results_without_prompt_content(monkeypatch):
+    bot_id = "10001"
+    event = GroupMessageEvent.model_validate(
+        {
+            "time": 0,
+            "self_id": int(bot_id),
+            "post_type": "message",
+            "sub_type": "normal",
+            "user_id": 20002,
+            "message_type": "group",
+            "message_id": 1,
+            "message": [
+                {"type": "at", "data": {"qq": bot_id}},
+                {"type": "text", "data": {"text": "private prompt"}},
+            ],
+            "raw_message": f"[CQ:at,qq={bot_id}]private prompt",
+            "font": 0,
+            "sender": {},
+            "group_id": 30003,
+        }
+    )
+    monkeypatch.setattr(local_llm_chat, "ADMIN", frozenset({"20002"}))
+
+    async def fake_is_allowed_group(group_id: int) -> bool:
+        assert group_id == 30003
+        return True
+
+    logs = []
+
+    async def fake_log_message(message: str) -> None:
+        logs.append(message)
+
+    monkeypatch.setattr(local_llm_chat, "is_allowed_group", fake_is_allowed_group)
+    monkeypatch.setattr(local_llm_chat, "log_message", fake_log_message)
+    _check_at_me(SimpleNamespace(self_id=bot_id), event)
+
+    asyncio.run(
+        local_llm_chat._log_mention_gate_result(SimpleNamespace(self_id=bot_id), event)
+    )
+
+    assert logs == [
+        "[local_llm_chat] mention group_id=30003 user_id=20002 "
+        "group_allowed=True superuser=True has_text=True"
+    ]
+    assert "private prompt" not in logs[0]
