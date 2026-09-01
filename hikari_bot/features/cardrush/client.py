@@ -97,7 +97,7 @@ class CardrushClient:
     def query_all(self) -> list[PriceRecord]:
         records: list[PriceRecord] = []
         page = 1
-        page_size = 500
+        page_size = 100
         while True:
             current = self.query(limit=page_size, page=page)
             if page == 1 and not current:
