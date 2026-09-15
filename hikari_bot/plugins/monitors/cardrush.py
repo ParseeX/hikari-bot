@@ -28,6 +28,8 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.config import settings
 from hikari_bot.core.constants import ADMIN
 from hikari_bot.core.logger import log_message
+from hikari_bot.core.whitelist import message_superusers
+from hikari_bot.features.cardrush.health import check_connection
 from hikari_bot.features.cardrush import get_default_cardrush_service
 from hikari_bot.features.cardrush.parsing import (
     expand_rarity_to_jp_list,
@@ -427,7 +429,24 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 driver = get_driver()
+_startup_checked = False
+cardrush_test = on_cmd("cardrush_test", permission=SUPERUSER)
+
+
+@cardrush_test.handle()
+async def _manual_connection_check():
+    result = await check_connection(service.client)
+    await log_message(result)
+    await cardrush_test.finish(result)
+
 
 @driver.on_bot_connect
 async def _startup_price_check(bot: Bot):
+    global _startup_checked
+    if _startup_checked:
+        return
+    _startup_checked = True
     await log_message("[cardrush_monitor] CardRush monitor started.")
+    result = await check_connection(service.client)
+    await log_message(result)
+    await message_superusers(result)

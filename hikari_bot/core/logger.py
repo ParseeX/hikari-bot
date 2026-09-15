@@ -1,10 +1,24 @@
 import os
 import re
+import logging
 from datetime import datetime
 
 from hikari_bot.core.constants import DATA_DIR
 
 log_file = None
+_consecutive_failures = 0
+
+
+async def _notify_failure(message: str):
+    # 不经 message_superusers 回写业务日志，避免通知失败触发递归告警。
+    from nonebot import get_bot
+    from hikari_bot.core.constants import ADMIN
+
+    for uid in ADMIN:
+        try:
+            await get_bot().send_private_msg(user_id=int(uid), message=message)
+        except Exception:
+            logging.getLogger(__name__).warning("日志告警未能送达管理员")
 
 def get_bot_startup_info():
     """从日志文件名中提取启动时间并计算运行时长"""
@@ -45,15 +59,21 @@ def get_bot_startup_info():
         return f"获取失败: {e}", "未知"
 
 def new_log_file():
-    global log_file
+    global log_file, _consecutive_failures
+    _consecutive_failures = 0
     logs_dir = os.path.join(DATA_DIR, "logs")
     os.makedirs(logs_dir, exist_ok=True)
     log_file = os.path.join(logs_dir, f"bot_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 
 async def log_message(message: str):
+    global _consecutive_failures
     if log_file:
+        entry = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n"
         with open(log_file, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
+            f.write(entry)
+        _consecutive_failures = _consecutive_failures + 1 if "Failed" in message else 0
+        if _consecutive_failures == 10:
+            await _notify_failure("连续 10 条日志包含 Failed，最新一条：\n" + entry.rstrip("\n"))
 
 async def log_read():
     if log_file and os.path.exists(log_file):
