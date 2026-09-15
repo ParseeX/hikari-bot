@@ -55,7 +55,7 @@ read_log = on_cmd("读取日志", aliases={"日志", "log"}, permission=SUPERUSE
 async def _(bot: Bot, event: MessageEvent):
     log_content = await log_read()    
     # 发送日志内容，分段发送以避免消息过长
-    MAX_LINE = 50
+    MAX_LINE = 30
     for i in range(0, len(log_content), MAX_LINE):
         await read_log.send("".join(log_content[i:i+MAX_LINE]))
 
