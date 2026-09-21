@@ -26,6 +26,8 @@ def test_bridge_limits_requests_and_preserves_safe_errors(monkeypatch):
             raise RuntimeError('private upstream details must not escape')
         def listings(self, version_id, pages):
             return {'pages': [{'current_page': p, 'entries': []} for p in pages]}
+        def listing_details(self, version_id, seller_ids):
+            return {'sellers': []}
     server = module.create_server(Worker(), 'test-bridge-key', 0)
     thread = threading.Thread(target=server.serve_forever)
     thread.start()
@@ -44,6 +46,9 @@ def test_bridge_limits_requests_and_preserves_safe_errors(monkeypatch):
             assert client.post('/v1/listings', json={'card_version_id': 1, 'pages': [1, 2]}).status_code == 200
             for pages in ([0], [True], [101], [1, 1], list(range(1, 7))):
                 assert client.post('/v1/listings', json={'card_version_id': 1, 'pages': pages}).status_code == 400
+            assert client.post('/v1/listing-details', json={'card_version_id': 1, 'seller_ids': [2]}).status_code == 200
+            for sellers in ([0], [True], [2, 2], list(range(1, 7))):
+                assert client.post('/v1/listing-details', json={'card_version_id': 1, 'seller_ids': sellers}).status_code == 400
             failed = client.post('/v1/prices', json={'version_ids': [1]})
             assert failed.status_code == 503 and failed.json() == {'error': 'unavailable'}
     finally:

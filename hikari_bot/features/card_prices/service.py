@@ -54,7 +54,7 @@ class ComparisonService:
                 and (not rarity or v.rarity == rarity.upper())
                 and (not model_prefix or v.number.upper().startswith(model_prefix.upper() + "-"))]
 
-    async def compare(self, name_jp: str, versions: list[CardVersion]) -> list[Comparison]:
+    async def compare(self, name_jp: str, versions: list[CardVersion], *, japanese: bool = False) -> list[Comparison]:
         # 先查编号再核对名称和罕贵，避免 LIKE 查询混入其他卡包或相似名称。
         async def local(version: CardVersion):
             if not version.number:
@@ -66,7 +66,7 @@ class ComparisonService:
                          and rarity_jp_to_en(r.rarity or "").upper() == version.rarity)
 
         values = await asyncio.gather(
-            self.jhs.prices([v.id for v in versions]),
+            self.jhs.japanese_prices(versions) if japanese else self.jhs.prices([v.id for v in versions]),
             *(local(v) for v in versions), return_exceptions=True,
         )
         jhs = values[0] if isinstance(values[0], dict) else {}
@@ -84,14 +84,17 @@ def rarity_prompt(name_jp: str, groups: dict[str, list[CardVersion]]) -> str:
     return "\n".join(lines) + "\n回复编号或罕贵名称；回复“取消”结束。"
 
 
-def format_comparison(name_jp: str, rarity: str, rows: list[Comparison]) -> list[str]:
+def format_comparison(name_jp: str, rarity: str, rows: list[Comparison], *, japanese: bool = False) -> list[str]:
     header = f"【{name_jp}｜{rarity}】\n"
     pages: list[str] = []
     text = header
     for row in rows:
         lines = [row.version.number or "编号未知"]
         if row.jhs is None or row.jhs.error:
-            lines.append("集换社：暂时不可用")
+            lines.append("日版最低价：暂时不可用" if japanese else "集换社：暂时不可用")
+        elif japanese:
+            value = f'{row.jhs.minimum:.2f} 元' if row.jhs.minimum is not None else '未找到符合备注的在售出品'
+            lines.append(f'日版最低价：{value}')
         else:
             def yuan(value):
                 return f"{value:.2f} 元" if value is not None else "暂无数据"

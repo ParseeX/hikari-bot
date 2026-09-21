@@ -24,6 +24,7 @@ def test_plugin_keeps_command_and_schedule_declarations():
     ).read_text(encoding="utf-8")
     for command in (
         '"卡价查询"',
+        '"日版价格查询"',
         '"卡价曲线"',
         '"卡价图报"',
         '"卡价日报"',

@@ -16,7 +16,7 @@ from hikari_bot.features.cardrush.parsing import parse_price_query
 from hikari_bot.services.ygocard import get_card_info
 
 
-def register_price_query(matcher, cardrush):
+def register_price_query(matcher, cardrush, *, japanese: bool = False):
     comparison = ComparisonService(JhsClient(
         settings.jihuanshe_bridge_url, settings.jihuanshe_bridge_token,
         settings.jihuanshe_bridge_timeout,
@@ -26,7 +26,8 @@ def register_price_query(matcher, cardrush):
     async def start(state: T_State, args: Message = CommandArg()):
         text = args.extract_plain_text().strip()
         if not text:
-            await matcher.finish("请输入卡片名称或卡密，例如：卡价 原石之皇脉")
+            command = '日版价格查询' if japanese else '卡价'
+            await matcher.finish(f"请输入卡片名称或卡密，例如：{command} 原石之皇脉")
         name, rarity, prefix = parse_price_query(text)
         try:
             info = await asyncio.wait_for(get_card_info(name), timeout=15)
@@ -65,8 +66,9 @@ def register_price_query(matcher, cardrush):
             await matcher.reject(f"请回复 1-{len(names)} 的编号或列表中的罕贵名称，也可回复“取消”。")
         versions = groups[rarity]
         try:
-            rows = await comparison.compare(state["price_name_jp"], versions)
-            pages = format_comparison(state["price_name_jp"], rarity, rows)
+            mode = {'japanese': True} if japanese else {}
+            rows = await comparison.compare(state["price_name_jp"], versions, **mode)
+            pages = format_comparison(state["price_name_jp"], rarity, rows, **mode)
         except Exception as error:
             await log_message(f"[card_price] comparison failed: {type(error).__name__}")
             await matcher.finish("卡价查询失败，请稍后重试。")

@@ -100,7 +100,8 @@ def test_request_preserves_japanese_original_and_never_uses_login_token(monkeypa
     assert captured[0].headers['Authorization'] == 'Bearer bridge-only-token'
 
 
-def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch):
+@pytest.mark.parametrize('japanese', [False, True])
+def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch, japanese):
     path = Path('hikari_bot/plugins/monitors/cardrush_query.py')
     spec = importlib.util.spec_from_file_location('price_query_test_adapter', path)
     adapter = importlib.util.module_from_spec(spec)
@@ -110,7 +111,8 @@ def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch):
         async def versions(self, name, rarity, prefix, names_cn):
             assert name == '原石の皇脈'
             return [CardVersion(1, 'LOCR-JP076', 'SR'), CardVersion(2, 'LOCR-JP076', 'UTR')]
-        async def compare(self, name, versions):
+        async def compare(self, name, versions, **mode):
+            assert mode == ({'japanese': True} if japanese else {})
             calls.append([v.id for v in versions])
             return [Comparison(v, JhsPrice(v.id, Decimal('.5'), Decimal('2.2'), None), ()) for v in versions]
     async def card_info(name):
@@ -139,7 +141,7 @@ def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch):
             self.messages.append(text)
             raise RejectedException
     matcher = Matcher()
-    adapter.register_price_query(matcher, None)
+    adapter.register_price_query(matcher, None, japanese=japanese)
     first, second = {}, {}
     async def run():
         await matcher.start(first, Message('原石之皇脉'))
@@ -155,7 +157,10 @@ def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch):
             await matcher.selected(second, Message('1'))
     asyncio.run(run())
     assert calls == [[1]]
-    assert any('集换社最低价' in m and 'Cardrush' in m for m in matcher.messages)
+    label = '日版最低价' if japanese else '集换社最低价'
+    assert any(label in m and 'Cardrush' in m for m in matcher.messages)
+    if japanese:
+        assert not any('集换价' in m for m in matcher.messages)
     assert '已取消卡价查询。' in matcher.messages
     assert not any('正在查询' in m for m in matcher.messages)
 

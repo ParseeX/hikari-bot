@@ -1,7 +1,9 @@
 """只访问配置好的本机手机桥接服务，不接收或导出微信凭据。"""
+import asyncio
 import httpx
 
 from .models import CardVersion, JhsPrice
+from .japanese import japanese_minimum
 
 
 class JhsUnavailable(RuntimeError):
@@ -52,3 +54,15 @@ class JhsClient:
             return {p.id: p for p in prices}
         except (KeyError, TypeError, ValueError) as exc:
             raise JhsUnavailable("集换社价格版本不匹配") from exc
+
+    async def japanese_prices(self, versions: list[CardVersion]) -> dict[int, JhsPrice]:
+        result = {}
+        # 单台手机按版本串行扫描，某版本失败不覆盖其他版本的结果。
+        for version in versions:
+            try:
+                async with asyncio.timeout(self.timeout):
+                    minimum = await japanese_minimum(self._post, version)
+                result[version.id] = JhsPrice(version.id, minimum, None, None)
+            except (JhsUnavailable, KeyError, TypeError, ValueError, TimeoutError):
+                result[version.id] = JhsPrice(version.id, None, None, None, '暂时不可用')
+        return result

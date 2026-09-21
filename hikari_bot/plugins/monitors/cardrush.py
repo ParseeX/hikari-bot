@@ -57,6 +57,9 @@ card_price = on_cmd("卡价查询", aliases={"卡价"}, priority=5)
 
 register_price_query(card_price, service)
 
+japanese_price = on_cmd("日版价格查询", priority=5)
+register_price_query(japanese_price, service, japanese=True)
+
 
 price_curve = on_cmd(
     "卡价曲线",
