@@ -90,17 +90,15 @@ def format_comparison(name_jp: str, rarity: str, rows: list[Comparison]) -> list
         else:
             def yuan(value):
                 return f"{value:.2f} 元" if value is not None else "暂无数据"
-            lines.append(f"集换社最低价：{yuan(row.jhs.minimum)}（人民币）")
-            market_date = f"（{row.jhs.market_date}）" if row.jhs.market_date else ""
-            lines.append(f"集换价：{yuan(row.jhs.market)}{market_date}")
+            lines.append(f"集换社最低价：{yuan(row.jhs.minimum)}")
+            lines.append(f"集换价：{yuan(row.jhs.market)}")
         if row.cardrush_error:
             lines.append("Cardrush 买取价：暂时不可用")
         elif not row.cardrush:
             lines.append("Cardrush 买取价：数据库暂无对应记录")
         else:
             for record in row.cardrush:
-                lines.append(f"Cardrush 买取价：{record.price:,} 円（日元，"
-                             f"价格记录 {(record.changed_at or '')[:10] or '日期未知'}）")
+                lines.append(f"Cardrush 买取价：{record.price:,} 円")
         block = "\n".join(lines) + "\n\n"
         if len(text) + len(block) > 2800 and text != header:
             pages.append(text.rstrip())

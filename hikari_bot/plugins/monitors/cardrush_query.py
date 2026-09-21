@@ -28,7 +28,6 @@ def register_price_query(matcher, cardrush):
         if not text:
             await matcher.finish("请输入卡片名称或卡密，例如：卡价 原石之皇脉")
         name, rarity, prefix = parse_price_query(text)
-        await matcher.send("正在查询集换社罕贵列表，首次恢复手机会话可能需要几十秒…")
         try:
             info = await asyncio.wait_for(get_card_info(name), timeout=15)
             # 查询集换社时必须保留日文原文中的空格、标点和全角字符。
@@ -65,7 +64,6 @@ def register_price_query(matcher, cardrush):
         if rarity not in groups:
             await matcher.reject(f"请回复 1-{len(names)} 的编号或列表中的罕贵名称，也可回复“取消”。")
         versions = groups[rarity]
-        await matcher.send(f"正在查询 {rarity} 的集换社与 Cardrush 价格…")
         try:
             rows = await comparison.compare(state["price_name_jp"], versions)
             pages = format_comparison(state["price_name_jp"], rarity, rows)

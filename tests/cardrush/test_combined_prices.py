@@ -37,8 +37,9 @@ def test_exact_edition_and_rarity_matching_with_real_database(tmp_path):
     rows = asyncio.run(ComparisonService(Jhs(), CardrushService(repo)).compare('原石の皇脈', versions))
     assert [[p.product_id for p in r.cardrush] for r in rows] == [[1], [3]]
     text = '\n'.join(format_comparison('原石の皇脈', 'SR', rows))
-    assert '0.50 元（人民币）' in text and '集换价：2.20 元' in text
-    assert '100 円（日元' in text and '300 円（日元' in text
+    assert '集换社最低价：0.50 元\n' in text and '集换价：2.20 元\n' in text
+    assert 'Cardrush 买取价：100 円' in text and 'Cardrush 买取价：300 円' in text
+    assert '（' not in text and '）' not in text
     assert '999' not in text and '888' not in text
 
 
@@ -156,6 +157,7 @@ def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch):
     assert calls == [[1]]
     assert any('集换社最低价' in m and 'Cardrush' in m for m in matcher.messages)
     assert '已取消卡价查询。' in matcher.messages
+    assert not any('正在查询' in m for m in matcher.messages)
 
 
 def test_live_chinese_origin_alias_is_not_mistaken_for_japanese():
