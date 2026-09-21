@@ -217,6 +217,10 @@ class Worker:
         finally:
             self.phone.close()
 
+    def listings(self, version_id, pages):
+        result = self.query('listings.js', {'card_version_id': version_id, 'pages': pages})
+        return {'pages': result['pages']}
+
 
 def create_server(worker, token, port):
     class Handler(BaseHTTPRequestHandler):
@@ -254,6 +258,13 @@ def create_server(worker, token, port):
                     if not isinstance(ids, list) or not 1 <= len(ids) <= 20 or len(set(ids)) != len(ids) or not all(type(i) is int and 0 < i < 2**53 for i in ids):
                         raise ValueError('invalid IDs')
                     operation = lambda: worker.prices(ids)
+                elif self.path == '/v1/listings':
+                    version_id, pages = payload['card_version_id'], payload['pages']
+                    if type(version_id) is not int or not 0 < version_id < 2**53:
+                        raise ValueError('invalid version')
+                    if not isinstance(pages, list) or not 1 <= len(pages) <= 5 or not all(type(p) is int and 1 <= p <= 100 for p in pages) or len(set(pages)) != len(pages):
+                        raise ValueError('invalid pages')
+                    operation = lambda: worker.listings(version_id, pages)
                 else:
                     self.respond(404, {'error': 'not_found'})
                     return
