@@ -4,7 +4,7 @@
   // 仅返回商品价格、数量及备注，不输出卖家身份或会话信息。
   function publicProduct(row){
     const result={};
-    for(const key of ['id','product_id','card_version_id','price','min_price','quantity','remark','remark_only','condition','pull_off']){
+    for(const key of ['id','product_id','card_version_id','seller_user_id','price','min_price','quantity','remark','remark_only','condition','pull_off','origin_region']){
       if(row[key]!==undefined)result[key]=row[key];
     }
     if(Array.isArray(row.products))result.products=row.products.map(publicProduct);
