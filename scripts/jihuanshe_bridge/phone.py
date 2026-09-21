@@ -171,7 +171,7 @@ class Phone:
             time.sleep(1)
         else:
             raise RuntimeError('miniapp did not open')
-        time.sleep(8)
+        # 页面出现后即交给 agent 检测业务模块就绪，不固定等待启动广告。
         top = self.adb('shell', 'dumpsys', 'activity', 'top')
         matches = re.findall(r'ACTIVITY com\.tencent\.mm/\.plugin\.appbrand\.ui\.AppBrandUI\w*[^\n]*pid=(\d+)', top)
         if not matches:

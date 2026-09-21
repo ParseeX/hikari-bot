@@ -18,10 +18,12 @@ function finish(jobId,result){
 rpc.exports={
   init(){return new Promise(function(resolve,reject){Java.perform(function(){
     const retained=[];
+    let settled=false,discoveryTimer=null;
+    const deadline=setTimeout(()=>{settled=true;clearTimeout(discoveryTimer);reject(new Error('target context not ready'));},15000);
     CB=Java.registerClass({name:'org.hikaribot.jhs.Callback'+Date.now(),implements:[Java.use('android.webkit.ValueCallback')],fields:{jobId:'int',kind:'int'},methods:{onReceiveValue:function(v){
       let result;try{result=JSON.parse(String(v));}catch(_){return;}
       const id=this.jobId.value,kind=this.kind.value;
-      if(kind===0){if(result.target){runtime=retained[id];resolve({ready:true,pid:Process.id});}return;}
+      if(kind===0){if(!settled&&result&&result.target){runtime=retained[id];settled=true;clearTimeout(deadline);clearTimeout(discoveryTimer);resolve({ready:true,pid:Process.id});}return;}
       const job=pending.get(id);if(!job)return;
       if(result.status==='started'){
         job.jsStarted=true;if(!job.finished)poll(id);
@@ -30,13 +32,20 @@ rpc.exports={
 
       }else if(result.status==='pending'&&!job.finished){setTimeout(()=>poll(id),150);}
     }}});
-    const found=new Set(),name='com.tencent.mm.plugin.appbrand.jsruntime.p';
-    for(const loader of Java.enumerateClassLoadersSync()){
-      try{const f=Java.ClassFactory.get(loader),c=f.use(name),id=c.class.hashCode();if(found.has(id))continue;found.add(id);
-        f.choose(name,{onMatch:function(o){const cb=CB.$new();cb.jobId.value=retained.length;cb.kind.value=0;retained.push(Java.retain(o));o.evaluateJavascript('JSON.stringify({target:(function(){try{return typeof require("api/cloud.js").cloudRequest==="function";}catch(e){return false;}})()})',cb);},onComplete:function(){}});
-      }catch(_){}
+    function discover(){
+      if(settled)return;
+      Java.perform(function(){
+        if(settled)return;
+        const found=new Set(),name='com.tencent.mm.plugin.appbrand.jsruntime.p';
+        for(const loader of Java.enumerateClassLoadersSync()){
+          try{const f=Java.ClassFactory.get(loader),c=f.use(name),id=c.class.hashCode();if(found.has(id))continue;found.add(id);
+            f.choose(name,{onMatch:function(o){if(settled)return;const cb=CB.$new();cb.jobId.value=retained.length;cb.kind.value=0;retained.push(Java.retain(o));o.evaluateJavascript('JSON.stringify({target:(function(){try{return typeof require("api/cloud.js").cloudRequest==="function"&&Boolean(getApp().globalData.jwt);}catch(e){return false;}})()})',cb);},onComplete:function(){}});
+          }catch(_){}
+        }
+        if(!settled)discoveryTimer=setTimeout(discover,500);
+      });
     }
-    setTimeout(()=>{if(!runtime)reject(new Error('target context not found'));},5000);
+    discover();
   });});},
   query(code){return new Promise(function(resolve){
     const id=nextJob++;

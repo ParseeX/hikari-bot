@@ -85,6 +85,7 @@ class Worker:
         if time.monotonic() - self.last_failure < 30:
             raise RuntimeError('recovery cooling down')
         was_locked = None
+        started = time.monotonic()
         try:
             self.phone.connect()
             self.drop()
@@ -100,7 +101,16 @@ class Worker:
             self.save_identity()
             self.phone.unfreeze(pid)
             self.session = self.device.attach(pid)
-            probe = self.session.create_script("rpc.exports.path=()=>Process.getModuleByName('libwxa-runtime-binding.so').path;")
+            # 页面刚出现时运行库也可能尚未加载；只等待实际就绪条件。
+            probe = self.session.create_script('''rpc.exports.path=()=>new Promise((resolve,reject)=>{
+                const deadline=Date.now()+15000;
+                function check(){
+                    const module=Process.findModuleByName('libwxa-runtime-binding.so');
+                    if(module){resolve(module.path);return;}
+                    if(Date.now()>=deadline){reject(new Error('runtime not ready'));return;}
+                    setTimeout(check,100);
+                }check();
+            });''')
             try:
                 probe.load()
                 path = rpc(probe.exports_sync.path)
@@ -112,9 +122,11 @@ class Worker:
             self.script = self.session.create_script(self.java + (BASE / 'agent.js').read_text(encoding='utf-8'))
             self.script.on('message', lambda m, d: logging.warning('agent error') if m.get('type') == 'error' else None)
             self.script.load()
+            ready_started = time.monotonic()
             if not rpc(self.script.exports_sync.init).get('ready'):
                 raise RuntimeError('business context unavailable')
-            logging.info('phone context recovered')
+            logging.info('phone context recovered seconds=%.2f readiness_seconds=%.2f',
+                         time.monotonic() - started, time.monotonic() - ready_started)
         except Exception:
             self.last_failure = time.monotonic()
             self.drop()
@@ -125,6 +137,25 @@ class Worker:
                 self.phone.adb('shell', 'input', 'keyevent', '3', check=False)
                 if was_locked:
                     self.phone.adb('shell', 'input', 'keyevent', '223', check=False)
+
+    def pause_background(self):
+        if self.script:
+            try:
+                if not self.phone.mini_foreground():
+                    rpc(lambda: self.script.exports_sync.lifecycle('pause'))
+            except Exception:
+                pass
+
+    def warmup(self):
+        # 启动时只准备一次，不定时查价或反复唤醒离线手机。
+        started = time.monotonic()
+        try:
+            self.recover()
+            logging.info('startup warmup ready seconds=%.2f', time.monotonic() - started)
+        except Exception as error:
+            logging.warning('startup warmup failed: %s', type(error).__name__)
+        finally:
+            self.pause_background()
 
     def query(self, template: str, payload: dict):
         code = (BASE / template).read_text(encoding='utf-8').replace('__INPUT__', json.dumps(payload, ensure_ascii=True))
@@ -152,12 +183,7 @@ class Worker:
                 if generation:
                     raise RuntimeError('phone unavailable') from None
             finally:
-                if self.script:
-                    try:
-                        if not self.phone.mini_foreground():
-                            rpc(lambda: self.script.exports_sync.lifecycle('pause'))
-                    except Exception:
-                        pass
+                self.pause_background()
         raise RuntimeError('phone unavailable')
 
     def versions(self, name_jp):
@@ -264,7 +290,9 @@ def main():
         signal.signal(signal.SIGTERM, stop)
         signal.signal(signal.SIGINT, stop)
         try:
-            logging.info('bridge listening on loopback')
+            logging.info('bridge preparing phone context')
+            worker.warmup()
+            logging.info('bridge accepting requests on loopback')
             server.serve_forever()
         finally:
             server.server_close()

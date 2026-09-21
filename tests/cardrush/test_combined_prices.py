@@ -173,3 +173,20 @@ def test_live_chinese_origin_alias_is_not_mistaken_for_japanese():
     assert asyncio.run(service.versions('原石の皇脈', names_cn=('原石的皇脉',))) == [actual]
     with pytest.raises(JhsUnavailable):
         asyncio.run(service.versions('原石の皇脈'))
+
+
+def test_fullwidth_ampersand_falls_back_and_excludes_card_sleeves():
+    queries = []
+    class Jhs:
+        async def versions(self, name):
+            queries.append(name)
+            if name == 'The Fallen ＆ The Virtuous':
+                return []
+            return [CardVersion(144702, 'CH01-JP019', 'UR', '', '落胤与圣女', 19150),
+                    CardVersion(144703, 'CH01-JP019', 'PSER', '', '落胤与圣女', 19150),
+                    CardVersion(144997, 'YGOZ-JP500', '卡套', '',
+                                'RANKING DUEL 2025 特制卡套 落胤与圣女', 19167)]
+    versions = asyncio.run(ComparisonService(Jhs(), None).versions(
+        'The Fallen ＆ The Virtuous', names_cn=('落胤与圣女',)))
+    assert [v.id for v in versions] == [144702, 144703]
+    assert queries == ['The Fallen ＆ The Virtuous', 'The Fallen & The Virtuous']

@@ -9,6 +9,7 @@
 - 集换社：该版本 `min_price` 为人民币最低价，价格历史最新日期的 `price` 为集换价；不使用 `avg_price` 冒充集换价。
 - Cardrush：读取原有数据库最新买取记录，保留日元；数据库无记录与接口故障分别提示。最终结果省略括号说明和日期，查询过程只显示选择列表和结果。
 - 先用卡片库解析日文原名，原文查询集换社。上游 `name_origin` 实际为中文别名，用中文正式名/别名辅助核对，不能当日文名过滤。
+- 原文无结果时，使用 Unicode NFKC 等价写法补查，例如 `The Fallen ＆ The Virtuous` → `The Fallen & The Virtuous`；展示仍保留日文原名，结果继续校验卡名，排除同时命中的卡套。
 - Cardrush 按卡片名称、完整编号及罕贵同时核对，避免把日亚版、其他卡包或类似名称混入。
 
 ## 已验证环境与边界
@@ -20,6 +21,8 @@ OPPO Android 16、微信 8.0.78（3180）、Frida 17.18.0。运行库与 Frida �
 正常查询前解除该小程序进程冻结并恢复其 JS 循环，完成后若小程序不在前台则暂停循环；微信和小程序无需一直置顶，锁屏也可查。上下文丢失时自动临时唤醒、通过微信正常入口恢复小程序，然后回桌面并恢复原锁屏状态。该恢复可能短暂显示微信，并耗时几十秒；不改 PIN、不关闭锁屏设置。重启后的首次凭据解锁及整夜稳定性尚未验证。
 
 查询串行经过手机，单次失败有有限重试和一次上下文重建。多用户并发过高会返回忙，请稍后重试。停止服务会清理自己记录的探针小程序进程、Frida 服务端与 ADB 转发；不结束整个微信或其他手机服务。
+
+桥接启动后主动准备一次手机会话，随后才处理查询；服务刚启动时到达的请求仍需等待准备完成。准备失败后继续提供接口，由下一次查询触发有限恢复，不增加定时保活或后台价格刷新。页面打开后检测运行库、业务模块和登录态就绪，立即继续，不再固定等待 8 秒。
 
 ## 服务器配置
 
@@ -43,7 +46,7 @@ JHS_ACCESS_TOKEN=REPLACE_WITH_RANDOM_BRIDGE_SECRET
 
 bot 的 `.env.prod` 设置 `JIHUANSHE_BRIDGE_URL=http://127.0.0.1:8791`、`JIHUANSHE_BRIDGE_TOKEN`（相同桥接密钥）、`JIHUANSHE_BRIDGE_TIMEOUT=120`。服务只监听 `127.0.0.1`，不开放公网端口。手机 Frida 只监听本机环回，经 ADB 转发访问。
 
-复制本目录 systemd 单元至 `/etc/systemd/system/jihuanshe-bridge.service`，核对用户和路径后执行 `systemctl daemon-reload`、`systemctl enable --now jihuanshe-bridge.service`。部署脚本在该单元存在时同时重启桥接和 bot。只有监听成功不代表手机可查，验收需要通过两个实际查询端点。
+复制本目录 systemd 单元至 `/etc/systemd/system/jihuanshe-bridge.service`，核对用户和路径后执行 `systemctl daemon-reload`、`systemctl enable --now jihuanshe-bridge.service`。部署脚本始终重启 bot；桥接单元存在时，仅在桥接运行文件变化或服务未运行时重启桥接。普通 bot 和文档更新保留手机会话。修改仓库外的桥接配置后仍需手动重启该单元。只有监听成功不代表手机可查，验收需要通过两个实际查询端点。
 
 固定接口均要求 `Authorization: Bearer <桥接密钥>`：
 

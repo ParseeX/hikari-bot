@@ -1,5 +1,6 @@
 """按罕贵选择，再严格按卡片编号关联两种价格口径。"""
 import asyncio
+import unicodedata
 from dataclasses import dataclass
 
 from hikari_bot.features.cardrush.models import PriceSnapshot
@@ -36,6 +37,10 @@ class ComparisonService:
                        model_prefix: str | None = None,
                        names_cn: tuple[str, ...] = ()) -> list[CardVersion]:
         versions = await self.jhs.versions(name_jp)
+        # 上游不能总是识别日文原名中的全角英数字/符号；原文无结果才补查等价写法。
+        compatible_name = unicodedata.normalize("NFKC", name_jp)
+        if not versions and compatible_name != name_jp:
+            versions = await self.jhs.versions(compatible_name)
         aliases = {normalized(n) for n in names_cn if n}
         if aliases:
             # 集换社通常不返回日文名，用卡片库提供的中文正式名/别名核对。
