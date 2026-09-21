@@ -105,7 +105,8 @@ SSH 用户需要被授予执行 `sudo systemctl restart bot.service` 的权限�
   
 - 查效果 - 查询卡片效果文本
 - 查卡密 - 查询卡片密码（ID）
-- 卡价查询 - 支持查询日本卡价信息
+- 卡价查询 / 卡价 - 输入卡名或卡密，选择罕贵后，同时显示集换社人民币最低价、集换价与 Cardrush 日元买取价；不同卡包版本分别列出
+- 集换社桥接部署与查询说明见 [手机桥接文档](scripts/jihuanshe_bridge/README.md)
 - 支持价格比较和保存功能
 
 ## 🏆 MyCard 对战平台功能

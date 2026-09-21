@@ -1,0 +1,18 @@
+[Unit]
+Description=HikariBot Jihuanshe phone bridge
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xyk
+WorkingDirectory=/home/xyk/hikari-bot/scripts/jihuanshe_bridge
+EnvironmentFile=/home/xyk/.config/jihuanshe-bridge/env
+ExecStart=/home/xyk/.local/share/jihuanshe-bridge/.venv/bin/python /home/xyk/hikari-bot/scripts/jihuanshe_bridge/worker.py
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=120
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

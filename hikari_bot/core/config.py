@@ -130,6 +130,16 @@ class Settings:
         default_factory=lambda: os.getenv("JIHUANSHE_TOKEN", "").strip(),
         repr=False,
     )
+    jihuanshe_bridge_url: str = field(
+        default_factory=lambda: os.getenv("JIHUANSHE_BRIDGE_URL", "").strip(),
+    )
+    jihuanshe_bridge_token: str = field(
+        default_factory=lambda: os.getenv("JIHUANSHE_BRIDGE_TOKEN", "").strip(),
+        repr=False,
+    )
+    jihuanshe_bridge_timeout: float = field(
+        default_factory=lambda: _positive_float("JIHUANSHE_BRIDGE_TIMEOUT", 90.0)
+    )
     jm_pdf_password: str = field(
         default_factory=lambda: os.getenv("JM_PDF_PASSWORD", "").strip(),
         repr=False,

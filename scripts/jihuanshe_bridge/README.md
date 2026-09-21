@@ -1,0 +1,57 @@
+# 集换社手机桥接
+
+机器人通过本机 HTTP 服务调用已授权 OPPO 上的微信小程序，再与原有 Cardrush SQLite 库合并结果。微信登录态留在手机内；HTTP 不提供任意脚本执行入口。
+
+## 用户使用
+
+发送 `卡价 原石之皇脉`（或 `卡价查询 原石の皇脈`、卡密），等待罕贵列表，再回复编号或 `SR`、`UTR` 等列表中的名称。选择有效期 3 分钟，回复 `取消` 结束。同一罕贵下不同卡包编号分别展示，不合并成一个价格。原来的尾部罕贵和卡包过滤仍支持，例如 `卡价 原石之皇脉 SR LOCR`。
+
+- 集换社：该版本 `min_price` 为人民币最低价，价格历史最新日期的 `price` 为集换价；不使用 `avg_price` 冒充集换价。
+- Cardrush：读取原有数据库最新买取记录，保留日元，附价格记录日期；数据库无记录与接口故障分别提示。
+- 先用卡片库解析日文原名，原文查询集换社。上游 `name_origin` 实际为中文别名，用中文正式名/别名辅助核对，不能当日文名过滤。
+- Cardrush 按卡片名称、完整编号及罕贵同时核对，避免把日亚版、其他卡包或类似名称混入。
+
+## 已验证环境与边界
+
+OPPO Android 16、微信 8.0.78（3180）、Frida 17.18.0。运行库与 Frida 服务端有 SHA-256 校验；微信升级后需重新验证运行类与生命周期方法。
+
+服务器通过现有 Tailscale 子网路由连接手机无线 ADB。手机需在线且已授权该服务器的 ADB 公钥，网络不通或无线调试端口改变时会报暂时不可用。服务器有自己的 ADB 私钥，不复制个人电脑私钥。
+
+正常查询前解除该小程序进程冻结并恢复其 JS 循环，完成后若小程序不在前台则暂停循环；微信和小程序无需一直置顶，锁屏也可查。上下文丢失时自动临时唤醒、通过微信正常入口恢复小程序，然后回桌面并恢复原锁屏状态。该恢复可能短暂显示微信，并耗时几十秒；不改 PIN、不关闭锁屏设置。重启后的首次凭据解锁及整夜稳定性尚未验证。
+
+查询串行经过手机，单次失败有有限重试和一次上下文重建。多用户并发过高会返回忙，请稍后重试。停止服务会清理自己记录的探针小程序进程、Frida 服务端与 ADB 转发；不结束整个微信或其他手机服务。
+
+## 服务器配置
+
+桥接依赖单独安装，不加入 bot 的生产依赖：系统 `adb`，独立 Python 3.11 虚拟环境及本目录 `requirements.txt`。示例路径：
+
+```text
+/home/xyk/.local/share/jihuanshe-bridge/.venv
+/home/xyk/.local/share/jihuanshe-bridge/frida-server
+/home/xyk/.local/share/jihuanshe-bridge/state
+/home/xyk/.config/jihuanshe-bridge/env
+```
+
+`env` 权限 600，目录权限 700。内容使用实际地址及随机生成的至少 32 字符密钥，禁止提交到 Git：
+
+```dotenv
+JHS_ADB_SERIAL=PHONE_IP:ADB_PORT
+JHS_FRIDA_BINARY=/home/xyk/.local/share/jihuanshe-bridge/frida-server
+JHS_STATE_DIR=/home/xyk/.local/share/jihuanshe-bridge/state
+JHS_ACCESS_TOKEN=REPLACE_WITH_RANDOM_BRIDGE_SECRET
+```
+
+bot 的 `.env.prod` 设置 `JIHUANSHE_BRIDGE_URL=http://127.0.0.1:8791`、`JIHUANSHE_BRIDGE_TOKEN`（相同桥接密钥）、`JIHUANSHE_BRIDGE_TIMEOUT=120`。服务只监听 `127.0.0.1`，不开放公网端口。手机 Frida 只监听本机环回，经 ADB 转发访问。
+
+复制本目录 systemd 单元至 `/etc/systemd/system/jihuanshe-bridge.service`，核对用户和路径后执行 `systemctl daemon-reload`、`systemctl enable --now jihuanshe-bridge.service`。部署脚本在该单元存在时同时重启桥接和 bot。只有监听成功不代表手机可查，验收需要通过两个实际查询端点。
+
+固定接口均要求 `Authorization: Bearer <桥接密钥>`：
+
+- `POST /v1/versions`，JSON `{"name_jp":"原石の皇脈"}`。
+- `POST /v1/prices`，JSON `{"version_ids":[504446]}`，最多 20 个不同正整数。
+
+不要把完整请求头或配置文件写入日志。排障可查看 `journalctl -u jihuanshe-bridge.service`，日志只输出失败类型和查询阶段。
+
+## 回滚
+
+停止并禁用桥接单元，恢复变更前保存的 `.env.prod`，回退对应 bot 代码后重启 `bot.service`。价格数据库没有迁移或写入变更。服务器新增 ADB 授权如需撤销，仅移除服务器对应公钥，保留原电脑公钥；应通过原电脑连接操作，不能盲目覆盖备份导致随后新增的授权丢失。独立环境与状态位于 bot 仓库之外，不受部署的 `git clean` 影响。

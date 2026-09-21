@@ -46,6 +46,7 @@ from hikari_bot.features.cardrush.reporting import (
 )
 from hikari_bot.plugins.monitors.cardrush_delivery import prepare_qq_pages
 from hikari_bot.plugins.monitors.cardrush_forward import send_qq_forward
+from hikari_bot.plugins.monitors.cardrush_query import register_price_query
 
 # 命令和定时任务共用同一个服务与渲染器，避免重复初始化，也方便未来接入网站。
 service = get_default_cardrush_service()
@@ -54,50 +55,7 @@ report_workflow = DailyReportWorkflow(service, report_renderer)
 
 card_price = on_cmd("卡价查询", aliases={"卡价"}, priority=5)
 
-@card_price.handle()
-async def _(
-    bot: Bot,
-    event: MessageEvent,
-    args: Message = CommandArg(),
-):
-    input_text = args.extract_plain_text().strip()
-    if not input_text:
-        await card_price.finish("请输入要查询的卡片名称！")
-        return
-
-    try:
-        name, rarity_en, model_prefix = parse_price_query(input_text)
-        name_jp = await resolve_card_name_jp(name)
-        rarities = (
-            expand_rarity_to_jp_list(rarity_en) if rarity_en else None
-        )
-        results = await service.search_prices(
-            name_jp,
-            rarities,
-            model_prefix,
-        )
-        if not results:
-            await card_price.finish(f"暂无 {name_jp} 的价格信息。")
-            return
-
-        lines = [f"【{name_jp}】的价格信息："]
-        for card in results[:10]:
-            rarity = rarity_jp_to_en(card.rarity or "")
-            box = (card.model_number or "").split("-")[0] or "未知"
-            changed_date = (card.changed_at or "")[:10] or "未知"
-            lines.append(
-                f"\n{box}-{rarity}\n"
-                f"    {card.price}円（{changed_date}）"
-            )
-        if len(results) == 10:
-            lines.append(
-                "\n（最多显示10条，可附加稀有度或盒子编号缩小范围）"
-            )
-        await card_price.finish("".join(lines))
-    except Exception as error:
-        if not isinstance(error, FinishedException):
-            await log_message(f"[cardrush] card_price error: {error}")
-            await card_price.finish(f"查询失败：{error}")
+register_price_query(card_price, service)
 
 
 price_curve = on_cmd(

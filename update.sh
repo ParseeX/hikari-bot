@@ -10,4 +10,7 @@ git fetch origin main
 git reset --hard origin/main
 git clean -fd
 uv sync --no-dev
+if systemctl cat jihuanshe-bridge.service >/dev/null 2>&1; then
+    sudo systemctl restart jihuanshe-bridge.service
+fi
 sudo systemctl restart bot.service
