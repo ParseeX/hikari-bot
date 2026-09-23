@@ -2,9 +2,12 @@ import importlib.util
 import json
 import subprocess
 import sys
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
+
+import pytest
 
 
 def test_agent_waits_for_actual_business_context(tmp_path):
@@ -50,3 +53,25 @@ def test_startup_prepares_once_and_does_not_keep_retrying_offline(monkeypatch):
     worker.recover.side_effect = RuntimeError('offline')
     worker.warmup()
     worker.recover.assert_called_once()
+
+
+def test_recovery_reports_stage_without_private_exception(monkeypatch, caplog):
+    base = Path('scripts/jihuanshe_bridge')
+    monkeypatch.setitem(sys.modules, 'frida', SimpleNamespace(get_device_manager=Mock()))
+    monkeypatch.setitem(sys.modules, 'frida_tools', SimpleNamespace())
+    monkeypatch.setitem(sys.modules, 'phone', SimpleNamespace(BASE=base, Phone=object))
+    spec = importlib.util.spec_from_file_location('bridge_recovery_test', base / 'worker.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    worker = module.Worker.__new__(module.Worker)
+    worker.last_failure = 0
+    worker.drop = Mock()
+    worker.phone = Mock()
+    worker.phone.locked.return_value = False
+    worker.phone.open_miniapp.side_effect = RuntimeError('private phone data must not be logged')
+    with caplog.at_level(logging.WARNING), pytest.raises(RuntimeError):
+        worker.recover()
+    assert 'stage=open_miniapp' in caplog.text
+    assert 'RuntimeError' in caplog.text
+    assert 'private phone data' not in caplog.text
+    worker.phone.adb.assert_called_with('shell', 'input', 'keyevent', '3', check=False)

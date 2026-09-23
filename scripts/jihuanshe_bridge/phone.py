@@ -152,6 +152,29 @@ class Phone:
             self.adb('shell', 'rm', '-f', path, check=False)
         return self.locate_icon()
 
+    @staticmethod
+    def miniapp_pid(activities):
+        """用同一份任务快照关联前台 Activity 与进程，排除历史小程序任务。"""
+        resumed = re.search(
+            r'topResumedActivity=ActivityRecord\{(\S+) u\d+ '
+            r'com\.tencent\.mm/(?:com\.tencent\.mm)?\.plugin\.appbrand\.ui\.AppBrandUI\w*\b',
+            activities,
+        )
+        if not resumed:
+            return None
+        for block in re.split(r'(?m)(?=^[ \t]*\* Hist[ \t]+#\d+:)', activities):
+            lines = block.splitlines()
+            if not lines or not re.search(
+                    r'ActivityRecord\{' + re.escape(resumed[1]) + r'\s', lines[0]):
+                continue
+            app = re.search(r'(?m)^[ \t]*app=([^\n]*)', block)
+            process = re.match(
+                r'ProcessRecord\{\S+ (\d+):com\.tencent\.mm:appbrand\d+/',
+                app[1] if app else '',
+            )
+            return int(process[1]) if process else None
+        return None
+
     def open_miniapp(self):
         if self.locked():
             raise RuntimeError('device still locked')
@@ -166,17 +189,13 @@ class Phone:
             raise RuntimeError('miniapp entry not found')
         self.adb('shell', 'input', 'tap', *point)
         for _ in range(30):
-            if self.mini_foreground():
-                break
+            # activity top 可能只列出其他任务；直接读取系统维护的前台任务和进程映射。
+            activities = self.adb('shell', 'dumpsys', 'activity', 'activities')
+            pid = self.miniapp_pid(activities)
+            if pid is not None:
+                return pid
             time.sleep(1)
-        else:
-            raise RuntimeError('miniapp did not open')
-        # 页面出现后即交给 agent 检测业务模块就绪，不固定等待启动广告。
-        top = self.adb('shell', 'dumpsys', 'activity', 'top')
-        matches = re.findall(r'ACTIVITY com\.tencent\.mm/\.plugin\.appbrand\.ui\.AppBrandUI\w*[^\n]*pid=(\d+)', top)
-        if not matches:
-            raise RuntimeError('miniapp PID unavailable')
-        return int(matches[-1])
+        raise RuntimeError('miniapp PID unavailable')
 
     def close(self):
         try:

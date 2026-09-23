@@ -86,20 +86,28 @@ class Worker:
             raise RuntimeError('recovery cooling down')
         was_locked = None
         started = time.monotonic()
+        stage = 'connect'
         try:
             self.phone.connect()
+            stage = 'drop_context'
             self.drop()
+            stage = 'start_frida'
             self.phone.start_server()
             self.device = frida.get_device_manager().add_remote_device(f'127.0.0.1:{self.phone.port}')
+            stage = 'keyguard'
             was_locked = self.phone.locked()
             if was_locked:
+                stage = 'unlock'
                 self.unlock()
+            stage = 'open_miniapp'
             pid = self.phone.open_miniapp()
+            stage = 'process_identity'
             self.identity = self.phone.identity(pid)
             if not self.identity:
                 raise RuntimeError('process identity unavailable')
             self.save_identity()
             self.phone.unfreeze(pid)
+            stage = 'attach_runtime'
             self.session = self.device.attach(pid)
             # 页面刚出现时运行库也可能尚未加载；只等待实际就绪条件。
             probe = self.session.create_script('''rpc.exports.path=()=>new Promise((resolve,reject)=>{
@@ -112,6 +120,7 @@ class Worker:
                 }check();
             });''')
             try:
+                stage = 'runtime_version'
                 probe.load()
                 path = rpc(probe.exports_sync.path)
                 import shlex
@@ -119,6 +128,7 @@ class Worker:
                     raise RuntimeError('WeChat runtime version changed')
             finally:
                 probe.unload()
+            stage = 'business_context'
             self.script = self.session.create_script(self.java + (BASE / 'agent.js').read_text(encoding='utf-8'))
             self.script.on('message', lambda m, d: logging.warning('agent error') if m.get('type') == 'error' else None)
             self.script.load()
@@ -127,7 +137,9 @@ class Worker:
                 raise RuntimeError('business context unavailable')
             logging.info('phone context recovered seconds=%.2f readiness_seconds=%.2f',
                          time.monotonic() - started, time.monotonic() - ready_started)
-        except Exception:
+        except Exception as error:
+            # 阶段名来自固定枚举，不记录异常正文或手机返回的敏感内容。
+            logging.warning('phone recovery failed stage=%s error=%s', stage, type(error).__name__)
             self.last_failure = time.monotonic()
             self.drop()
             raise
