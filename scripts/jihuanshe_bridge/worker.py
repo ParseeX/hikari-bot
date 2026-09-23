@@ -15,6 +15,16 @@ import frida_tools
 from phone import BASE, Phone
 
 LIB_SHA256 = '9b9257b9d57c5ebed49b24d7802f6d15de8c2bc896d723f8c994aabad7b0b87c'
+SESSION_CHECK_INTERVAL = 300
+SESSION_RETRY_MAX = 1800
+# 只确认当前 JS 环境可执行且已登录，不调用 cloudRequest，也不返回登录凭据。
+SESSION_PROBE = '''(function(){
+    let ready=false;
+    try { ready=typeof require('api/cloud.js').cloudRequest==='function'
+        && Boolean(getApp().globalData.jwt); } catch (_) {}
+    globalThis.__codexJhsFastProbe={status:'done',ready};
+    return JSON.stringify({status:'started'});
+})()'''
 
 
 def rpc(operation):
@@ -159,7 +169,7 @@ class Worker:
                 pass
 
     def warmup(self):
-        # 启动时只准备一次，不定时查价或反复唤醒离线手机。
+        # 启动时准备一次；后续检查只确认会话，不定时查价。
         started = time.monotonic()
         try:
             self.recover()
@@ -168,6 +178,57 @@ class Worker:
             logging.warning('startup warmup failed: %s', type(error).__name__)
         finally:
             self.pause_background()
+
+    def probe_session(self):
+        self.phone.unfreeze(self.identity['pid'])
+        rpc(lambda: self.script.exports_sync.lifecycle('resume'))
+        result = rpc(lambda: self.script.exports_sync.query(SESSION_PROBE))
+        return result.get('status') == 'done' and result.get('ready') is True
+
+    def check_session(self):
+        """与用户查询互斥；忙时跳过，失效时最多恢复一次。"""
+        if not self.lock.acquire(blocking=False):
+            return None
+        connected = False
+        started = time.monotonic()
+        recovered = False
+        try:
+            self.phone.connect()
+            connected = True
+            ready = False
+            if self.script and self.identity and self.phone.identity(self.identity['pid']) == self.identity:
+                try:
+                    ready = self.probe_session()
+                except Exception as error:
+                    logging.warning('background session probe failed: %s', type(error).__name__)
+            if not ready:
+                self.recover()
+                recovered = True
+                if not self.probe_session():
+                    raise RuntimeError('business context unavailable')
+            logging.info('background session ready recovered=%s seconds=%.2f',
+                         recovered, time.monotonic() - started)
+            return True
+        except Exception as error:
+            logging.warning('background session check failed: %s', type(error).__name__)
+            return False
+        finally:
+            try:
+                if connected:
+                    self.pause_background()
+            finally:
+                self.lock.release()
+
+    def maintain_session(self, stop_event):
+        delay = SESSION_CHECK_INTERVAL
+        logging.info('background session checks enabled interval_seconds=%d', delay)
+        while not stop_event.wait(delay):
+            result = self.check_session()
+            if result is True:
+                delay = SESSION_CHECK_INTERVAL
+            elif result is False:
+                delay = min(delay * 2, SESSION_RETRY_MAX)
+                logging.warning('background session retry seconds=%d', delay)
 
     def query(self, template: str, payload: dict):
         code = (BASE / template).read_text(encoding='utf-8').replace('__INPUT__', json.dumps(payload, ensure_ascii=True))
@@ -319,17 +380,25 @@ def main():
             raise RuntimeError('bridge token too short')
         worker = Worker()
         server = create_server(worker, token, int(os.getenv('JHS_HTTP_PORT', '8791')))
+        maintenance_stop = threading.Event()
+        maintenance = threading.Thread(target=worker.maintain_session, args=(maintenance_stop,),
+                                       name='jhs-session-check', daemon=True)
         def stop(*unused):
+            maintenance_stop.set()
             threading.Thread(target=server.shutdown, daemon=True).start()
         signal.signal(signal.SIGTERM, stop)
         signal.signal(signal.SIGINT, stop)
         try:
             logging.info('bridge preparing phone context')
             worker.warmup()
+            maintenance.start()
             logging.info('bridge accepting requests on loopback')
             server.serve_forever()
         finally:
+            maintenance_stop.set()
             server.server_close()
+            if maintenance.ident is not None:
+                maintenance.join()
             worker.close()
 
 
