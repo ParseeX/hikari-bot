@@ -11,6 +11,7 @@ ygocard_query.py — 游戏王卡片查询插件
 import asyncio
 import base64
 import io
+import hashlib
 import re
 from datetime import datetime
 
@@ -47,7 +48,7 @@ ygo_daily_card = on_command("每日一卡", priority=5)
 async def _(bot: Bot, event: MessageEvent):
     today = datetime.now().strftime("%Y-%m-%d")
     seed_str = f"{event.get_user_id()}_{today}"
-    seed = hash(seed_str) % (2**31 - 1)
+    seed = int.from_bytes(hashlib.sha256(seed_str.encode()).digest()[:8], 'big')
     image = await card_service.get_ygopic(card_service.random_card(seed), half=False)
     if not image:
         await log_message(f"[ygo_daily_card] Daily card image not found.")
@@ -61,30 +62,13 @@ ygo_card_pic = on_cmd("卡图查询", aliases={"游戏王卡图", "卡图"}, pri
 @ygo_card_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        if card_service.is_card_id(input):
-            card_id = int(input)
-        else:
-            if "异画" in input:
-                match = re.search(r'异画(\d+)', input)
-                if match:
-                    offset = int(match.group(1))
-                    input = input.replace(match.group(0), "")
-                else:
-                    offset = 1
-                    input = input.replace("异画", "")
-                
-                card_info = await card_service.get_card_info(input)
-                if card_info:
-                    card_id = card_info["id"] + offset
-                else:
-                    card_id = None
-            else:
-                card_info = await card_service.get_card_info(input)
-                if card_info:
-                    card_id = card_info["id"]
-                else:
-                    card_id = None
-        
+        artwork = None
+        match = re.search(r'异画(\d*)', input)
+        if match:
+            artwork = int(match.group(1) or '1')
+            input = input.replace(match.group(0), '').strip()
+        card_id = await card_service.resolve_card_image(input, artwork)
+
         if not card_id:
             await ygo_card_pic.finish("未找到对应卡片！")
             return
@@ -109,7 +93,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await ygo_card_id.finish("查询失败！")
             return
 
-        await ygo_card_id.finish(str(card_info["id"]))
+        await ygo_card_id.finish(card_info.get("passcode") or str(card_info["id"]))
 
 
 ygo_card_effect = on_cmd("效果查询", aliases={"游戏王效果", "效果"}, priority=5)

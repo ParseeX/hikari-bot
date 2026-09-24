@@ -234,6 +234,37 @@ def import_id_changes(db, changes):
     return counts
 
 
+def import_artwork_ids(db, path):
+    """迁入 MC 中明确指向同名原卡的异画编号，不合并规则同名卡。"""
+    source = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)
+    try:
+        rows = source.execute(
+            'SELECT d.id,d.alias,t.name,b.name,d.type FROM datas d '
+            'JOIN texts t ON t.id=d.id JOIN texts b ON b.id=d.alias WHERE d.alias>0'
+        ).fetchall()
+    finally:
+        source.close()
+    counts = Counter()
+    for image_id, alias, name, base_name, type_code in rows:
+        if type_code & TYPE_TOKEN or normalize(name) != normalize(base_name):
+            counts['skipped'] += 1
+            continue
+        known = db.execute('SELECT card_id FROM card_identifiers WHERE kind=? AND value=?',
+                           identifier(image_id)).fetchone()
+        target = db.execute('SELECT card_id FROM card_identifiers WHERE kind=? AND value=?',
+                            identifier(alias)).fetchone()
+        if known or not target:
+            counts['skipped'] += 1
+            continue
+        old = db.execute('SELECT card_id FROM card_artwork_ids WHERE image_id=?', (image_id,)).fetchone()
+        if old and old[0] != target[0]:
+            raise ValueError(f'异画编号 {image_id} 已关联其他卡片')
+        db.execute('INSERT OR IGNORE INTO card_artwork_ids VALUES (?,?,?)',
+                   (image_id, target[0], 'mc:alias'))
+        counts['unchanged' if old else 'inserted'] += 1
+    return dict(counts)
+
+
 def import_releases(db, rows):
     count = 0
     for row in rows:
@@ -464,6 +495,8 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('init')
     commands.add_parser('sync-base')
+    artwork = commands.add_parser('import-artworks')
+    artwork.add_argument('--mc-db', type=Path, required=True)
     commands.add_parser('stats')
     lookup = commands.add_parser('find')
     lookup.add_argument('query')
@@ -477,10 +510,13 @@ def main():
     pack.add_argument('--source-url')
     args = parser.parse_args()
     with connect(args.db) as db:
-        if args.command in ('sync-base', 'sync-pack'):
+        if args.command in ('sync-base', 'sync-pack', 'import-artworks'):
             backup(db, args.db)
         if args.command == 'sync-base':
             result = sync_ygocdb(db, args.db.parent / 'source-snapshots')
+        elif args.command == 'import-artworks':
+            with db:
+                result = import_artwork_ids(db, args.mc_db)
         elif args.command == 'sync-pack':
             result = sync_pack(db, args, args.db.parent / 'source-snapshots')
         elif args.command == 'find':

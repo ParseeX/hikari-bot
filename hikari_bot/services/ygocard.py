@@ -1,65 +1,57 @@
 import asyncio
 import io
-import json
 import os
-import random
-import sqlite3
+import sys
 
 import aiohttp
 from PIL import Image
 
+from hikari_bot.core.config import PROJECT_ROOT, settings
 from hikari_bot.core.constants import DATA_DIR
+from hikari_bot.services.card_catalog import CardCatalog
 from hikari_bot.core.logger import log_message
 
 IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
 IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
-CARD_SEARCH = "https://ygocdb.com/api/v0/?search="
 
 _CHINESE_CARD_ART_CROP = (0.1325, 0.1897, 0.87, 0.6983)
 
-YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
-MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
 CARD_PICS = os.path.join(DATA_DIR, 'pics')
-
-# ==================== 数据库操作 ====================
-
-def init_card_info_db():
-    """初始化卡片信息数据库表"""
-    conn = sqlite3.connect(YGOCDB)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS cards (
-            id INTEGER PRIMARY KEY,
-            data TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+catalog = CardCatalog(settings.card_catalog_path)
+_update_lock = asyncio.Lock()
 
 
 async def update_cdb():
-    """从远程下载最新的mc卡牌数据库文件"""
-    url = "https://cdn01.moecube.com/koishipro/ygopro-database/zh-CN/cards.cdb"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                data = await resp.read()
-                with open(MOECARD_DB, "wb") as f:
-                    f.write(data)
-            else:
-                await log_message(f"[update_cdb] Download failed: {resp.status}")
+    """保留原命令入口，更新统一主库；下载/校验失败不覆盖已有数据。"""
+    async with _update_lock:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, str(PROJECT_ROOT / 'scripts/card_catalog/catalog.py'),
+            '--db', str(catalog.path), 'sync-base',
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            await asyncio.wait_for(process.communicate(), timeout=300)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            if process.returncode is None:
+                process.kill()
+            await process.communicate()
+            raise
+        if process.returncode:
+            # 同步脚本的错误可能包含外部响应，不把原文转发到群聊。
+            raise RuntimeError(f'卡片主库同步失败（退出码 {process.returncode}）')
+        await asyncio.to_thread(catalog.validate)
 
 
 # ==================== 图片处理 ====================
 
 async def get_unknown_card():
     """获取未知卡片的默认图片"""
-    local_path = os.path.join(CARD_PICS, f"unknown.jpg")
+    local_path = os.path.join(CARD_PICS, "unknown.jpg")
     if os.path.exists(local_path):
         with open(local_path, "rb") as f:
             return f.read()
     
-    url = f"https://cdn.233.momobako.com/ygopro/textures/unknown.jpg"
+    url = "https://cdn.233.momobako.com/ygopro/textures/unknown.jpg"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -154,91 +146,26 @@ async def get_image_by_id(id: int):
 
 # ==================== 卡片信息获取 ====================
 
-async def get_card_info_by_id_from_net(id: str):
-    """从网络获取指定ID的卡片信息"""
-    url = CARD_SEARCH + id
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    results = data["result"]
-                    for result in results:
-                        if int(id) >= 100000000 or abs(int(result["id"])-int(id)) <= 10:
-                            return result
-                    return None
-                else:
-                    await log_message(f"[get_card_info_by_id_from_net] Failed to fetch data: {response.status}")
-                    return None
-        except Exception as e:
-            await log_message(f"[get_card_info_by_id_from_net] Exception occurred while fetching data: {e}")
-            return None
-
 async def get_card_info_by_id(id: str):
-    """根据卡片ID获取卡片详细信息（优先从本地数据库获取）"""
-    if not os.path.exists(YGOCDB):
-        init_card_info_db()
-    conn = sqlite3.connect(YGOCDB)
-    cursor = conn.cursor()
-    cursor.execute("SELECT data FROM cards WHERE id = ?", (id,))
-    row = cursor.fetchone()
-    if row:
-        conn.close()
-        return json.loads(row[0])
-    
-    data = await get_card_info_by_id_from_net(id)
-    
-    if not data:
-        conn.close()
-        return None
-    
-    if int(id) < 100000000 and data.get("sc_name"):
-        cursor.execute("""
-            INSERT INTO cards (id, data)
-            VALUES (?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                data = excluded.data
-        """, (id, json.dumps(data, ensure_ascii=False)))
-        conn.commit()
-    
-    conn.close()
-    return data
+    """按正式卡密、历史临时卡密或已登记的异画编号读取主库。"""
+    return await asyncio.to_thread(catalog.by_id, id)
 
 
 async def get_card_info(keyword: str):
-    """根据关键词搜索获取卡片信息"""
-    url = CARD_SEARCH + keyword
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    result = data["result"][0] if data["result"] else None
-                    # if keyword_in_card(result, keyword):
-                    #     return result
-                    # else:
-                    #     return None
-                    return result
-                else:
-                    await log_message(f"[get_card_info] Failed to fetch data: {response.status}")
-                    return None
-        except Exception as e:
-            await log_message(f"[get_card_info] Exception occurred while fetching data: {e}")
-            return None
-        
+    """通过主库的所有语言卡名及别名搜索。"""
+    return await asyncio.to_thread(catalog.search, keyword)
+
+
+async def resolve_card_image(keyword: str, artwork: int | None = None):
+    return await asyncio.to_thread(catalog.image_id, keyword, artwork)
+
+
 # ==================== 工具函数 ====================
 
 def is_card_id(keyword: str):
-    """判断输入的关键词是否为有效的卡片ID"""
-    if not keyword.isdigit():
-        return False
-    
-    id = int(keyword)
-    if id < 10000000 and id != 10000:
-        return False
-    if id > 99999999:
-        return False
-    return True
+    """卡图允许直接指定卡密及图片编号，包括临时编号和前导零。"""
+    return keyword.isascii() and keyword.isdigit() and 0 < int(keyword) <= 2147483647
+
 
 def keyword_in_card(card, keyword: str):
     """递归检查卡片信息中是否包含指定关键词"""
@@ -256,71 +183,10 @@ def keyword_in_card(card, keyword: str):
     return False
 
 def random_card(seed: int = None):
-    """随机获取一张卡片的ID"""
-    conn = sqlite3.connect(MOECARD_DB)
-    cursor = conn.cursor()
-
-    try:
-        # 查询所有卡片id（也就是卡密）
-        cursor.execute("SELECT id FROM texts")
-        rows = cursor.fetchall()
-        # 随机选择一个卡密
-        if seed is not None:
-            random.seed(seed)
-        random_id = random.choice(rows)[0]
-        return random_id
-    finally:
-        conn.close()
+    """从主库实体卡中抽取卡密，不修改全局随机状态。"""
+    return catalog.random_id(seed)
 
 
 def metaltronus_calc(id: int):
-    """用于查询共界神渊体，根据给定卡片ID查找满足条件的卡片ID列表"""
-    if not os.path.exists(MOECARD_DB):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(update_cdb())
-
-    conn = sqlite3.connect(MOECARD_DB)
-    cursor = conn.cursor()
-    # 获取目标卡片信息
-    cursor.execute("SELECT atk, race, attribute FROM datas WHERE id = ?", (id,))
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        return []
-    atk, race, attribute = row
-    if race == 0 or attribute == 0:
-        conn.close()
-        return []
-
-    # 查找所有卡片，不包含衍生物
-    cursor.execute("SELECT id, atk, race, attribute FROM datas WHERE id != ? AND type NOT IN (16401, 20497)", (id,))
-    id_list = []
-    for cid, catk, crace, cattribute in cursor.fetchall():
-        same = 0
-        if atk == catk:
-            same += 1
-        if race == crace:
-            same += 1
-        if attribute == cattribute:
-            same += 1
-        if same >= 2:
-            id_list.append(cid)
-
-    # 根据id_list查找卡名，并按name去重，返回id
-    if not id_list:
-        conn.close()
-        return []
-    qmarks = ','.join(['?'] * len(id_list))
-    cursor.execute(f"SELECT id, name FROM texts WHERE id IN ({qmarks})", id_list)
-    id_name_pairs = cursor.fetchall()
-    seen = set()
-    result_ids = []
-    # 保持原id_list顺序
-    id_to_name = {id_: name for id_, name in id_name_pairs}
-    for cid in id_list:
-        name = id_to_name.get(cid)
-        if name and name not in seen:
-            seen.add(name)
-            result_ids.append(cid)
-    conn.close()
-    return result_ids
+    """在主库中查找攻击力、种族、属性至少两项相同的其他怪兽。"""
+    return catalog.metaltronus(id)

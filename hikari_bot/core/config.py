@@ -114,6 +114,11 @@ T = TypeVar("T")
 
 @dataclass(frozen=True)
 class Settings:
+    card_catalog_path: Path = field(
+        default_factory=lambda: _path(
+            "CARD_CATALOG_PATH", Path.home() / ".local/share/hikari-card-catalog/catalog.sqlite3"
+        )
+    )
     env_file: Path | None = ENV_FILE
     superusers: frozenset[str] = field(
         default_factory=lambda: _parse_string_set("SUPERUSERS")

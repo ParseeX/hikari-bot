@@ -45,6 +45,13 @@ CREATE TABLE IF NOT EXISTS card_identifiers (
 );
 CREATE INDEX IF NOT EXISTS idx_identifiers_card ON card_identifiers(card_id);
 
+-- 模拟器异画编号不是正式卡密，仅用于兼容已有卡组和卡图。
+CREATE TABLE IF NOT EXISTS card_artwork_ids (
+    image_id INTEGER PRIMARY KEY CHECK(image_id > 0),
+    card_id INTEGER NOT NULL REFERENCES cards(id),
+    source TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS card_names (
     card_id INTEGER NOT NULL REFERENCES cards(id),
     language TEXT NOT NULL,

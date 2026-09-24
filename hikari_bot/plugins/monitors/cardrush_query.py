@@ -33,7 +33,7 @@ def register_price_query(matcher, cardrush, *, japanese: bool = False):
             info = await asyncio.wait_for(get_card_info(name), timeout=15)
             # 查询集换社时必须保留日文原文中的空格、标点和全角字符。
             name_jp = str((info or {}).get("jp_name") or name).strip()
-            names_cn = tuple(str(info[k]) for k in ("cn_name", "sc_name", "md_name", "nwbbs_n")
+            names_cn = tuple(str(info[k]) for k in ("cn_name", "sc_name", "md_name", "nwbbs_n", "cnocg_n")
                              if info and info.get(k))
             versions = await comparison.versions(name_jp, rarity, prefix, names_cn)
         except (JhsUnavailable, asyncio.TimeoutError):

@@ -102,6 +102,6 @@ def parse_price_query(
 async def resolve_card_name_jp(name: str) -> str:
     """尽可能把多语言卡名解析为 Cardrush 使用的日文名。"""
     card_info = await get_card_info(name)
-    if card_info:
+    if card_info and card_info.get("jp_name"):
         return clean_card_name(card_info["jp_name"])
     return clean_card_name(name)
