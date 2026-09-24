@@ -12,7 +12,6 @@ import asyncio
 import base64
 import io
 import hashlib
-import re
 from datetime import datetime
 
 from nonebot import on_command, require
@@ -35,7 +34,7 @@ from hikari_bot.services.ygodeck import generate_card_list_image
 ygo_random_card = on_command("随机一卡", priority=5, permission=SUPERUSER)
 @ygo_random_card.handle()
 async def _(bot: Bot, event: MessageEvent):
-    image = await card_service.get_ygopic(card_service.random_card(), half=False)
+    image = await card_service.get_ygopic(card_service.random_card(include_artworks=True), half=False)
     if not image:
         await log_message(f"[ygo_random_card] Ramdom card image not found.")
         await ygo_random_card.finish("未找到随机卡片！")
@@ -62,25 +61,25 @@ ygo_card_pic = on_cmd("卡图查询", aliases={"游戏王卡图", "卡图"}, pri
 @ygo_card_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        artwork = None
-        match = re.search(r'异画(\d*)', input)
-        if match:
-            artwork = int(match.group(1) or '1')
-            input = input.replace(match.group(0), '').strip()
-        card_id = await card_service.resolve_card_image(input, artwork)
-
-        if not card_id:
+        images = await card_service.get_card_images(input)
+        if not images:
             await ygo_card_pic.finish("未找到对应卡片！")
             return
 
-        image = await card_service.get_image_by_id(card_id)
-        if not image:
-            await log_message(f"[ygo_card_pic] Card image not found for card ID: {card_id}")
+        if not any(image for _, image in images):
             await ygo_card_pic.finish("卡图加载失败！")
             return
 
-        image_base64 = base64.b64encode(image).decode('utf-8')
-        await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
+        message = Message()
+        for index, (_, image) in enumerate(images, 1):
+            if index > 1:
+                message += MessageSegment.text('\n')
+            if image:
+                image_base64 = base64.b64encode(image).decode('utf-8')
+                message += MessageSegment.image(f'base64://{image_base64}')
+            else:
+                message += MessageSegment.text(f'第 {index} 张卡图加载失败')
+        await ygo_card_pic.finish(message)
 
 
 ygo_card_id = on_cmd("卡密查询", aliases={"游戏王卡密", "卡密"}, priority=5)

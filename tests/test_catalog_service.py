@@ -68,14 +68,18 @@ def test_effect_and_stats_contract(catalog):
     assert info['sc_name'] == '青眼白龙'
 
 
-def test_images_require_known_artwork_mapping(catalog):
-    assert catalog.image_id('青眼白龙', 1) == 1235
-    assert catalog.image_id('青眼白龙', 2) is None
-    assert catalog.image_id('青眼白龙', 0) == 1234
-    assert catalog.image_id('1235') == 1235
-    assert catalog.image_id('100000001') == 1234
-    assert catalog.image_id('100000002') == 100000002
-    assert catalog.image_id('4000') is None
+def test_images_include_all_known_artworks_in_order(catalog):
+    for query in ['青眼白龙', '1235', '100000001']:
+        assert catalog.image_ids(query) == [1234, 1235]
+    assert catalog.image_ids('100000002') == [100000002]
+    assert catalog.image_ids('4000') == []
+    assert catalog.image_ids('青眼白龙 异画1') == []
+
+
+def test_random_can_draw_artworks_without_changing_default_pool(catalog):
+    assert 1235 in {catalog.random_id(i, include_artworks=True) for i in range(50)}
+    assert 1235 not in {catalog.random_id(i) for i in range(50)}
+    assert catalog.random_id(42, include_artworks=True) == catalog.random_id(42, include_artworks=True)
 
 
 def test_random_and_calculator(catalog):
@@ -123,7 +127,6 @@ def test_bot_facade_uses_catalog_without_http(catalog, monkeypatch):
     monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', no_http)
     assert asyncio.run(ygocard.get_card_info('蓝眼白龙'))['id'] == 1234
     assert asyncio.run(ygocard.get_card_info_by_id('1235'))['id'] == 1234
-    assert asyncio.run(ygocard.resolve_card_image('青眼白龙', 1)) == 1235
     assert asyncio.run(ygocard.get_card_info('未知')) is None
     assert ygocard.metaltronus_calc(1234) == [2000, 100000002]
 

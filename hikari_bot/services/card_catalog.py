@@ -90,35 +90,27 @@ class CardCatalog:
                                  'ORDER BY length(n.normalized),c.konami_cid LIMIT 1', (key,)).fetchone()
             return self._info(db, row)
 
-    def random_id(self, seed=None):
+    def random_id(self, seed=None, *, include_artworks=False):
         with self.connect() as db:
             rows = db.execute('SELECT COALESCE(passcode,temporary_id) FROM cards '
                               'WHERE passcode IS NOT NULL OR temporary_id IS NOT NULL '
                               'ORDER BY konami_cid').fetchall()
             if not rows:
                 raise ValueError('卡片主库没有可用卡密')
-            return int(random.Random(seed).choice(rows)[0])
+            ids = [int(row[0]) for row in rows]
+            if include_artworks:
+                ids.extend(row[0] for row in db.execute('SELECT image_id FROM card_artwork_ids ORDER BY image_id'))
+            return random.Random(seed).choice(list(dict.fromkeys(ids)))
 
-    def image_id(self, keyword: str, artwork: int | None = None):
+    def image_ids(self, keyword: str) -> list[int]:
+        """原画在前，已登记异画按图片编号升序；异画编号输入也返回整组。"""
         info = self.search(keyword)
         if not info or not info['id']:
-            return None
+            return []
         with self.connect() as db:
-            if artwork is not None:
-                if artwork < 0:
-                    return None
-                if artwork == 0:
-                    return info['id']
-                candidate = info['id'] + artwork
-            elif keyword.isascii() and keyword.isdigit():
-                candidate = int(keyword)
-            else:
-                return info['id']
-            row = db.execute('SELECT card_id FROM card_artwork_ids WHERE image_id=?', (candidate,)).fetchone()
-            if row and row[0] == info['catalog_id']:
-                return candidate
-            # 历史临时卡密换成现用卡密；未知异画序号不猜测。
-            return info['id'] if artwork is None else None
+            rows = db.execute('SELECT image_id FROM card_artwork_ids WHERE card_id=? ORDER BY image_id',
+                              (info['catalog_id'],))
+            return list(dict.fromkeys([info['id'], *(row[0] for row in rows)]))
 
     def metaltronus(self, value):
         with self.connect() as db:

@@ -4,7 +4,7 @@ import os
 import sys
 
 import aiohttp
-from PIL import Image
+from PIL import Image, ImageOps
 
 from hikari_bot.core.config import PROJECT_ROOT, settings
 from hikari_bot.core.constants import DATA_DIR
@@ -15,6 +15,7 @@ IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
 IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
 
 _CHINESE_CARD_ART_CROP = (0.1325, 0.1897, 0.87, 0.6983)
+CARD_ART_SIZE = (624, 624)
 
 CARD_PICS = os.path.join(DATA_DIR, 'pics')
 catalog = CardCatalog(settings.card_catalog_path)
@@ -156,8 +157,35 @@ async def get_card_info(keyword: str):
     return await asyncio.to_thread(catalog.search, keyword)
 
 
-async def resolve_card_image(keyword: str, artwork: int | None = None):
-    return await asyncio.to_thread(catalog.image_id, keyword, artwork)
+def normalize_card_art(data: bytes) -> bytes:
+    """统一画面大小，保持比例；尺寸已经一致时保留原文件。"""
+    with Image.open(io.BytesIO(data)) as image:
+        image.load()
+        if image.size == CARD_ART_SIZE:
+            return data
+        image = ImageOps.pad(image.convert('RGB'), CARD_ART_SIZE,
+                             method=Image.Resampling.LANCZOS, color='white')
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG', quality=95)
+        return buffer.getvalue()
+
+
+async def get_card_images(keyword: str) -> list[tuple[int, bytes | None]]:
+    """有限并发下载全部画面，保留顺序和失败位置供一条消息展示。"""
+    ids = await asyncio.to_thread(catalog.image_ids, keyword)
+    semaphore = asyncio.Semaphore(3)
+
+    async def download(card_id):
+        async with semaphore:
+            try:
+                data = await asyncio.wait_for(get_image_by_id(card_id), timeout=25)
+                if data:
+                    return card_id, await asyncio.to_thread(normalize_card_art, data)
+            except (TimeoutError, OSError, ValueError):
+                await log_message(f'[card_images] 图片加载失败：{card_id}')
+            return card_id, None
+
+    return await asyncio.gather(*(download(card_id) for card_id in ids))
 
 
 # ==================== 工具函数 ====================
@@ -182,9 +210,9 @@ def keyword_in_card(card, keyword: str):
             return True
     return False
 
-def random_card(seed: int = None):
-    """从主库实体卡中抽取卡密，不修改全局随机状态。"""
-    return catalog.random_id(seed)
+def random_card(seed: int = None, *, include_artworks: bool = False):
+    """从主库抽卡，可让每个已登记异画也独立参与抽取。"""
+    return catalog.random_id(seed, include_artworks=include_artworks)
 
 
 def metaltronus_calc(id: int):
