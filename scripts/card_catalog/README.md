@@ -74,6 +74,54 @@ python3 scripts/card_catalog/catalog.py \
 
 同盒重跑不会重复插入。上游暂时缺少一个旧版本时仍保留旧记录，通过 `last_seen_at` 识别待复核状态。
 
+## 按清单批量采集集换社
+
+在服务器仓库目录运行 `scripts/card_catalog/crawl_jhs.py`。脚本复用当前手机桥接，只采集版本资料，不采集实时价格或卖家出品。
+
+```bash
+cd /home/xyk/hikari-bot
+python3 scripts/card_catalog/crawl_jhs.py \
+  --db "$HOME/.local/share/hikari-card-catalog/catalog.sqlite3" \
+  --bridge-env "$HOME/.config/jihuanshe-bridge/env" \
+  --packs DBGV ROTA
+```
+
+也可以用 `--packs-file /path/to/packs.txt` 代替 `--packs`。文本清单每行一个盒号，允许空行、`#` 注释，自动转为大写并去重。若需要检查卡片/版本数量，可以使用 JSON 清单：
+
+```json
+[
+  {"prefix": "DBGV", "expected_cards": 45, "expected_versions": 92},
+  {"prefix": "ROTA"}
+]
+```
+
+同一盒号不能同时提供不同校验要求。没有填写预期数量时，只验证桥接完整翻页、数据字段和已有映射，不能据此证明上游包含该盒全部实体版本。预期数量应包含复刻、平行罕贵等实际需要采集的版本。
+
+- 每盒结果事务入库，版本 ID 去重；括号、原始罕贵和编号原样保存，未匹配名称的卡片留作待核对。原始返回保存到 `source-snapshots/`。
+- 默认串行查询，每盒间隔 10 秒。网络/服务繁忙最多尝试 3 次，重试逐步延长等待；数据校验失败不重复请求同样结果。连续失败 3 盒停止，认证或数据库错误立即停止。可通过 `--interval`、`--attempts`、`--max-failures` 调整。
+- 当前桥接一次卡盒查询期间会占用手机通道，Bot 的实时卡价查询可能等待或提示忙；卡片资料、卡图等本地功能不依赖此通道。较大的清单建议在少用 Bot 卡价查询时运行。
+- 一轮采集开始前备份一次主库。进度默认保存为主库旁的 `jhs-crawl-state.json`，可用 `--state` 指定独立进度文件。数据库恢复到旧备份后，应使用 `--refresh` 重采，避免沿用较新的完成记录。
+- 重跑同一命令会跳过已完成且校验要求未变的盒子，重试失败或中断的盒子。若入库后、保存进度前中断，重跑仍按版本 ID 去重。`Ctrl+C` 或正常终止会尽量保存断点，进程被强制结束后也可以重跑。
+- `--refresh` 重新查询本次清单的已完成盒子；不会删除旧版本。同一主库只允许一个批量采集进程运行。
+- 成功退出码为 0；仍有失败或主动停止为 1；中断为 130。不要将非零退出码当作采集完成。
+
+预览队列不查询手机、不写入文件：
+
+```bash
+python3 scripts/card_catalog/crawl_jhs.py \
+  --db "$HOME/.local/share/hikari-card-catalog/catalog.sqlite3" \
+  --packs DBGV ROTA --dry-run
+```
+
+查看已保存进度：
+
+```bash
+python3 scripts/card_catalog/crawl_jhs.py \
+  --db "$HOME/.local/share/hikari-card-catalog/catalog.sqlite3" --status
+```
+
+这是手动启动后自动跑完清单的工具，不会自动发现新盒号或创建定时任务。大盒超过桥接当前 30 页限制时会失败并留待重试，不导入被截断的数据。
+
 ## 查询与验收
 
 ```bash

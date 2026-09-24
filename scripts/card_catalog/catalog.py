@@ -355,6 +355,8 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
         raise ValueError('卡盒前缀格式错误')
     selected = {}
     for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError('版本条目格式错误')
         # 搜索可能模糊命中其他物品；严格限定编号，原文仍完整存储。
         if not str(row.get('number', '')).upper().startswith(prefix + '-'):
             continue
@@ -447,6 +449,8 @@ def sync_pack(db, args, snapshots):
                 headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env['JHS_ACCESS_TOKEN']},
                 timeout=300)
     body = json.loads(raw)
+    if not isinstance(body, dict) or body.get('error'):
+        raise ValueError('桥接返回数据格式错误')
     rows = body.get('versions')
     if not isinstance(rows, list):
         raise ValueError('桥接没有返回完整版本列表')
