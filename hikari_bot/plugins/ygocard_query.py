@@ -72,8 +72,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
         message = Message()
         for index, (_, image) in enumerate(images, 1):
-            if index > 1:
-                message += MessageSegment.text('\n')
             if image:
                 image_base64 = base64.b64encode(image).decode('utf-8')
                 message += MessageSegment.image(f'base64://{image_base64}')
