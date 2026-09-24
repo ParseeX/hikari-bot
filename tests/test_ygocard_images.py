@@ -1,4 +1,5 @@
 import asyncio
+import struct
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -73,15 +74,42 @@ def image_bytes(size=(624, 624), color='red'):
     return buffer.getvalue()
 
 
-def test_artwork_size_preserves_matching_image_and_pads_other_ratios():
-    original = image_bytes()
-    assert ygocard.normalize_card_art(original) == original
-    for size in [(321, 321), (300, 150)]:
+def test_artwork_size_normalizes_matching_image_and_pads_other_ratios():
+    for size in [(624, 624), (321, 321), (300, 150)]:
         with Image.open(BytesIO(ygocard.normalize_card_art(image_bytes(size)))) as image:
             assert image.size == (624, 624)
             assert image.getpixel((312, 312))[0] > 240
             if size == (300, 150):
                 assert min(image.getpixel((312, 10))) > 240
+
+
+def test_matching_artwork_removes_embedded_jpeg_thumbnail():
+    thumbnail = BytesIO()
+    Image.new('RGB', (120, 120), 'blue').save(thumbnail, format='JPEG')
+    thumbnail = thumbnail.getvalue()
+    # 构造 EXIF 的 IFD1 缩略图，复现源图片中小图位于主图之前的结构。
+    entries = [(256, 4, 120), (257, 4, 120), (259, 3, 6),
+               (513, 4, 80), (514, 4, len(thumbnail))]
+    exif = b'Exif\x00\x00' + b'II' + struct.pack('<HI', 42, 8)
+    exif += struct.pack('<HIH', 0, 14, len(entries))
+    for tag, kind, value in entries:
+        exif += struct.pack('<HHII', tag, kind, 1, value)
+    exif += struct.pack('<I', 0) + thumbnail
+    source = BytesIO()
+    Image.new('RGB', (624, 624), 'red').save(source, format='JPEG', exif=exif)
+
+    def first_jpeg_size(raw):
+        for offset in range(len(raw) - 9):
+            if raw[offset:offset + 2] in (b'\xff\xc0', b'\xff\xc2'):
+                return struct.unpack('>HH', raw[offset + 5:offset + 9])
+
+    assert first_jpeg_size(source.getvalue()) == (120, 120)
+    normalized = ygocard.normalize_card_art(source.getvalue())
+    assert first_jpeg_size(normalized) == (624, 624)
+    with Image.open(BytesIO(normalized)) as image:
+        assert image.size == (624, 624)
+        assert not image.getexif()
+        assert image.getpixel((312, 312))[0] > 240
 
 
 def test_all_artworks_keep_order_with_bounded_downloads_and_partial_failure(monkeypatch):

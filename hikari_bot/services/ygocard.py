@@ -158,13 +158,13 @@ async def get_card_info(keyword: str):
 
 
 def normalize_card_art(data: bytes) -> bytes:
-    """统一画面大小，保持比例；尺寸已经一致时保留原文件。"""
+    """统一画面大小并清除内嵌缩略图，避免发送端误读 JPEG 尺寸。"""
     with Image.open(io.BytesIO(data)) as image:
         image.load()
-        if image.size == CARD_ART_SIZE:
-            return data
-        image = ImageOps.pad(image.convert('RGB'), CARD_ART_SIZE,
+        image = ImageOps.pad(ImageOps.exif_transpose(image).convert('RGB'), CARD_ART_SIZE,
                              method=Image.Resampling.LANCZOS, color='white')
+        # 同尺寸也重新编码；源文件的 EXIF 中可能含有 120×120 的 JPEG。
+        image.info.clear()
         buffer = io.BytesIO()
         image.save(buffer, format='JPEG', quality=95)
         return buffer.getvalue()
