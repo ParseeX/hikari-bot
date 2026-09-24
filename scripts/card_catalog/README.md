@@ -120,7 +120,34 @@ python3 scripts/card_catalog/crawl_jhs.py \
   --db "$HOME/.local/share/hikari-card-catalog/catalog.sqlite3" --status
 ```
 
-这是手动启动后自动跑完清单的工具，不会自动发现新盒号或创建定时任务。大盒超过桥接当前 30 页限制时会失败并留待重试，不导入被截断的数据。
+这是启动后自动跑完清单的工具，不创建定时任务。大盒超过桥接当前 30 页限制时会失败并留待重试，不导入被截断的数据。
+
+### 从官网整理按日期倒序的清单
+
+`konami_packs.py` 读取日文官方收录目录，默认包括基本卡包、其他卡包、预组、Duel Terminal 和商品套装，不含书籍、赛事、促销和游戏附卡；可用 `--include-promos` 扩大范围。官网日期晚于 `--as-of` 的商品暂不进入队列。
+
+```bash
+.venv/bin/python scripts/card_catalog/konami_packs.py \
+  --output "$HOME/.local/share/hikari-card-catalog/official-import-20260924/packs.json" \
+  --cache-dir "$HOME/.local/share/hikari-card-catalog/official-import-20260924/cache" \
+  --as-of 2026-09-24
+```
+
+目录里的 pid 是官方商品 ID。工具从卡片详情的收录记录中读取该 pid 对应的实际编号，提取连字符前的前缀，不把商品标题或网页地址猜成盒号。每张卡的详情同时补充其他商品的前缀；尚无证据的商品会核对首、中、末三张卡。此方法可能漏掉复杂套装中未抽查到的子包前缀，报告保留所核对的商品，不能宣称覆盖全部官方印刷版本。
+
+清单按官网标注日期倒序，同一前缀合并一次，采用其最新商品日期。官网有些栏目使用公开日期，日期字段不保证全部是实际上市日。没有编号、格式无法识别等条目写入同目录 `packs.report.json` 的 `unresolved`；不会凭空补编号。原网页保存在 cache 中，后续可复核。官网网络/访问异常会停止整轮，避免把只取到一部分的清单当作完整清单执行。
+
+本次一次性后台任务为 `hikari-jhs-official-import.service`，先完成官网清单整理，再将清单传给采集脚本。它不设置定时重复运行，也不随开机启动。按任务要求固定截至日期，后续批次应改用新的日期和输出目录。凭据仍由桥接配置读取，不写入 unit。
+
+```bash
+sudo systemctl status hikari-jhs-official-import.service
+sudo journalctl -u hikari-jhs-official-import.service -f
+sudo systemctl stop hikari-jhs-official-import.service
+# 停止或失败后，从缓存和采集断点继续：
+sudo systemctl start hikari-jhs-official-import.service
+```
+
+停止任务不会删除已导入资料。单盒失败会继续其他盒子，连续失败达到阈值时停止并保留进度；服务状态为 failed 时需要检查日志后再继续。
 
 ## 查询与验收
 

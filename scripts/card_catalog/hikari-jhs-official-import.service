@@ -1,0 +1,17 @@
+[Unit]
+Description=Import JHS card versions from newest official OCG products
+Wants=network-online.target
+After=network-online.target jihuanshe-bridge.service
+
+[Service]
+Type=oneshot
+User=xyk
+WorkingDirectory=/home/xyk/hikari-bot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/xyk/hikari-bot/.venv/bin/python scripts/card_catalog/konami_packs.py --output /home/xyk/.local/share/hikari-card-catalog/official-import-20260924/packs.json --cache-dir /home/xyk/.local/share/hikari-card-catalog/official-import-20260924/cache --as-of 2026-09-24
+ExecStart=/home/xyk/hikari-bot/.venv/bin/python scripts/card_catalog/crawl_jhs.py --db /home/xyk/.local/share/hikari-card-catalog/catalog.sqlite3 --bridge-env /home/xyk/.config/jihuanshe-bridge/env --packs-file /home/xyk/.local/share/hikari-card-catalog/official-import-20260924/packs.json --interval 10
+TimeoutStartSec=infinity
+TimeoutStopSec=30
+KillSignal=SIGINT
+Nice=10
+UMask=0027
