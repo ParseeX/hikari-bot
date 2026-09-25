@@ -416,6 +416,8 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
                 raise ValueError('版本与集换社商品 ID 不一致')
         elif not str(row.get('number', '')).upper().startswith(prefix + '-'):
             continue
+        if row.get('object_type') == 'unknown':
+            raise ValueError('源数据缺少商品类型，不能确认是否为卡片')
         if row.get('object_type', 'card') != 'card':
             excluded.append(row)
             continue
@@ -566,6 +568,8 @@ def backfill_product_names(db, args, snapshots):
                     'products_updated': len(touched), 'versions_bound': bound}
         seed = row[0]
         found = find_products(SimpleNamespace(bridge_env=args.bridge_env, version_id=seed, keyword=''))
+        if found.get('object_type') == 'unknown':
+            raise ValueError('源数据缺少商品类型，不能确认是否为卡片')
         if found.get('object_type', 'card') != 'card':
             with db:
                 db.execute('UPDATE jhs_versions SET object_type=? WHERE jhs_version_id=?',
@@ -590,8 +594,9 @@ def backfill_product_names(db, args, snapshots):
         # 原官网关联保留在旧盒号记录上，不按译名猜测两个平台的商品对应。
         import_pack(db, None, rows, product=body['product'])
         touched.add(pid)
-        bound += len(rows)
-        print(f'补齐 {args.prefix}：商品 {pid} {body["product"]["name"]}，{len(rows)} 个版本', flush=True)
+        card_count = sum(row.get('object_type', 'card') == 'card' for row in rows)
+        bound += card_count
+        print(f'补齐 {args.prefix}：商品 {pid} {body["product"]["name"]}，{card_count} 个卡片版本', flush=True)
         time.sleep(1)
 
 

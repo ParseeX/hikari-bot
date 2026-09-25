@@ -286,6 +286,14 @@ def test_goods_are_excluded_and_old_goods_are_quarantined(db):
     assert db.execute('SELECT COUNT(*) FROM jhs_version_products').fetchone()[0] == 1
 
 
+def test_missing_source_classification_cannot_hide_existing_card(db):
+    load(db, [card()])
+    cat.import_pack(db, 'TEST', [version()])
+    with pytest.raises(ValueError, match='缺少商品类型'):
+        cat.import_pack(db, 'TEST', [{**version(), 'object_type': 'unknown'}])
+    assert len(cat.find(db, '89631139')[0]['versions']) == 1
+
+
 def test_v2_migration_preserves_rows_and_seeds_only_confirmed_links(tmp_path):
     path = tmp_path / 'catalog.sqlite3'
     with sqlite3.connect(path) as old:
