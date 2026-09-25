@@ -284,6 +284,43 @@ class Worker:
                 prices.extend({'id': i, 'error': True} for i in batch)
         return {'prices': prices}
 
+    def product_for_version(self, version_id):
+        data = self.query('product-for-version.js', {'version_id': version_id})
+        return {'product': data['product']}
+
+    def products(self, keyword):
+        return {'products': self.query('products.js', {'keyword': keyword})['products']}
+
+    def product_versions(self, pack_id):
+        entries, seen = [], set()
+        product = None
+        total = last_page = None
+        for page in range(1, 301):
+            data = self.query('product-search.js', {'pack_id': pack_id, 'page': page})
+            if page == 1:
+                product, total, last_page = data['product'], data['total'], data['last_page']
+                if not product or product['id'] != pack_id or not 1 <= last_page <= 300:
+                    raise ValueError('invalid product')
+            if data['current_page'] != page or data['total'] != total or data['last_page'] != last_page:
+                raise ValueError('product pagination changed')
+            for item in data['entries']:
+                if item['id'] in seen:
+                    raise ValueError('duplicate product version across pages')
+                seen.add(item['id'])
+                entries.append({**item, 'pack': product})
+            if page >= last_page:
+                # 搜索 total 可能包含“未拆封原盒”；商品详情的计数只包含卡片版本。
+                expected = product.get('version_count', total)
+                if type(expected) is not int or not entries or len(entries) != expected:
+                    raise ValueError('incomplete product')
+                # 独立从卡片详情核对归属，防止服务端忽略筛选参数后误入库。
+                for item in (entries[0], entries[-1]):
+                    actual = self.product_for_version(item['id'])['product']
+                    if actual['id'] != pack_id:
+                        raise ValueError('product filter ignored')
+                return {'product': product, 'versions': entries, 'reported_total': total}
+        raise ValueError('too many product versions')
+
     def close(self):
         try:
             self.drop()
@@ -330,6 +367,21 @@ def create_server(worker, token, port):
                     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 160:
                         raise ValueError('invalid name')
                     operation = lambda: worker.versions(name.strip())
+                elif self.path == '/v1/product-versions':
+                    pack_id = payload['pack_id']
+                    if type(pack_id) is not int or not 0 < pack_id < 2**53:
+                        raise ValueError('invalid pack')
+                    operation = lambda: worker.product_versions(pack_id)
+                elif self.path == '/v1/product-for-version':
+                    version_id = payload['version_id']
+                    if type(version_id) is not int or not 0 < version_id < 2**53:
+                        raise ValueError('invalid version')
+                    operation = lambda: worker.product_for_version(version_id)
+                elif self.path == '/v1/products':
+                    keyword = payload.get('keyword', '')
+                    if not isinstance(keyword, str) or len(keyword) > 160:
+                        raise ValueError('invalid keyword')
+                    operation = lambda: worker.products(keyword.strip())
                 elif self.path == '/v1/prices':
                     ids = payload['version_ids']
                     if not isinstance(ids, list) or not 1 <= len(ids) <= 20 or len(set(ids)) != len(ids) or not all(type(i) is int and 0 < i < 2**53 for i in ids):

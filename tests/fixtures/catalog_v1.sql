@@ -102,32 +102,10 @@ CREATE TABLE IF NOT EXISTS jhs_cards (
 );
 CREATE INDEX IF NOT EXISTS idx_jhs_cards_card ON jhs_cards(card_id);
 
--- 商品身份独立于盒号；legacy_prefix 仅用于保留旧采集批次的未核对归属。
-CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY,
-    legacy_prefix TEXT UNIQUE REFERENCES packs(prefix),
-    prefix TEXT,
-    jhs_pack_id INTEGER UNIQUE CHECK(jhs_pack_id > 0),
-    jhs_name TEXT,
-    jhs_name_origin TEXT,
-    release_date TEXT,
-    updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS product_official_links (
-    product_id INTEGER NOT NULL REFERENCES products(id),
-    konami_pid TEXT NOT NULL,
-    name TEXT,
-    source_url TEXT,
-    release_date TEXT,
-    PRIMARY KEY(product_id, konami_pid)
-);
-
 CREATE TABLE IF NOT EXISTS jhs_versions (
     jhs_version_id INTEGER PRIMARY KEY CHECK(jhs_version_id > 0),
     jhs_card_id INTEGER NOT NULL REFERENCES jhs_cards(jhs_card_id),
-    pack_prefix TEXT REFERENCES packs(prefix),
-    product_id INTEGER NOT NULL REFERENCES products(id),
+    pack_prefix TEXT NOT NULL REFERENCES packs(prefix),
     number_raw TEXT NOT NULL,
     rarity_raw TEXT NOT NULL,
     name_cn TEXT NOT NULL,
@@ -139,7 +117,6 @@ CREATE TABLE IF NOT EXISTS jhs_versions (
 );
 CREATE INDEX IF NOT EXISTS idx_versions_card ON jhs_versions(jhs_card_id);
 CREATE INDEX IF NOT EXISTS idx_versions_pack ON jhs_versions(pack_prefix);
-CREATE INDEX IF NOT EXISTS idx_versions_product ON jhs_versions(product_id);
 
 CREATE TABLE IF NOT EXISTS import_issues (
     source TEXT NOT NULL,

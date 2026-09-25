@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import sqlite3
+from pathlib import Path
 from types import SimpleNamespace
 import zipfile
 
@@ -178,3 +179,51 @@ def test_base_import_unexpected_failure_rolls_back_all_cards(db):
         with db:
             cat.import_cards(db, {'good': card(), 'bad': {'cid': 'invalid'}}, {})
     assert db.execute('SELECT COUNT(*) FROM cards').fetchone()[0] == 0
+
+
+def test_v1_migration_preserves_versions_and_official_name(tmp_path):
+    path = tmp_path / 'catalog.sqlite3'
+    with sqlite3.connect(path) as old:
+        old.row_factory = sqlite3.Row
+        old.executescript(Path('tests/fixtures/catalog_v1.sql').read_text(encoding='utf-8'))
+        old.execute("INSERT INTO catalog_meta VALUES ('schema_version','1')")
+        cat.import_cards(old, {'4007': card()}, {})
+        old.execute('INSERT INTO packs VALUES (?,?,?,?,?,?,?,?,?)',
+                    ('TEST', '官网商品名', '2024-01-01', 'https://example.com/?pid=123', None, None, 1, 1, cat.now()))
+        old.execute("INSERT INTO jhs_cards VALUES (139,1,'existing_mapping',?)", (cat.now(),))
+        old.execute('INSERT INTO jhs_versions VALUES (1,139,?,?,?,?,?,?,?,?,?)',
+                    ('TEST', 'TEST-JP001（异画）', 'S1R', '青眼白龙', '', '{}', cat.now(), cat.now(), cat.now()))
+    with cat.connect(path) as db:
+        assert db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()[0] == '2'
+        assert db.execute('SELECT number_raw FROM jhs_versions').fetchone()[0] == 'TEST-JP001（异画）'
+        assert db.execute('SELECT name,konami_pid FROM product_official_links').fetchone()[:] == ('官网商品名', '123')
+        assert cat.stats(db)['foreign_key_errors'] == []
+        assert db.execute('SELECT COUNT(*) FROM card_catalog').fetchone()[0] == 1
+    assert len(list((tmp_path / 'backups').glob('*.sqlite3'))) == 1
+    with cat.connect(path) as db:
+        assert db.execute('SELECT COUNT(*) FROM products').fetchone()[0] == 1
+
+
+def test_unnumbered_products_with_same_name_stay_separate(db):
+    load(db, [card()])
+    for vid, pid in [(1, 4404), (2, 4405)]:
+        product = {'id': pid, 'name': 'EX 复刻版', 'name_origin': 'EX 復刻版'}
+        row = {**version(vid=vid, number='无编号（原画）'), 'pack': product}
+        cat.import_pack(db, None, [row], product=product)
+        assert cat.import_pack(db, None, [row], product=product)['unchanged'] == 1
+    assert db.execute('SELECT COUNT(DISTINCT product_id) FROM jhs_versions').fetchone()[0] == 2
+    assert db.execute('SELECT COUNT(*) FROM packs').fetchone()[0] == 0
+    assert cat.stats(db)['foreign_key_errors'] == []
+
+
+def test_product_import_mismatch_does_not_write_and_prefix_refresh_keeps_product(db):
+    load(db, [card()])
+    product = {'id': 99, 'name': '同盒号商品'}
+    row = {**version(), 'pack': product}
+    cat.import_pack(db, 'TEST', [version()])
+    cat.import_pack(db, 'TEST', [row], product=product)
+    cat.import_pack(db, 'TEST', [version()])
+    assert db.execute('SELECT p.jhs_pack_id FROM jhs_versions v JOIN products p ON p.id=v.product_id').fetchone()[0] == 99
+    with pytest.raises(ValueError, match='商品 ID 不一致'):
+        cat.import_pack(db, None, [row], product={'id': 100, 'name': '其他商品'})
+    assert db.execute('SELECT COUNT(*) FROM products WHERE jhs_pack_id=100').fetchone()[0] == 0

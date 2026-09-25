@@ -49,6 +49,22 @@ def test_packs_accept_text_and_json_but_reject_conflicts(tmp_path):
             crawl.parse_pack(invalid)
 
 
+def test_product_jobs_support_no_prefix_and_preserve_legacy_checkpoints(tmp_path):
+    pack = crawl.parse_pack({'jhs_pack_id': 4404, 'name': 'EX 復刻版'})
+    assert pack.prefix is None and pack.key == 'jhs:4404'
+    state = {'jobs': {'DBGV': {'status': 'done', 'spec': {
+        'prefix': 'DBGV', 'expected_cards': None, 'expected_versions': None,
+        'name': None, 'release_date': None, 'source_url': None}}}}
+    assert crawl.pending_packs([crawl.Pack('DBGV')], state) == []
+    assert crawl.pending_packs([pack], state) == [pack]
+    path = tmp_path / 'packs.json'
+    path.write_text('[{"jhs_pack_id":4404},{"jhs_pack_id":4405}]')
+    assert len(crawl.load_packs([], path)) == 2
+    for bad in [True, 0, -1, '4404']:
+        with pytest.raises(ValueError):
+            crawl.parse_pack({'jhs_pack_id': bad})
+
+
 def test_completed_packs_are_skipped_and_refresh_is_explicit(setup):
     packs = [crawl.Pack('A'), crawl.Pack('B')]
     assert run(setup, packs, import_one) == 0

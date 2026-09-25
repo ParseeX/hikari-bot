@@ -14,6 +14,7 @@ import sqlite3
 import unicodedata
 import urllib.error
 import urllib.request
+from urllib.parse import parse_qs, urlparse
 import zipfile
 
 
@@ -65,14 +66,52 @@ def connect(path: Path) -> sqlite3.Connection:
         raise ValueError('目标文件不是卡片主库，拒绝修改')
     if tables:
         row = db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()
-        if row is None or row[0] != '1':
+        if row is None or row[0] not in {'1', '2'}:
             db.close()
             raise ValueError('不支持的卡片主库版本')
+        if row[0] == '1':
+            backup(db, path)
+            try:
+                db.executescript(Path(__file__).with_name('migrate_v2.sql').read_text(encoding='utf-8'))
+                for pack in db.execute('SELECT p.id,b.* FROM products p JOIN packs b ON b.prefix=p.legacy_prefix').fetchall():
+                    link_official(db, pack['id'], pack['name'], pack['source_url'], pack['release_date'])
+                if db.execute('PRAGMA foreign_key_check').fetchone():
+                    raise ValueError('迁移后的外键校验失败')
+                db.commit()
+            except Exception:
+                db.rollback()
+                db.close()
+                raise
     db.execute('PRAGMA journal_mode=WAL')
     db.executescript(Path(__file__).with_name('schema.sql').read_text(encoding='utf-8'))
-    db.execute("INSERT OR IGNORE INTO catalog_meta VALUES ('schema_version','1')")
+    db.execute("INSERT OR IGNORE INTO catalog_meta VALUES ('schema_version','2')")
     db.commit()
     return db
+
+
+def link_official(db, product_id, name, source_url, release_date, konami_pid=None):
+    pid = konami_pid or parse_qs(urlparse(source_url or '').query).get('pid', [None])[0]
+    if pid:
+        db.execute('INSERT INTO product_official_links VALUES (?,?,?,?,?) '
+                   'ON CONFLICT(product_id,konami_pid) DO UPDATE SET '
+                   'name=COALESCE(excluded.name,name),source_url=COALESCE(excluded.source_url,source_url),'
+                   'release_date=COALESCE(excluded.release_date,release_date)',
+                   (product_id, str(pid), name, source_url, release_date))
+
+
+def upsert_product(db, prefix, pack, stamp):
+    if pack:
+        if type(pack.get('id')) is not int or pack['id'] <= 0 or not str(pack.get('name') or '').strip():
+            raise ValueError('集换社商品身份不完整')
+        db.execute('INSERT INTO products(prefix,jhs_pack_id,jhs_name,jhs_name_origin,release_date,updated_at) '
+                   'VALUES (?,?,?,?,?,?) ON CONFLICT(jhs_pack_id) DO UPDATE SET '
+                   'prefix=COALESCE(excluded.prefix,prefix),jhs_name=excluded.jhs_name,'
+                   'jhs_name_origin=excluded.jhs_name_origin,release_date=excluded.release_date,updated_at=excluded.updated_at',
+                   (prefix, pack['id'], pack['name'], pack.get('name_origin'), pack.get('released_at'), stamp))
+        return db.execute('SELECT id FROM products WHERE jhs_pack_id=?', (pack['id'],)).fetchone()[0]
+    db.execute('INSERT INTO products(legacy_prefix,prefix,updated_at) VALUES (?,?,?) '
+               'ON CONFLICT(legacy_prefix) DO UPDATE SET updated_at=excluded.updated_at', (prefix, prefix, stamp))
+    return db.execute('SELECT id FROM products WHERE legacy_prefix=?', (prefix,)).fetchone()[0]
 
 
 def backup(db: sqlite3.Connection, path: Path) -> None:
@@ -349,16 +388,21 @@ def candidate_cards(db, rows):
 
 
 def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None,
-                name=None, release_date=None, source_url=None):
-    prefix = prefix.upper()
-    if not re.fullmatch('[A-Z0-9]{1,16}', prefix):
+                name=None, release_date=None, source_url=None, product=None, konami_pid=None):
+    prefix = prefix.upper() if prefix else None
+    if prefix is not None and not re.fullmatch('[A-Z0-9]{1,16}', prefix):
         raise ValueError('卡盒前缀格式错误')
+    if prefix is None and not product:
+        raise ValueError('无编号商品必须指定集换社商品 ID')
     selected = {}
     for row in rows:
         if not isinstance(row, dict):
             raise ValueError('版本条目格式错误')
         # 搜索可能模糊命中其他物品；严格限定编号，原文仍完整存储。
-        if not str(row.get('number', '')).upper().startswith(prefix + '-'):
+        if product:
+            if (row.get('pack') or {}).get('id') != product.get('id'):
+                raise ValueError('版本与集换社商品 ID 不一致')
+        elif not str(row.get('number', '')).upper().startswith(prefix + '-'):
             continue
         if not str(row.get('rarity') or '').strip() or int(row.get('id') or 0) <= 0 or int(row.get('card_id') or 0) <= 0:
             raise ValueError('卡盒中存在缺少 ID 或罕贵的版本')
@@ -378,13 +422,16 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
     stamp = now()
     counts = Counter()
     with db:
-        db.execute('INSERT INTO packs VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(prefix) DO UPDATE SET '
+        if prefix:
+            db.execute('INSERT INTO packs VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(prefix) DO UPDATE SET '
                    'name=COALESCE(excluded.name,packs.name),release_date=COALESCE(excluded.release_date,packs.release_date), '
                    'source_url=COALESCE(excluded.source_url,packs.source_url), '
                    'expected_cards=COALESCE(excluded.expected_cards,packs.expected_cards), '
                    'expected_versions=COALESCE(excluded.expected_versions,packs.expected_versions), '
                    'observed_cards=excluded.observed_cards,observed_versions=excluded.observed_versions,last_synced_at=excluded.last_synced_at',
                    (prefix, name, release_date, source_url, expected_cards, expected_versions, len(grouped), len(selected), stamp))
+        product_id = upsert_product(db, prefix, product, stamp)
+        link_official(db, product_id, name, source_url, release_date, konami_pid)
         for jhs_id, entries in grouped.items():
             old = db.execute('SELECT card_id FROM jhs_cards WHERE jhs_card_id=?', (jhs_id,)).fetchone()
             candidates = candidate_cards(db, entries)
@@ -406,21 +453,28 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
                 clear_issue(db, 'jhs_mapping', jhs_id)
                 counts['matched_cards'] += 1
         for version_id, row in selected.items():
-            old = db.execute('SELECT jhs_card_id,pack_prefix,source_json FROM jhs_versions WHERE jhs_version_id=?', (version_id,)).fetchone()
-            if old and (old['jhs_card_id'] != int(row['card_id']) or old['pack_prefix'] != prefix):
-                raise ValueError(f'集换社版本 {version_id} 的归属发生冲突')
+            old = db.execute('SELECT v.*,p.jhs_pack_id FROM jhs_versions v JOIN products p ON p.id=v.product_id '
+                             'WHERE jhs_version_id=?', (version_id,)).fetchone()
+            if old:
+                if old['jhs_card_id'] != int(row['card_id']) or (old['pack_prefix'] and prefix and old['pack_prefix'] != prefix):
+                    raise ValueError(f'集换社版本 {version_id} 的归属发生冲突')
+                if product and old['jhs_pack_id'] and old['jhs_pack_id'] != product['id']:
+                    raise ValueError(f'集换社版本 {version_id} 的商品归属发生冲突')
+            # 已核实的平台商品归属不会被后续按前缀的旧采集降级覆盖。
+            target_product = old['product_id'] if old and old['jhs_pack_id'] and not product else product_id
             payload = encode(row)
-            db.execute('INSERT INTO jhs_versions VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(jhs_version_id) DO UPDATE SET '
+            db.execute('INSERT INTO jhs_versions VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(jhs_version_id) DO UPDATE SET '
+                       'product_id=excluded.product_id,pack_prefix=COALESCE(excluded.pack_prefix,jhs_versions.pack_prefix),'
                        'number_raw=excluded.number_raw,rarity_raw=excluded.rarity_raw,name_cn=excluded.name_cn, '
                        'name_jp=excluded.name_jp,source_json=excluded.source_json,last_seen_at=excluded.last_seen_at, '
                        'updated_at=CASE WHEN jhs_versions.source_json!=excluded.source_json THEN excluded.updated_at ELSE jhs_versions.updated_at END',
-                       (version_id, int(row['card_id']), prefix, row['number'], row['rarity'], row.get('name_cn', ''),
+                       (version_id, int(row['card_id']), prefix, target_product, row.get('number', ''), row['rarity'], row.get('name_cn', ''),
                         row.get('name_jp', ''), payload, stamp, stamp, stamp))
             counts['inserted' if not old else 'unchanged' if old['source_json'] == payload else 'updated'] += 1
         # 未返回的旧版本不删除；last_seen_at 可识别需要复核的历史记录。
-        result = dict(counts, prefix=prefix, cards=len(grouped), versions=len(selected))
+        result = dict(counts, prefix=prefix, product_id=product_id, cards=len(grouped), versions=len(selected))
         db.execute('INSERT INTO sync_runs(source,completed_at,summary_json) VALUES (?,?,?)',
-                   ('jhs:' + prefix, stamp, encode(result)))
+                   ('jhs:' + (str(product['id']) if product else prefix), stamp, encode(result)))
     return result
 
 
@@ -440,12 +494,17 @@ def read_bridge_env(path):
 
 
 def sync_pack(db, args, snapshots):
-    if not re.fullmatch('[A-Z0-9]{1,16}', args.prefix):
+    product_id = getattr(args, 'jhs_pack_id', None)
+    if product_id is not None and (type(product_id) is not int or not 0 < product_id < 2**53):
+        raise ValueError('集换社商品 ID 格式错误')
+    if (not product_id and not args.prefix) or (args.prefix and not re.fullmatch('[A-Z0-9]{1,16}', args.prefix)):
         raise ValueError('卡盒前缀格式错误')
     env = read_bridge_env(args.bridge_env)
     port = int(env.get('JHS_HTTP_PORT', '8791'))
-    raw = fetch(f'http://127.0.0.1:{port}/v1/versions',
-                data=encode({'name_jp': args.prefix}).encode(),
+    route = 'product-versions' if product_id else 'versions'
+    payload = {'pack_id': product_id} if product_id else {'name_jp': args.prefix}
+    raw = fetch(f'http://127.0.0.1:{port}/v1/{route}',
+                data=encode(payload).encode(),
                 headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env['JHS_ACCESS_TOKEN']},
                 timeout=300)
     body = json.loads(raw)
@@ -454,10 +513,25 @@ def sync_pack(db, args, snapshots):
     rows = body.get('versions')
     if not isinstance(rows, list):
         raise ValueError('桥接没有返回完整版本列表')
-    save_snapshot(snapshots, f'jhs-{args.prefix}-{hashlib.sha256(raw).hexdigest()[:16]}.json', raw)
+    product = body.get('product') if product_id else None
+    if product_id and (not isinstance(product, dict) or product.get('id') != product_id):
+        raise ValueError('桥接返回商品 ID 不符')
+    save_snapshot(snapshots, f'jhs-{product_id or args.prefix}-{hashlib.sha256(raw).hexdigest()[:16]}.json', raw)
     return import_pack(db, args.prefix, rows, expected_cards=args.expected_cards,
                        expected_versions=args.expected_versions, name=args.name,
-                       release_date=args.release_date, source_url=args.source_url)
+                       release_date=args.release_date, source_url=args.source_url,
+                       product=product, konami_pid=getattr(args, 'konami_pid', None))
+
+
+def find_products(args):
+    """只读取平台商品目录或卡片版本归属，不修改主库。"""
+    env = read_bridge_env(args.bridge_env)
+    route = 'product-for-version' if args.version_id else 'products'
+    payload = {'version_id': args.version_id} if args.version_id else {'keyword': args.keyword}
+    raw = fetch(f"http://127.0.0.1:{int(env.get('JHS_HTTP_PORT', '8791'))}/v1/{route}",
+                data=encode(payload).encode(), timeout=180,
+                headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env['JHS_ACCESS_TOKEN']})
+    return json.loads(raw)
 
 
 def find(db, query):
@@ -473,15 +547,17 @@ def find(db, query):
         card['names'] = [dict(r) for r in db.execute('SELECT language,source,name FROM card_names WHERE card_id=?', (card_id,))]
         card['texts'] = [dict(r) for r in db.execute('SELECT language,source,type_text,effect,pendulum_effect FROM card_texts WHERE card_id=?', (card_id,))]
         card['releases'] = [dict(r) for r in db.execute('SELECT language,release_date,pack_name,source FROM card_releases WHERE card_id=?', (card_id,))]
-        card['versions'] = [dict(r) for r in db.execute('SELECT v.jhs_version_id,v.jhs_card_id,v.number_raw,v.rarity_raw '
-                            'FROM jhs_versions v JOIN jhs_cards j USING(jhs_card_id) WHERE j.card_id=? ORDER BY v.number_raw,v.rarity_raw', (card_id,))]
+        card['versions'] = [dict(r) for r in db.execute('SELECT v.jhs_version_id,v.jhs_card_id,v.number_raw,v.rarity_raw,'
+                            'v.product_id,p.jhs_pack_id,p.jhs_name,p.jhs_name_origin '
+                            'FROM jhs_versions v JOIN jhs_cards j USING(jhs_card_id) JOIN products p ON p.id=v.product_id '
+                            'WHERE j.card_id=? ORDER BY v.number_raw,v.rarity_raw', (card_id,))]
         result.append(card)
     return result
 
 
 def stats(db):
     result = {table: db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] for table in
-              ('cards', 'card_names', 'card_texts', 'card_identifiers', 'card_releases', 'packs', 'jhs_cards', 'jhs_versions')}
+              ('cards', 'card_names', 'card_texts', 'card_identifiers', 'card_releases', 'packs', 'products', 'product_official_links', 'jhs_cards', 'jhs_versions')}
     result.update(
         temporary_only=db.execute('SELECT COUNT(*) FROM cards WHERE temporary_id IS NOT NULL AND passcode IS NULL').fetchone()[0],
         with_reading=db.execute('SELECT COUNT(*) FROM cards WHERE japanese_reading IS NOT NULL').fetchone()[0],
@@ -504,8 +580,14 @@ def main():
     commands.add_parser('stats')
     lookup = commands.add_parser('find')
     lookup.add_argument('query')
+    products = commands.add_parser('find-products')
+    products.add_argument('keyword', nargs='?', default='')
+    products.add_argument('--version-id', type=int)
+    products.add_argument('--bridge-env', type=Path)
     pack = commands.add_parser('sync-pack')
-    pack.add_argument('prefix', type=str.upper)
+    pack.add_argument('prefix', type=str.upper, nargs='?')
+    pack.add_argument('--jhs-pack-id', type=int)
+    pack.add_argument('--konami-pid')
     pack.add_argument('--bridge-env', type=Path)
     pack.add_argument('--expected-cards', type=int)
     pack.add_argument('--expected-versions', type=int)
@@ -513,6 +595,9 @@ def main():
     pack.add_argument('--release-date')
     pack.add_argument('--source-url')
     args = parser.parse_args()
+    if args.command == 'find-products':
+        print(json.dumps(find_products(args), ensure_ascii=False, indent=2))
+        return
     with connect(args.db) as db:
         if args.command in ('sync-base', 'sync-pack', 'import-artworks'):
             backup(db, args.db)

@@ -28,6 +28,12 @@ def test_bridge_limits_requests_and_preserves_safe_errors(monkeypatch):
             return {'pages': [{'current_page': p, 'entries': []} for p in pages]}
         def listing_details(self, version_id, seller_ids):
             return {'sellers': []}
+        def product_versions(self, pack_id):
+            return {'product': {'id': pack_id}, 'versions': []}
+        def product_for_version(self, version_id):
+            return {'product': {'id': 4404}}
+        def products(self, keyword):
+            return {'products': [{'id': 4404, 'name': keyword}]}
     server = module.create_server(Worker(), 'test-bridge-key', 0)
     thread = threading.Thread(target=server.serve_forever)
     thread.start()
@@ -38,6 +44,13 @@ def test_bridge_limits_requests_and_preserves_safe_errors(monkeypatch):
             client.headers['Authorization'] = 'Bearer test-bridge-key'
             assert client.post('/v1/versions', json=body).json() == {'versions': []}
             assert calls == ['原石の皇脈']
+            assert client.post('/v1/product-versions', json={'pack_id': 4404}).json()['product']['id'] == 4404
+            assert client.post('/v1/product-for-version', json={'version_id': 119467}).status_code == 200
+            assert client.post('/v1/products', json={'keyword': 'EX'}).json()['products'][0]['name'] == 'EX'
+            assert client.post('/v1/products', json={'keyword': 1}).status_code == 400
+            for bad in [True, 0, -1, '4404', 2**53]:
+                assert client.post('/v1/product-versions', json={'pack_id': bad}).status_code == 400
+                assert client.post('/v1/product-for-version', json={'version_id': bad}).status_code == 400
             for ids in ([1, 1], [True], [-1], [1.5], [], list(range(1, 22)), [[1]]):
                 assert client.post('/v1/prices', json={'version_ids': ids}).status_code == 400
             assert client.post('/v1/versions', json={'name_jp': ' '}).status_code == 400

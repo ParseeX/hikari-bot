@@ -151,6 +151,47 @@ sudo systemctl start hikari-jhs-official-import.service
 
 ## 查询与验收
 
+### 商品名与无编号商品
+
+主库 schema v2 使用 `products.id` 作为商品内部 ID，保存 `jhs_pack_id`、`jhs_name`、`jhs_name_origin` 和发行日期。`product_official_links` 单独保存官方商品 pid、原名、来源地址；不把两个平台的名称相互覆盖。`jhs_versions.product_id` 记录版本归属，`number_raw` 保留“无编号”及括号备注。
+
+旧的 `packs` 表保留盒号批次及统计。迁移为每个旧盒号建立一个待核对商品记录（`legacy_prefix` 非空、`jhs_pack_id` 为空），保留全部原版本、时间戳和原始 JSON。历史数据不会仅凭名称自动绑定平台 ID；按平台商品 ID 重采并验证后才写入真实归属。后续旧盒号重采不会覆盖已经核实的商品归属。
+
+先按集换社目录的名称／别名查商品，或通过一个已知卡片版本确定商品：
+
+```bash
+python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 find-products EX --bridge-env /path/to/bridge.env
+python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 find-products --version-id 119467 --bridge-env /path/to/bridge.env
+```
+
+目录查询读取小程序当前公开的分类树，可能不包含隐藏或未放入目录的商品；空结果不代表平台没有收录。第二条路径读取卡片详情中的 `pack`。
+
+无编号商品可在 JSON 采集清单中只填写 `jhs_pack_id`：
+
+```json
+[
+  {"jhs_pack_id": 4404},
+  {"prefix": "DBGV"}
+]
+```
+
+仍使用 `crawl_jhs.py --packs-file` 批量导入，断点分别使用 `jhs:4404`、`DBGV`，兼容旧断点，不会因此重采所有已完成盒号。确认官方对应关系后可加 `konami_pid`、`name`、`source_url`、`release_date`；其中 `name` 始终是官方名称，集换社名称从实际接口获取。
+
+按商品采集使用已核对的 `packId` 参数（普通搜索中的 `pack_id` 会被忽略），最多 300 页。验证分页稳定、版本 ID 不重复、商品详情中的卡片版本数与实收数量一致，并独立核对首末卡片的商品归属；失败整盒不写入。搜索 `total` 可能包含未拆封原盒，不能直接当作卡片版本数量。显式 `expected_cards` / `expected_versions` 仍会额外校验。
+
+在 DbGate 查看集换社名称和卡片版本：
+
+```sql
+SELECT p.id, p.jhs_pack_id, p.jhs_name, p.jhs_name_origin,
+       p.prefix, COUNT(v.jhs_version_id) AS versions
+FROM products p
+LEFT JOIN jhs_versions v ON v.product_id = p.id
+GROUP BY p.id
+ORDER BY p.jhs_pack_id IS NULL, p.id DESC;
+```
+
+首次使用新工具打开 v1 库会先备份再事务迁移；Bot 的读取入口兼容 v1 和 v2。回滚 schema 时先停止所有写入者，恢复迁移前的 SQLite 备份及配套断点，再回退代码。迁移后的新增导入应另行保留，不能直接覆盖掉。
+
 ```bash
 python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 stats
 python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 find 89631139

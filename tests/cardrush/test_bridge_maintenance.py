@@ -49,6 +49,32 @@ def test_healthy_session_checks_only_local_js_and_pauses_again(module, worker):
     assert not worker.lock.locked()
 
 
+def test_product_pagination_checks_complete_count_and_identity(worker):
+    product = {'id': 4404, 'name': 'EX 复刻版 特典卡', 'version_count': 2}
+    def query(template, payload):
+        if template == 'product-for-version.js':
+            return {'product': product}
+        page = payload['page']
+        return {'product': product if page == 1 else None, 'total': 3, 'last_page': 2,
+                'current_page': page, 'entries': [{'id': page, 'number': '无编号'}]}
+    worker.query.side_effect = query
+    result = worker.product_versions(4404)
+    assert [r['id'] for r in result['versions']] == [1, 2]
+    assert all(r['pack'] == product for r in result['versions'])
+    worker.product_for_version = Mock(return_value={'product': {'id': 999}})
+    with pytest.raises(ValueError, match='filter ignored'):
+        worker.product_versions(4404)
+
+
+@pytest.mark.parametrize('change', [{'total': 3}, {'current_page': 1}, {'entries': [{'id': 1}]}])
+def test_product_inconsistent_pagination_is_never_importable(worker, change):
+    first = {'product': {'id': 4404}, 'total': 2, 'last_page': 2, 'current_page': 1, 'entries': [{'id': 1}]}
+    second = {**first, 'current_page': 2, 'entries': [{'id': 2}], **change}
+    worker.query.side_effect = [first, second]
+    with pytest.raises(ValueError):
+        worker.product_versions(4404)
+
+
 def test_running_query_skips_background_check(worker):
     with worker.lock:
         assert worker.check_session() is None

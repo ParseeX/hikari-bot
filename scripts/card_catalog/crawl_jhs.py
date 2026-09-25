@@ -24,12 +24,18 @@ else:
 
 @dataclass(frozen=True)
 class Pack:
-    prefix: str
+    prefix: str | None = None
     expected_cards: int | None = None
     expected_versions: int | None = None
     name: str | None = None
     release_date: str | None = None
     source_url: str | None = None
+    jhs_pack_id: int | None = None
+    konami_pid: str | None = None
+
+    @property
+    def key(self):
+        return f'jhs:{self.jhs_pack_id}' if self.jhs_pack_id else self.prefix
 
 
 def parse_pack(value) -> Pack:
@@ -37,14 +43,17 @@ def parse_pack(value) -> Pack:
         value = {'prefix': value}
     if not isinstance(value, dict) or set(value) - set(Pack.__dataclass_fields__):
         raise ValueError('卡盒条目格式错误或包含未知字段')
-    prefix = str(value.get('prefix', '')).strip().upper()
-    if not re.fullmatch('[A-Z0-9]{1,16}', prefix):
+    prefix = str(value.get('prefix') or '').strip().upper() or None
+    pack_id = value.get('jhs_pack_id')
+    if pack_id is not None and (type(pack_id) is not int or not 0 < pack_id < 2**53):
+        raise ValueError('jhs_pack_id 必须为正整数')
+    if (prefix is None and pack_id is None) or (prefix and not re.fullmatch('[A-Z0-9]{1,16}', prefix)):
         raise ValueError('卡盒前缀须为 1 至 16 位英文字母或数字')
     for key in ('expected_cards', 'expected_versions'):
         count = value.get(key)
         if count is not None and (type(count) is not int or count <= 0):
             raise ValueError(f'{key} 必须为正整数')
-    for key in ('name', 'release_date', 'source_url'):
+    for key in ('name', 'release_date', 'source_url', 'konami_pid'):
         if value.get(key) is not None and not isinstance(value[key], str):
             raise ValueError(f'{key} 必须为字符串')
     return Pack(**{**value, 'prefix': prefix})
@@ -65,9 +74,9 @@ def load_packs(prefixes, path=None):
     unique = {}
     for value in values:
         pack = parse_pack(value)
-        if pack.prefix in unique and unique[pack.prefix] != pack:
-            raise ValueError(f'{pack.prefix} 在清单中有不同校验要求，请保留一个条目')
-        unique[pack.prefix] = pack
+        if pack.key in unique and unique[pack.key] != pack:
+            raise ValueError(f'{pack.key} 在清单中有不同校验要求，请保留一个条目')
+        unique[pack.key] = pack
     return list(unique.values())
 
 
@@ -82,7 +91,7 @@ def read_state(path, database):
     for prefix, job in state['jobs'].items():
         if not isinstance(job, dict) or job.get('status') not in {'running', 'done', 'failed', 'interrupted'}:
             raise ValueError('进度文件中的任务状态无效')
-        if parse_pack(job.get('spec')).prefix != prefix:
+        if parse_pack(job.get('spec')).key != prefix:
             raise ValueError('进度文件中的盒号不一致')
     return state
 
@@ -137,8 +146,8 @@ def exclusive_run(database):
 
 def pending_packs(packs, state, refresh=False):
     return [pack for pack in packs if refresh or
-            state['jobs'].get(pack.prefix, {}).get('status') != 'done' or
-            state['jobs'][pack.prefix].get('spec') != asdict(pack)]
+            state['jobs'].get(pack.key, {}).get('status') != 'done' or
+            parse_pack(state['jobs'][pack.key].get('spec')) != pack]
 
 
 def error_info(error):
@@ -172,12 +181,12 @@ def run_batch(db, packs, *, database, state_path, bridge_env, interval=10,
         for position, pack in enumerate(pending):
             if position:
                 sleep(interval)
-            job = state['jobs'][pack.prefix] = {'spec': asdict(pack), 'status': 'running',
+            job = state['jobs'][pack.key] = {'spec': asdict(pack), 'status': 'running',
                                                'started_at': catalog.now(), 'attempts': 0}
             for attempt in range(1, attempts + 1):
                 job.update(status='running', attempts=attempt)
                 save_state(state_path, state)
-                emit(f'[{position + 1}/{len(pending)}] {pack.prefix} 开始，第 {attempt} 次尝试', flush=True)
+                emit(f'[{position + 1}/{len(pending)}] {pack.key} 开始，第 {attempt} 次尝试', flush=True)
                 try:
                     result = sync(db, SimpleNamespace(**asdict(pack), bridge_env=bridge_env),
                                   database.parent / 'source-snapshots')
@@ -185,7 +194,7 @@ def run_batch(db, packs, *, database, state_path, bridge_env, interval=10,
                     reason, retry, fatal = error_info(error)
                     job.update(status='failed', error=reason, finished_at=catalog.now())
                     save_state(state_path, state)
-                    emit(f'{pack.prefix} 失败：{reason}', flush=True)
+                    emit(f'{pack.key} 失败：{reason}', flush=True)
                     if retry and attempt < attempts:
                         sleep(max(interval, min(300, 10 * 2 ** (attempt - 1))))
                         continue
@@ -202,7 +211,7 @@ def run_batch(db, packs, *, database, state_path, bridge_env, interval=10,
                     save_state(state_path, state)
                     counts['done'] += 1
                     consecutive = 0
-                    emit(f"{pack.prefix} 完成：{result['cards']} 张卡、{result['versions']} 个版本，"
+                    emit(f"{pack.key} 完成：{result['cards']} 张卡、{result['versions']} 个版本，"
                          f"{result.get('unmatched_cards', 0)} 张卡待匹配", flush=True)
                     break
     except KeyboardInterrupt:
@@ -248,7 +257,7 @@ def main():
     if not packs:
         parser.error('请使用 --packs 或 --packs-file 提供盒号清单')
     if args.dry_run:
-        print(json.dumps({'pending': [p.prefix for p in pending_packs(packs, state, args.refresh)],
+        print(json.dumps({'pending': [p.key for p in pending_packs(packs, state, args.refresh)],
                           'selected': len(packs)}, ensure_ascii=False))
         return 0
     catalog.read_bridge_env(args.bridge_env)  # 启动前检查配置，绝不输出其内容。
