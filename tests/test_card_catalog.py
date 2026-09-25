@@ -227,3 +227,37 @@ def test_product_import_mismatch_does_not_write_and_prefix_refresh_keeps_product
     with pytest.raises(ValueError, match='商品 ID 不一致'):
         cat.import_pack(db, None, [row], product={'id': 100, 'name': '其他商品'})
     assert db.execute('SELECT COUNT(*) FROM products WHERE jhs_pack_id=100').fetchone()[0] == 0
+
+
+def test_backfill_discovers_multiple_products_and_skips_bound_versions(db, tmp_path, monkeypatch):
+    load(db, [card()])
+    cat.import_pack(db, 'TEST', [version(vid=1), version(vid=2)])
+    calls = []
+    def find(args):
+        calls.append(args.version_id)
+        return {'product': {'id': 100 + args.version_id, 'name': '同名商品'}}
+    def fetch(url, **kwargs):
+        pid = json.loads(kwargs['data'])['pack_id']
+        product = {'id': pid, 'name': '同名商品'}
+        return json.dumps({'product': product, 'versions': [{**version(vid=pid-100), 'pack': product}]}).encode()
+    monkeypatch.setattr(cat, 'read_bridge_env', lambda _: {'JHS_ACCESS_TOKEN': 'test'})
+    monkeypatch.setattr(cat, 'find_products', find)
+    monkeypatch.setattr(cat, 'fetch', fetch)
+    monkeypatch.setattr(cat.time, 'sleep', lambda _: None)
+    args = SimpleNamespace(prefix='TEST', bridge_env=None, backfill=True)
+    result = cat.sync_pack(db, args, tmp_path)
+    assert result['products_updated'] == 2 and calls == [1, 2]
+    assert db.execute('SELECT COUNT(DISTINCT product_id) FROM jhs_versions').fetchone()[0] == 2
+    assert cat.sync_pack(db, args, tmp_path)['products_updated'] == 0
+    assert calls == [1, 2]
+
+
+def test_backfill_rejects_product_missing_seed_without_binding(db, tmp_path, monkeypatch):
+    load(db, [card()])
+    cat.import_pack(db, 'TEST', [version()])
+    monkeypatch.setattr(cat, 'read_bridge_env', lambda _: {'JHS_ACCESS_TOKEN': 'test'})
+    monkeypatch.setattr(cat, 'find_products', lambda _: {'product': {'id': 99}})
+    monkeypatch.setattr(cat, 'fetch', lambda *a, **k: b'{"product":{"id":99},"versions":[]}')
+    with pytest.raises(ValueError, match='确认归属'):
+        cat.backfill_product_names(db, SimpleNamespace(prefix='TEST', bridge_env=None), tmp_path)
+    assert db.execute('SELECT COUNT(*) FROM products WHERE jhs_pack_id IS NOT NULL').fetchone()[0] == 0

@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -494,6 +495,8 @@ def read_bridge_env(path):
 
 
 def sync_pack(db, args, snapshots):
+    if getattr(args, 'backfill', False):
+        return backfill_product_names(db, args, snapshots)
     product_id = getattr(args, 'jhs_pack_id', None)
     if product_id is not None and (type(product_id) is not int or not 0 < product_id < 2**53):
         raise ValueError('集换社商品 ID 格式错误')
@@ -521,6 +524,50 @@ def sync_pack(db, args, snapshots):
                        expected_versions=args.expected_versions, name=args.name,
                        release_date=args.release_date, source_url=args.source_url,
                        product=product, konami_pid=getattr(args, 'konami_pid', None))
+
+
+def backfill_product_names(db, args, snapshots):
+    """以未绑定版本发现商品，再按完整系列补齐；每个商品提交后都可续跑。"""
+    from types import SimpleNamespace
+    if not args.prefix or not re.fullmatch('[A-Z0-9]{1,16}', args.prefix):
+        raise ValueError('卡盒前缀格式错误')
+    env = read_bridge_env(args.bridge_env)
+    touched, bound = set(), 0
+    while True:
+        row = db.execute('SELECT v.jhs_version_id FROM jhs_versions v JOIN products p ON p.id=v.product_id '
+                         'WHERE v.pack_prefix=? AND p.jhs_pack_id IS NULL ORDER BY v.jhs_version_id LIMIT 1',
+                         (args.prefix,)).fetchone()
+        if row is None:
+            counts = db.execute('SELECT COUNT(DISTINCT jhs_card_id),COUNT(*) FROM jhs_versions WHERE pack_prefix=?',
+                                (args.prefix,)).fetchone()
+            if not counts[1]:
+                raise ValueError('没有可补齐的已导入盒号')
+            return {'prefix': args.prefix, 'cards': counts[0], 'versions': counts[1],
+                    'products_updated': len(touched), 'versions_bound': bound}
+        seed = row[0]
+        found = find_products(SimpleNamespace(bridge_env=args.bridge_env, version_id=seed, keyword=''))
+        product = found.get('product')
+        if not isinstance(product, dict) or type(product.get('id')) is not int or product['id'] <= 0:
+            raise ValueError('商品身份缺失')
+        pid = product['id']
+        if pid in touched:
+            raise ValueError('系列返回结果未覆盖待补齐版本')
+        raw = fetch(f"http://127.0.0.1:{int(env.get('JHS_HTTP_PORT', '8791'))}/v1/product-versions",
+                    data=encode({'pack_id': pid}).encode(), timeout=300,
+                    headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env['JHS_ACCESS_TOKEN']})
+        body = json.loads(raw)
+        if not isinstance(body, dict) or not isinstance(body.get('product'), dict) or body['product'].get('id') != pid:
+            raise ValueError('系列身份不一致')
+        rows = body.get('versions')
+        if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows) or seed not in {r.get('id') for r in rows}:
+            raise ValueError('系列没有返回用于确认归属的卡片版本')
+        save_snapshot(snapshots, f'jhs-product-{pid}-{hashlib.sha256(raw).hexdigest()[:16]}.json', raw)
+        # 原官网关联保留在旧盒号记录上，不按译名猜测两个平台的商品对应。
+        import_pack(db, None, rows, product=body['product'])
+        touched.add(pid)
+        bound += len(rows)
+        print(f'补齐 {args.prefix}：商品 {pid} {body["product"]["name"]}，{len(rows)} 个版本', flush=True)
+        time.sleep(1)
 
 
 def find_products(args):

@@ -32,9 +32,12 @@ class Pack:
     source_url: str | None = None
     jhs_pack_id: int | None = None
     konami_pid: str | None = None
+    backfill: bool = False
 
     @property
     def key(self):
+        if self.backfill:
+            return f'backfill:{self.prefix}'
         return f'jhs:{self.jhs_pack_id}' if self.jhs_pack_id else self.prefix
 
 
@@ -45,6 +48,10 @@ def parse_pack(value) -> Pack:
         raise ValueError('卡盒条目格式错误或包含未知字段')
     prefix = str(value.get('prefix') or '').strip().upper() or None
     pack_id = value.get('jhs_pack_id')
+    if type(value.get('backfill', False)) is not bool:
+        raise ValueError('backfill 必须为布尔值')
+    if value.get('backfill') and (not prefix or pack_id is not None):
+        raise ValueError('补齐任务需要盒号，不能同时指定商品 ID')
     if pack_id is not None and (type(pack_id) is not int or not 0 < pack_id < 2**53):
         raise ValueError('jhs_pack_id 必须为正整数')
     if (prefix is None and pack_id is None) or (prefix and not re.fullmatch('[A-Z0-9]{1,16}', prefix)):

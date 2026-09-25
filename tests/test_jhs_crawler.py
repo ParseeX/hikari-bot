@@ -63,6 +63,13 @@ def test_product_jobs_support_no_prefix_and_preserve_legacy_checkpoints(tmp_path
     for bad in [True, 0, -1, '4404']:
         with pytest.raises(ValueError):
             crawl.parse_pack({'jhs_pack_id': bad})
+    backfill = crawl.parse_pack({'prefix': 'DBGV', 'backfill': True})
+    assert backfill.key == 'backfill:DBGV'
+    assert crawl.pending_packs([backfill], state) == [backfill]
+    for bad in [{'backfill': True}, {'prefix': 'DBGV', 'backfill': 'yes'},
+                {'prefix': 'DBGV', 'backfill': True, 'jhs_pack_id': 4404}]:
+        with pytest.raises(ValueError):
+            crawl.parse_pack(bad)
 
 
 def test_completed_packs_are_skipped_and_refresh_is_explicit(setup):
