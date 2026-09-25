@@ -39,6 +39,10 @@ def rpc(operation):
         timer.cancel()
 
 
+class SourceValidationError(ValueError):
+    """仅使用代码内定义的原因码，允许安全记录与区分重试策略。"""
+
+
 class Worker:
     def __init__(self):
         self.phone = Phone()
@@ -261,15 +265,22 @@ class Worker:
 
     def versions(self, name_jp):
         entries, seen = [], set()
-        for page in range(1, 31):
+        last_page = None
+        for page in range(1, 301):
             data = self.query('search.js', {'name_jp': name_jp, 'page': page})
+            if page == 1:
+                last_page = int(data['last_page'])
+            if not 1 <= last_page <= 300:
+                raise SourceValidationError('too_many_versions')
+            if int(data['last_page']) != last_page or data.get('current_page', page) != page:
+                raise SourceValidationError('pagination_changed')
             for item in data['entries']:
                 if item['id'] not in seen:
                     entries.append(item)
                     seen.add(item['id'])
             if page >= int(data['last_page']):
                 return {'versions': entries}
-        raise ValueError('too many versions')
+        raise SourceValidationError('too_many_versions')
 
     def prices(self, ids):
         prices = []
@@ -286,7 +297,7 @@ class Worker:
 
     def product_for_version(self, version_id):
         data = self.query('product-for-version.js', {'version_id': version_id})
-        return {'product': data['product']}
+        return {'product': data['product'], 'object_type': data.get('object_type', 'card')}
 
     def products(self, keyword):
         return {'products': self.query('products.js', {'keyword': keyword})['products']}
@@ -300,26 +311,26 @@ class Worker:
             if page == 1:
                 product, total, last_page = data['product'], data['total'], data['last_page']
                 if not product or product['id'] != pack_id or not 1 <= last_page <= 300:
-                    raise ValueError('invalid product')
+                    raise SourceValidationError('invalid_product')
             if data['current_page'] != page or data['total'] != total or data['last_page'] != last_page:
-                raise ValueError('product pagination changed')
+                raise SourceValidationError('product_pagination_changed')
             for item in data['entries']:
                 if item['id'] in seen:
-                    raise ValueError('duplicate product version across pages')
+                    raise SourceValidationError('duplicate_product_version')
                 seen.add(item['id'])
                 entries.append({**item, 'pack': product})
             if page >= last_page:
                 # 搜索 total 可能包含“未拆封原盒”；商品详情的计数只包含卡片版本。
                 expected = product.get('version_count', total)
-                if type(expected) is not int or not entries or len(entries) != expected:
-                    raise ValueError('incomplete product')
-                # 独立从卡片详情核对归属，防止服务端忽略筛选参数后误入库。
-                for item in (entries[0], entries[-1]):
-                    actual = self.product_for_version(item['id'])['product']
-                    if actual['id'] != pack_id:
-                        raise ValueError('product filter ignored')
+                cards = [item for item in entries if item.get('object_type') == 'card']
+                if type(expected) is not int or not cards or len(cards) != expected:
+                    raise SourceValidationError('incomplete_product')
+                # 卡片详情只给出一个主商品，无法验证共用版本；改用独立商品详情的样本。
+                references = set(product.get('sample_version_ids', []))
+                if not references or len(references & seen) < min(3, expected, len(references)):
+                    raise SourceValidationError('product_filter_ignored')
                 return {'product': product, 'versions': entries, 'reported_total': total}
-        raise ValueError('too many product versions')
+        raise SourceValidationError('too_many_product_versions')
 
     def close(self):
         try:
@@ -412,6 +423,9 @@ def create_server(worker, token, port):
                 return
             try:
                 self.respond(200, operation())
+            except SourceValidationError as error:
+                logging.warning('catalog validation failed: %s', str(error))
+                self.respond(422, {'error': str(error)})
             except Exception as error:
                 logging.warning('request failed: %s', type(error).__name__)
                 self.respond(503, {'error': 'unavailable'})

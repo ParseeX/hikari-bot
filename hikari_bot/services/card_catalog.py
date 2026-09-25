@@ -28,7 +28,7 @@ class CardCatalog:
     def validate(self):
         with self.connect() as db:
             version = db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()
-            if not version or version[0] not in {'1', '2'}:
+            if not version or version[0] not in {'1', '2', '3'}:
                 raise ValueError('不支持的卡片主库版本')
             if not db.execute('SELECT 1 FROM cards LIMIT 1').fetchone():
                 raise ValueError('卡片主库为空，请先执行 sync-base')

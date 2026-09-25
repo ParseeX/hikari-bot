@@ -2,6 +2,7 @@ import asyncio
 import io
 import os
 import sys
+import tempfile
 
 import aiohttp
 from PIL import Image, ImageOps
@@ -12,6 +13,9 @@ from hikari_bot.services.card_catalog import CardCatalog
 from hikari_bot.core.logger import log_message
 
 IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
+IMAGE_FULL = "https://images.ygoprodeck.com/images/cards/"
+IMAGE_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=3, sock_read=6)
+
 IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
 
 _CHINESE_CARD_ART_CROP = (0.1325, 0.1897, 0.87, 0.6983)
@@ -55,7 +59,7 @@ async def get_unknown_card():
     url = "https://cdn.233.momobako.com/ygopro/textures/unknown.jpg"
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
+            async with session.get(url, timeout=IMAGE_TIMEOUT) as resp:
                 if resp.status == 200:
                     data = await resp.read()
                     os.makedirs(CARD_PICS, exist_ok=True)
@@ -70,32 +74,45 @@ async def get_unknown_card():
         return None
 
 
-async def get_ygopic(id: int, half: bool = True):
-    """根据卡片ID获取卡片图片"""
-    if half:
-        local_path = os.path.join(CARD_PICS, f"{id}.jpg")
-        if os.path.exists(local_path):
-            with open(local_path, "rb") as f:
-                return f.read()
+def _valid_image(data: bytes) -> bytes:
+    with Image.open(io.BytesIO(data)) as image:
+        image.load()
+    return data
 
-    # 本地没有则下载
-    url = f"{IMAGE_CHINESE}{id}.jpg{'!half' if half else ''}"
+
+async def get_ygopic(id: int, half: bool = True):
+    """中文源优先；故障时使用完整卡面备用源，不缓存备用语言或占位图。"""
+    directory = CARD_PICS if half else os.path.join(CARD_PICS, 'full')
+    local_path = os.path.join(directory, f'{id}.jpg')
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.read()
-                    if half:
-                        os.makedirs(CARD_PICS, exist_ok=True)
-                        with open(local_path, "wb") as f:
-                            f.write(data)
+        with open(local_path, 'rb') as f:
+            return await asyncio.to_thread(_valid_image, f.read())
+    except (OSError, ValueError):
+        pass
+    urls = (f"{IMAGE_CHINESE}{id}.jpg{'!half' if half else ''}", f'{IMAGE_FULL}{id}.jpg')
+    async with aiohttp.ClientSession() as session:
+        for index, url in enumerate(urls):
+            try:
+                async with session.get(url, timeout=IMAGE_TIMEOUT) as resp:
+                    if resp.status != 200:
+                        await log_message(f'[get_ygopic] 下载失败 id={id} source={index} status={resp.status}')
+                        continue
+                    data = await asyncio.to_thread(_valid_image, await resp.read())
+                    if index == 0:
+                        os.makedirs(directory, exist_ok=True)
+                        # 原子替换，避免并行查询读取到写了一半的缓存。
+                        fd, temporary = tempfile.mkstemp(dir=directory, suffix='.tmp')
+                        try:
+                            with os.fdopen(fd, 'wb') as f:
+                                f.write(data)
+                            os.replace(temporary, local_path)
+                        finally:
+                            if os.path.exists(temporary):
+                                os.unlink(temporary)
                     return data
-                else:
-                    await log_message(f"[get_ygopic] Image not found: {url}")
-                    return await get_unknown_card()
-    except Exception as e:
-        await log_message(f"[get_ygopic] Error loading image {url}: {e}")
-        return await get_unknown_card()
+            except (aiohttp.ClientError, TimeoutError, OSError, ValueError) as error:
+                await log_message(f'[get_ygopic] 下载失败 id={id} source={index} error={type(error).__name__}')
+    return await get_unknown_card()
 
 
 def _crop_chinese_card_art(image_data: bytes) -> bytes:
@@ -125,9 +142,9 @@ async def get_image_by_id(id: int):
     async with aiohttp.ClientSession() as session:
         for source_name, image_url in image_urls:
             try:
-                async with session.get(image_url) as response:
+                async with session.get(image_url, timeout=IMAGE_TIMEOUT) as response:
                     if response.status == 200:
-                        image_data = await response.read()
+                        image_data = await asyncio.to_thread(_valid_image, await response.read())
                         if source_name == "IMAGE_CHINESE":
                             return _crop_chinese_card_art(image_data)
                         return image_data

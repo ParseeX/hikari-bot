@@ -194,7 +194,7 @@ def test_v1_migration_preserves_versions_and_official_name(tmp_path):
         old.execute('INSERT INTO jhs_versions VALUES (1,139,?,?,?,?,?,?,?,?,?)',
                     ('TEST', 'TEST-JP001（异画）', 'S1R', '青眼白龙', '', '{}', cat.now(), cat.now(), cat.now()))
     with cat.connect(path) as db:
-        assert db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()[0] == '2'
+        assert db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()[0] == '3'
         assert db.execute('SELECT number_raw FROM jhs_versions').fetchone()[0] == 'TEST-JP001（异画）'
         assert db.execute('SELECT name,konami_pid FROM product_official_links').fetchone()[:] == ('官网商品名', '123')
         assert cat.stats(db)['foreign_key_errors'] == []
@@ -261,3 +261,54 @@ def test_backfill_rejects_product_missing_seed_without_binding(db, tmp_path, mon
     with pytest.raises(ValueError, match='确认归属'):
         cat.backfill_product_names(db, SimpleNamespace(prefix='TEST', bridge_env=None), tmp_path)
     assert db.execute('SELECT COUNT(*) FROM products WHERE jhs_pack_id IS NOT NULL').fetchone()[0] == 0
+
+
+def test_shared_version_links_two_products_without_duplicating_card(db):
+    load(db, [card()])
+    for pid in [549, 696, 549]:
+        product = {'id': pid, 'name': str(pid)}
+        cat.import_pack(db, None, [{**version(number='无编号(VOL1-07、EX)'), 'pack': product}], product=product)
+    assert db.execute('SELECT COUNT(*) FROM jhs_versions').fetchone()[0] == 1
+    assert db.execute('SELECT COUNT(*) FROM jhs_version_products').fetchone()[0] == 2
+    found = cat.find(db, '89631139')[0]['versions']
+    assert len(found) == 1
+    assert {p['jhs_pack_id'] for p in found[0]['products']} == {549, 696}
+
+
+def test_goods_are_excluded_and_old_goods_are_quarantined(db):
+    load(db, [card()])
+    cat.import_pack(db, 'TEST', [version(), version(vid=2, jhs_id=140, rarity='卡册')])
+    product = {'id': 843, 'name': '大师合集'}
+    cat.import_pack(db, None, [{**version(), 'pack': product, 'object_type': 'card'},
+                             {**version(vid=2, jhs_id=140, rarity='卡册'), 'pack': product, 'object_type': 'goods'}], product=product)
+    assert db.execute('SELECT object_type FROM jhs_versions WHERE jhs_version_id=2').fetchone()[0] == 'goods'
+    assert len(cat.find(db, '89631139')[0]['versions']) == 1
+    assert db.execute('SELECT COUNT(*) FROM jhs_version_products').fetchone()[0] == 1
+
+
+def test_v2_migration_preserves_rows_and_seeds_only_confirmed_links(tmp_path):
+    path = tmp_path / 'catalog.sqlite3'
+    with sqlite3.connect(path) as old:
+        old.row_factory = sqlite3.Row
+        old.executescript(Path('tests/fixtures/catalog_v1.sql').read_text(encoding='utf-8'))
+        old.execute("INSERT INTO catalog_meta VALUES ('schema_version','1')")
+        cat.import_cards(old, {'4007': card()}, {})
+        old.execute('INSERT INTO packs VALUES (?,?,?,?,?,?,?,?,?)',
+                    ('TEST', None, None, None, None, None, 1, 1, cat.now()))
+        old.execute("INSERT INTO jhs_cards VALUES (139,1,'existing_mapping',?)", (cat.now(),))
+        old.execute('INSERT INTO jhs_versions VALUES (1,139,?,?,?,?,?,?,?,?,?)',
+                    ('TEST', 'TEST-JP001', 'SR', '青眼白龙', '', '{}', cat.now(), cat.now(), cat.now()))
+        old.commit()
+        old.executescript(Path('scripts/card_catalog/migrate_v2.sql').read_text(encoding='utf-8'))
+        old.execute("UPDATE products SET jhs_pack_id=99,jhs_name='商品'")
+        old.commit()
+        before = old.execute('SELECT * FROM jhs_versions').fetchone()[:]
+    db = cat.connect(path)
+    assert db.execute('SELECT * FROM jhs_versions').fetchone()[:-1] == before
+    assert db.execute('SELECT jhs_version_id,product_id FROM jhs_version_products').fetchone()[:] == (1, before[3])
+    assert not db.execute('PRAGMA foreign_key_check').fetchall()
+    db.close()
+    db = cat.connect(path)
+    assert db.execute('SELECT COUNT(*) FROM jhs_version_products').fetchone()[0] == 1
+    db.close()
+    assert len(list((tmp_path / 'backups').glob('*.sqlite3'))) == 1

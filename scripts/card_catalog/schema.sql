@@ -135,11 +135,29 @@ CREATE TABLE IF NOT EXISTS jhs_versions (
     source_json TEXT NOT NULL,
     first_seen_at TEXT NOT NULL,
     last_seen_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    object_type TEXT NOT NULL DEFAULT 'card'
 );
 CREATE INDEX IF NOT EXISTS idx_versions_card ON jhs_versions(jhs_card_id);
 CREATE INDEX IF NOT EXISTS idx_versions_pack ON jhs_versions(pack_prefix);
 CREATE INDEX IF NOT EXISTS idx_versions_product ON jhs_versions(product_id);
+
+-- 同一市场版本可同时出现在多个商品中；价格仍按版本 ID 查询。
+CREATE TABLE IF NOT EXISTS jhs_version_products (
+    jhs_version_id INTEGER NOT NULL REFERENCES jhs_versions(jhs_version_id),
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    source_json TEXT NOT NULL,
+    PRIMARY KEY(jhs_version_id, product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_version_products_product ON jhs_version_products(product_id);
+
+CREATE VIEW IF NOT EXISTS product_card_versions AS
+SELECT p.jhs_pack_id,p.jhs_name,p.jhs_name_origin,v.jhs_version_id,v.jhs_card_id,
+       v.number_raw,v.rarity_raw,v.name_cn,v.name_jp
+FROM jhs_version_products vp JOIN products p ON p.id=vp.product_id
+JOIN jhs_versions v USING(jhs_version_id) WHERE v.object_type='card';
 
 CREATE TABLE IF NOT EXISTS import_issues (
     source TEXT NOT NULL,
@@ -169,5 +187,5 @@ SELECT c.*,
     (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.source='ygocdb:jp_name' LIMIT 1) AS name_jp,
     (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.source='ygocdb:en_name' LIMIT 1) AS name_en,
     (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.source='ygocdb:cn_name' LIMIT 1) AS name_cn,
-    (SELECT COUNT(*) FROM jhs_versions v JOIN jhs_cards j USING(jhs_card_id) WHERE j.card_id=c.id) AS jhs_version_count
+    (SELECT COUNT(*) FROM jhs_versions v JOIN jhs_cards j USING(jhs_card_id) WHERE j.card_id=c.id AND v.object_type='card') AS jhs_version_count
 FROM cards c;

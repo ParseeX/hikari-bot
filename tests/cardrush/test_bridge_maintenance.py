@@ -50,19 +50,19 @@ def test_healthy_session_checks_only_local_js_and_pauses_again(module, worker):
 
 
 def test_product_pagination_checks_complete_count_and_identity(worker):
-    product = {'id': 4404, 'name': 'EX 复刻版 特典卡', 'version_count': 2}
+    product = {'id': 4404, 'name': 'EX 复刻版 特典卡', 'version_count': 2, 'sample_version_ids': [1, 2]}
     def query(template, payload):
         if template == 'product-for-version.js':
             return {'product': product}
         page = payload['page']
         return {'product': product if page == 1 else None, 'total': 3, 'last_page': 2,
-                'current_page': page, 'entries': [{'id': page, 'number': '无编号'}]}
+                'current_page': page, 'entries': [{'id': page, 'number': '无编号', 'object_type': 'card'}]}
     worker.query.side_effect = query
     result = worker.product_versions(4404)
     assert [r['id'] for r in result['versions']] == [1, 2]
     assert all(r['pack'] == product for r in result['versions'])
-    worker.product_for_version = Mock(return_value={'product': {'id': 999}})
-    with pytest.raises(ValueError, match='filter ignored'):
+    product['sample_version_ids'] = [998, 999]
+    with pytest.raises(ValueError, match='filter_ignored'):
         worker.product_versions(4404)
 
 

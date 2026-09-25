@@ -33,9 +33,12 @@ class _FakeSession:
     async def __aexit__(self, exc_type, exc, traceback):
         return False
 
-    def get(self, url: str) -> _FakeResponse:
+    def get(self, url: str, **kwargs) -> _FakeResponse:
         self.urls.append(url)
-        return next(self.responses)
+        result = next(self.responses)
+        if isinstance(result, Exception):
+            raise result
+        return result
 
 
 def test_get_image_by_id_falls_back_to_chinese_source(monkeypatch):
@@ -141,3 +144,23 @@ def test_all_artworks_keep_order_with_bounded_downloads_and_partial_failure(monk
 def test_unknown_card_does_not_download_images(monkeypatch):
     monkeypatch.setattr(ygocard, 'catalog', SimpleNamespace(image_ids=lambda keyword: []))
     assert asyncio.run(ygocard.get_card_images('unknown')) == []
+
+
+def test_full_card_timeout_uses_backup_instead_of_placeholder(monkeypatch, tmp_path):
+    session = _FakeSession([TimeoutError(), _FakeResponse(200, image_bytes((421, 614)))])
+    monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
+    data = asyncio.run(ygocard.get_ygopic(23219323, half=False))
+    assert data is not None
+    assert session.urls[-1] == 'https://images.ygoprodeck.com/images/cards/23219323.jpg'
+    with Image.open(BytesIO(data)) as image:
+        assert image.size == (421, 614)
+
+
+def test_invalid_primary_artwork_uses_backup(monkeypatch):
+    session = _FakeSession([_FakeResponse(200, b'<html>error</html>'), _FakeResponse(200, image_bytes((400, 580)))])
+    monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
+    data = asyncio.run(ygocard.get_image_by_id(23219323))
+    with Image.open(BytesIO(data)) as image:
+        assert image.width > 0
+    assert len(session.urls) == 2

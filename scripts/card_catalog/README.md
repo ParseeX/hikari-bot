@@ -153,7 +153,7 @@ sudo systemctl start hikari-jhs-official-import.service
 
 ### 商品名与无编号商品
 
-主库 schema v2 使用 `products.id` 作为商品内部 ID，保存 `jhs_pack_id`、`jhs_name`、`jhs_name_origin` 和发行日期。`product_official_links` 单独保存官方商品 pid、原名、来源地址；不把两个平台的名称相互覆盖。`jhs_versions.product_id` 记录版本归属，`number_raw` 保留“无编号”及括号备注。
+主库 schema v3 使用 `products.id` 作为商品内部 ID，保存 `jhs_pack_id`、`jhs_name`、`jhs_name_origin` 和发行日期。`product_official_links` 单独保存官方商品 pid、原名、来源地址；不把两个平台的名称相互覆盖。`jhs_version_products` 记录版本与商品的多对多关系，同一版本只保存一份；`jhs_versions.product_id` 仅保留首次确认的商品供旧代码兼容，`number_raw` 保留“无编号”及括号备注。
 
 旧的 `packs` 表保留盒号批次及统计。迁移为每个旧盒号建立一个待核对商品记录（`legacy_prefix` 非空、`jhs_pack_id` 为空），保留全部原版本、时间戳和原始 JSON。历史数据不会仅凭名称自动绑定平台 ID；按平台商品 ID 重采并验证后才写入真实归属。后续旧盒号重采不会覆盖已经核实的商品归属。
 
@@ -181,7 +181,7 @@ python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 find-produ
 
 仍使用 `crawl_jhs.py --packs-file` 批量导入，断点分别使用 `jhs:4404`、`DBGV`，兼容旧断点，不会因此重采所有已完成盒号。确认官方对应关系后可加 `konami_pid`、`name`、`source_url`、`release_date`；其中 `name` 始终是官方名称，集换社名称从实际接口获取。
 
-按商品采集使用已核对的 `packId` 参数（普通搜索中的 `pack_id` 会被忽略），最多 300 页。验证分页稳定、版本 ID 不重复、商品详情中的卡片版本数与实收数量一致，并独立核对首末卡片的商品归属；失败整盒不写入。搜索 `total` 可能包含未拆封原盒，不能直接当作卡片版本数量。显式 `expected_cards` / `expected_versions` 仍会额外校验。
+按商品采集使用已核对的 `packId` 参数（普通搜索中的 `pack_id` 会被忽略），普通盒号搜索和按商品搜索均最多 300 页。验证分页稳定、版本 ID 不重复、商品详情中的卡片版本数与实收数量一致，并用商品详情中的版本样本独立核验筛选结果；失败整盒不写入。搜索返回的 `card_object_type` 用于过滤卡册等周边，数量校验只计算 `card`；旧误录周边保留在原表中并标记 `object_type`，不再参与卡片查询。搜索 `total` 可能包含未拆封原盒，不能直接当作卡片版本数量。显式 `expected_cards` / `expected_versions` 仍会额外校验。
 
 在 DbGate 查看集换社名称和卡片版本：
 
@@ -189,12 +189,13 @@ python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 find-produ
 SELECT p.id, p.jhs_pack_id, p.jhs_name, p.jhs_name_origin,
        p.prefix, COUNT(v.jhs_version_id) AS versions
 FROM products p
-LEFT JOIN jhs_versions v ON v.product_id = p.id
+LEFT JOIN jhs_version_products vp ON vp.product_id = p.id
+LEFT JOIN jhs_versions v ON v.jhs_version_id = vp.jhs_version_id AND v.object_type='card'
 GROUP BY p.id
 ORDER BY p.jhs_pack_id IS NULL, p.id DESC;
 ```
 
-首次使用新工具打开 v1 库会先备份再事务迁移；Bot 的读取入口兼容 v1 和 v2。回滚 schema 时先停止所有写入者，恢复迁移前的 SQLite 备份及配套断点，再回退代码。迁移后的新增导入应另行保留，不能直接覆盖掉。
+首次使用新工具打开 v1 / v2 库会先备份再事务迁移；旧版本数据保留，已确认的商品归属自动复制到关联表。Bot 的读取入口兼容 v1、v2、v3。DbGate 可直接打开 `product_card_versions` 视图查看每个商品的卡片，或打开 `jhs_version_products` 查看关联。回滚 schema 时先停止所有写入者，恢复迁移前的 SQLite 备份及配套断点，再回退代码。迁移后的新增导入应另行保留，不能直接覆盖掉。
 
 ```bash
 python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 stats
