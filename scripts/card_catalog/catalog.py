@@ -395,8 +395,16 @@ def candidate_cards(db, rows):
     japanese = {normalize((r.get('identity') or {}).get('name_jp') or r.get('name_jp', ''))
                 for r in rows if (r.get('identity') or {}).get('name_jp') or r.get('name_jp')}
     if japanese:
-        return {r[0] for name in japanese for r in db.execute(
+        found = {r[0] for name in japanese for r in db.execute(
             "SELECT DISTINCT card_id FROM card_names WHERE language='ja' AND normalized=?", (name,))}
+        # 混沌士兵等确有同名通常版和仪式版；仅使用已核实的类型值细分。
+        types = {(r.get('identity') or {}).get('type') for r in rows} - {None, ''}
+        required = {'通常怪兽': 0x11, '仪式怪兽': 0x81}.get(next(iter(types))) if len(types) == 1 else None
+        if required:
+            found = {card_id for card_id in found if db.execute(
+                'SELECT 1 FROM cards WHERE id=? AND (type_code & ?)=?',
+                (card_id, required, required)).fetchone()}
+        return found
     names = {normalize(n) for r in rows for n in
              [r.get('name_cn', ''), r.get('name_jp', ''), *(r.get('aliases') or [])] if n}
     found = set()

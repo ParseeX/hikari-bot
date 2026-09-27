@@ -147,6 +147,18 @@ def test_unknown_japanese_identity_cannot_fall_back_to_wrong_chinese_card(db):
     assert cat.import_pack(db, 'TEST', [row])['unmatched_cards'] == 1
 
 
+def test_same_japanese_name_checks_normal_or_ritual_type(db):
+    first = card(cid=1, passcode=1, name='混沌士兵', type=0x81)
+    second = card(cid=2, passcode=2, name='混沌士兵', type=0x11)
+    first['jp_name'] = second['jp_name'] = 'カオス・ソルジャー'
+    load(db, [first, second])
+    row = version(name='混沌士兵')
+    row['identity'] = {'id': 139, 'name_jp': 'カオス・ソルジャー', 'type': '仪式怪兽'}
+    cat.import_pack(db, 'TEST', [row])
+    assert cat.find(db, '1')[0]['versions'][0]['jhs_version_id'] == 1
+    assert cat.find(db, '2')[0]['versions'] == []
+
+
 def test_jhs_token_is_archived_and_stays_excluded_on_refresh(db):
     row = version(name='河马衍生物')
     row['identity'] = {'id': 139, 'name_jp': 'カバートークン', 'type': 'token'}
