@@ -391,12 +391,107 @@ def sync_ygocdb(db, snapshots):
 
 
 def candidate_cards(db, rows):
+    # 日文原名对应卡片身份；中文译名可能在两张不同卡片间重名。
+    japanese = {normalize((r.get('identity') or {}).get('name_jp') or r.get('name_jp', ''))
+                for r in rows if (r.get('identity') or {}).get('name_jp') or r.get('name_jp')}
+    if japanese:
+        return {r[0] for name in japanese for r in db.execute(
+            "SELECT DISTINCT card_id FROM card_names WHERE language='ja' AND normalized=?", (name,))}
     names = {normalize(n) for r in rows for n in
              [r.get('name_cn', ''), r.get('name_jp', ''), *(r.get('aliases') or [])] if n}
     found = set()
     for name in names:
         found.update(r[0] for r in db.execute('SELECT DISTINCT card_id FROM card_names WHERE normalized=?', (name,)))
     return found
+
+
+def cached_identity(db, jhs_id):
+    row = db.execute("SELECT source_json FROM jhs_versions WHERE jhs_card_id=? "
+                     "AND json_type(source_json,'$.identity')='object' LIMIT 1", (jhs_id,)).fetchone()
+    return json.loads(row[0])['identity'] if row else None
+
+
+def with_identity(db, row):
+    row = dict(row)
+    detail = row.get('identity') or cached_identity(db, int(row['card_id']))
+    if detail:
+        if (not isinstance(detail, dict) or type(detail.get('id')) is not int
+                or detail['id'] != int(row['card_id'])
+                or not isinstance(detail.get('name_jp', ''), str)
+                or not isinstance(detail.get('type', ''), str)):
+            raise ValueError('集换社卡片身份不一致')
+        row['identity'] = detail
+    return row
+
+
+def resolve_jhs_card(db, jhs_id, entries):
+    old = db.execute('SELECT card_id FROM jhs_cards WHERE jhs_card_id=?', (jhs_id,)).fetchone()
+    if any((r.get('identity') or {}).get('type', '').casefold() == 'token' for r in entries):
+        if old and old[0] is not None:
+            raise ValueError(f'集换社卡片 {jhs_id} 的衍生物类型与已有映射冲突')
+        return None, 'excluded_token'
+    candidates = candidate_cards(db, entries)
+    if old and old[0] is not None:
+        if (candidates and old[0] not in candidates) or (not candidates and any(r.get('identity') for r in entries)):
+            raise ValueError(f'集换社卡片 {jhs_id} 与已有映射冲突')
+        return old[0], 'existing_mapping'
+    if len(candidates) == 1:
+        return next(iter(candidates)), 'unique_japanese_name' if any(
+            (r.get('identity') or {}).get('name_jp') or r.get('name_jp') for r in entries) else 'unique_exact_name'
+    return None, 'pending'
+
+
+def enrich_identities(db, rows, env, snapshots):
+    """仅对歧义或缺失身份读取详情；已验证的详情随版本原文保存并复用。"""
+    grouped = defaultdict(list)
+    for row in rows:
+        if row.get('object_type', 'card') == 'card':
+            grouped[int(row['card_id'])].append(row)
+    details = {}
+    for jhs_id, entries in grouped.items():
+        detail = cached_identity(db, jhs_id)
+        if detail is None and len(candidate_cards(db, entries)) != 1:
+            raw = fetch(f"http://127.0.0.1:{int(env.get('JHS_HTTP_PORT', '8791'))}/v1/card-detail",
+                        data=encode({'card_id': jhs_id}).encode(), timeout=180,
+                        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env['JHS_ACCESS_TOKEN']})
+            body = json.loads(raw)
+            detail = body.get('card') if isinstance(body, dict) else None
+            if not isinstance(detail, dict) or detail.get('id') != jhs_id:
+                raise ValueError('集换社卡片详情身份不一致')
+            save_snapshot(snapshots, f'jhs-card-{jhs_id}-{hashlib.sha256(raw).hexdigest()[:16]}.json', raw)
+        if detail:
+            details[jhs_id] = detail
+    return [with_identity(db, {**r, **({'identity': details[r['card_id']]} if r.get('card_id') in details else {})})
+            if r.get('object_type', 'card') == 'card' else r for r in rows]
+
+
+def reconcile_jhs(db, env, snapshots):
+    """逐张提交，可重复执行；来源缺少的基础卡保留待核对，不猜测身份。"""
+    ids = [r[0] for r in db.execute("SELECT j.jhs_card_id FROM jhs_cards j WHERE j.card_id IS NULL "
+           "AND EXISTS (SELECT 1 FROM jhs_versions v WHERE v.jhs_card_id=j.jhs_card_id AND v.object_type='card')")]
+    counts = Counter()
+    for jhs_id in ids:
+        versions = db.execute("SELECT jhs_version_id,source_json FROM jhs_versions WHERE jhs_card_id=? AND object_type='card'", (jhs_id,)).fetchall()
+        entries = enrich_identities(db, [json.loads(v['source_json']) for v in versions], env, snapshots)
+        card_id, method = resolve_jhs_card(db, jhs_id, entries)
+        stamp = now()
+        with db:
+            db.execute('UPDATE jhs_cards SET card_id=?,match_method=?,updated_at=? WHERE jhs_card_id=?',
+                       (card_id, method, stamp, jhs_id))
+            for version, row in zip(versions, entries):
+                db.execute('UPDATE jhs_versions SET source_json=?,object_type=?,updated_at=? WHERE jhs_version_id=?',
+                           (encode(row), 'token' if method == 'excluded_token' else 'card', stamp, version['jhs_version_id']))
+            if method != 'pending':
+                clear_issue(db, 'jhs_mapping', jhs_id)
+            else:
+                issue(db, 'jhs_mapping', jhs_id, 'missing_or_ambiguous_base_card', entries)
+        counts[method] += 1
+        print(f'身份核对 {jhs_id}: {method}', flush=True)
+    # 旧周边的失败项属于历史采集记录，不应继续报告为待匹配卡片。
+    with db:
+        db.execute("DELETE FROM import_issues WHERE source='jhs_mapping' AND NOT EXISTS "
+                   "(SELECT 1 FROM jhs_versions v WHERE v.jhs_card_id=CAST(import_issues.source_key AS INTEGER) AND v.object_type='card')")
+    return dict(counts)
 
 
 def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None,
@@ -423,6 +518,7 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
             continue
         if not str(row.get('rarity') or '').strip() or int(row.get('id') or 0) <= 0 or int(row.get('card_id') or 0) <= 0:
             raise ValueError('卡盒中存在缺少 ID 或罕贵的版本')
+        row = with_identity(db, row)
         version_id = int(row['id'])
         if version_id in selected and selected[version_id] != row:
             raise ValueError('同一版本 ID 返回冲突内容')
@@ -453,20 +549,14 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
         product_id = upsert_product(db, prefix, product, stamp)
         link_official(db, product_id, name, source_url, release_date, konami_pid)
         for jhs_id, entries in grouped.items():
-            old = db.execute('SELECT card_id FROM jhs_cards WHERE jhs_card_id=?', (jhs_id,)).fetchone()
-            candidates = candidate_cards(db, entries)
-            if old and old[0] is not None:
-                if candidates and old[0] not in candidates:
-                    raise ValueError(f'集换社卡片 {jhs_id} 与已有映射冲突')
-                card_id, method = old[0], 'existing_mapping'
-            elif len(candidates) == 1:
-                card_id, method = next(iter(candidates)), 'unique_exact_name'
-            else:
-                card_id, method = None, 'pending'
+            card_id, method = resolve_jhs_card(db, jhs_id, entries)
             db.execute('INSERT INTO jhs_cards VALUES (?,?,?,?) ON CONFLICT(jhs_card_id) DO UPDATE SET '
                        'card_id=excluded.card_id,match_method=excluded.match_method,updated_at=excluded.updated_at',
                        (jhs_id, card_id, method, stamp))
-            if card_id is None:
+            if method == 'excluded_token':
+                clear_issue(db, 'jhs_mapping', jhs_id)
+                counts['excluded_tokens'] += 1
+            elif card_id is None:
                 issue(db, 'jhs_mapping', jhs_id, 'ambiguous_or_missing_name', entries)
                 counts['unmatched_cards'] += 1
             else:
@@ -481,13 +571,14 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
             # 已核实的平台商品归属不会被后续按前缀的旧采集降级覆盖。
             target_product = old['product_id'] if old and old['jhs_pack_id'] else product_id
             payload = encode(row)
-            db.execute('INSERT INTO jhs_versions(jhs_version_id,jhs_card_id,pack_prefix,product_id,number_raw,rarity_raw,name_cn,name_jp,source_json,first_seen_at,last_seen_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(jhs_version_id) DO UPDATE SET '
-                       "object_type='card',product_id=excluded.product_id,pack_prefix=COALESCE(excluded.pack_prefix,jhs_versions.pack_prefix),"
+            object_type = 'token' if (row.get('identity') or {}).get('type', '').casefold() == 'token' else 'card'
+            db.execute('INSERT INTO jhs_versions(jhs_version_id,jhs_card_id,pack_prefix,product_id,number_raw,rarity_raw,name_cn,name_jp,source_json,first_seen_at,last_seen_at,updated_at,object_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(jhs_version_id) DO UPDATE SET '
+                       "object_type=excluded.object_type,product_id=excluded.product_id,pack_prefix=COALESCE(excluded.pack_prefix,jhs_versions.pack_prefix),"
                        'number_raw=excluded.number_raw,rarity_raw=excluded.rarity_raw,name_cn=excluded.name_cn, '
                        'name_jp=excluded.name_jp,source_json=excluded.source_json,last_seen_at=excluded.last_seen_at, '
                        'updated_at=CASE WHEN jhs_versions.source_json!=excluded.source_json THEN excluded.updated_at ELSE jhs_versions.updated_at END',
                        (version_id, int(row['card_id']), prefix, target_product, row.get('number', ''), row['rarity'], row.get('name_cn', ''),
-                        row.get('name_jp', ''), payload, stamp, stamp, stamp))
+                        row.get('name_jp', ''), payload, stamp, stamp, stamp, object_type))
             if product:
                 db.execute('INSERT INTO jhs_version_products VALUES (?,?,?,?,?) '
                            'ON CONFLICT(jhs_version_id,product_id) DO UPDATE SET '
@@ -542,6 +633,7 @@ def sync_pack(db, args, snapshots):
     if product_id and (not isinstance(product, dict) or product.get('id') != product_id):
         raise ValueError('桥接返回商品 ID 不符')
     save_snapshot(snapshots, f'jhs-{product_id or args.prefix}-{hashlib.sha256(raw).hexdigest()[:16]}.json', raw)
+    rows = enrich_identities(db, rows, env, snapshots)
     return import_pack(db, args.prefix, rows, expected_cards=args.expected_cards,
                        expected_versions=args.expected_versions, name=args.name,
                        release_date=args.release_date, source_url=args.source_url,
@@ -591,6 +683,7 @@ def backfill_product_names(db, args, snapshots):
         if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows) or seed not in {r.get('id') for r in rows}:
             raise ValueError('系列没有返回用于确认归属的卡片版本')
         save_snapshot(snapshots, f'jhs-product-{pid}-{hashlib.sha256(raw).hexdigest()[:16]}.json', raw)
+        rows = enrich_identities(db, rows, env, snapshots)
         # 原官网关联保留在旧盒号记录上，不按译名猜测两个平台的商品对应。
         import_pack(db, None, rows, product=body['product'])
         touched.add(pid)
@@ -644,7 +737,9 @@ def stats(db):
         temporary_only=db.execute('SELECT COUNT(*) FROM cards WHERE temporary_id IS NOT NULL AND passcode IS NULL').fetchone()[0],
         with_reading=db.execute('SELECT COUNT(*) FROM cards WHERE japanese_reading IS NOT NULL').fetchone()[0],
         excluded_or_pending=[dict(r) for r in db.execute('SELECT source,reason,COUNT(*) AS count FROM import_issues GROUP BY source,reason')],
-        unmatched_jhs_cards=db.execute('SELECT COUNT(*) FROM jhs_cards WHERE card_id IS NULL').fetchone()[0],
+        unmatched_jhs_cards=db.execute("SELECT COUNT(*) FROM jhs_cards j WHERE card_id IS NULL AND EXISTS "
+            "(SELECT 1 FROM jhs_versions v WHERE v.jhs_card_id=j.jhs_card_id AND v.object_type='card')").fetchone()[0],
+        version_types={r[0]: r[1] for r in db.execute('SELECT object_type,COUNT(*) FROM jhs_versions GROUP BY object_type')},
         integrity=db.execute('PRAGMA integrity_check').fetchone()[0],
         foreign_key_errors=[tuple(r) for r in db.execute('PRAGMA foreign_key_check')],
     )
@@ -657,6 +752,8 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('init')
     commands.add_parser('sync-base')
+    reconcile = commands.add_parser('reconcile-jhs')
+    reconcile.add_argument('--bridge-env', type=Path)
     artwork = commands.add_parser('import-artworks')
     artwork.add_argument('--mc-db', type=Path, required=True)
     commands.add_parser('stats')
@@ -681,7 +778,7 @@ def main():
         print(json.dumps(find_products(args), ensure_ascii=False, indent=2))
         return
     with connect(args.db) as db:
-        if args.command in ('sync-base', 'sync-pack', 'import-artworks'):
+        if args.command in ('sync-base', 'sync-pack', 'import-artworks', 'reconcile-jhs'):
             backup(db, args.db)
         if args.command == 'sync-base':
             result = sync_ygocdb(db, args.db.parent / 'source-snapshots')
@@ -690,6 +787,8 @@ def main():
                 result = import_artwork_ids(db, args.mc_db)
         elif args.command == 'sync-pack':
             result = sync_pack(db, args, args.db.parent / 'source-snapshots')
+        elif args.command == 'reconcile-jhs':
+            result = reconcile_jhs(db, read_bridge_env(args.bridge_env), args.db.parent / 'source-snapshots')
         elif args.command == 'find':
             result = find(db, args.query)
         else:

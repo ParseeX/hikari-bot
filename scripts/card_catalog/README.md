@@ -206,6 +206,17 @@ python3 -m pytest tests/test_card_catalog.py -q
 
 `find` 支持精确名称、正式卡密与已知临时卡密，返回基础资料、效果、发行资料和已导入的集换社版本；当前不是模糊搜索 API。`stats` 包含完整性和外键检查、待核对记录及实际覆盖量。
 
+中文译名存在重名时，采集器读取集换社卡片详情，用日文原名精确匹配主库。详情保存在版本的 `source_json.identity` 中，后续导入复用；日文原名无法匹配时保留待核对，不退回同名中文卡。详情明确标为 `token` 的衍生物保留历史版本与商品归属，`object_type` 标为 `token`，普通卡片查询和待匹配数量均不包含它。奖品卡和特殊卡不会因没有卡密被归为衍生物。
+
+对旧记录补做身份核对：
+
+```bash
+python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 reconcile-jhs \
+  --bridge-env /path/to/jihuanshe-bridge/env
+```
+
+命令先备份，逐张提交，遇到网络错误后可重跑；已成功匹配或确认排除的记录自动跳过。`stats.version_types` 分别列出普通卡片、衍生物和周边的版本数量。`unmatched_jhs_cards` 只统计仍有普通卡片版本的未匹配项。
+
 ## 回滚
 
 修改已有主库前，工具自动通过 SQLite backup API 在同目录 `backups/` 保存一致性备份；源数据快照存入 `source-snapshots/`。同步事务失败保留之前的数据。若需恢复，先停止所有主库写入者，使用 SQLite backup API 从选定备份恢复，避免仅复制主文件而遗漏 WAL。

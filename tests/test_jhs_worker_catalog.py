@@ -28,6 +28,14 @@ def test_large_pack_reads_beyond_page_30(worker):
     assert len(worker.versions('QCCP')['versions']) == 45
 
 
+def test_card_detail_validates_identity_and_limits_fields(worker):
+    worker.query = lambda *_: {'card': {'id': 71, 'name_cn': '迅捷飞鼠',
+        'name_jp': '素早いモモンガ', 'type': '效果怪兽', 'extra': 'discard'}}
+    assert set(worker.card_detail(71)['card']) == {'id', 'name_cn', 'name_jp', 'type'}
+    with pytest.raises(ValueError, match='invalid_card_identity'):
+        worker.card_detail(3298)
+
+
 def test_shared_product_verifies_series_sample_not_single_detail_parent(worker):
     product = {'id': 4636, 'version_count': 2, 'sample_version_ids': [1, 2]}
     def query(template, payload):

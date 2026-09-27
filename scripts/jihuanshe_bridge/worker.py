@@ -299,6 +299,13 @@ class Worker:
         data = self.query('product-for-version.js', {'version_id': version_id})
         return {'product': data['product'], 'object_type': data.get('object_type', 'card')}
 
+    def card_detail(self, card_id):
+        card = self.query('card-detail.js', {'card_id': card_id}).get('card')
+        if (not isinstance(card, dict) or type(card.get('id')) is not int or card['id'] != card_id
+                or not all(isinstance(card.get(k), str) for k in ('name_cn', 'name_jp', 'type'))):
+            raise SourceValidationError('invalid_card_identity')
+        return {'card': {k: card[k] for k in ('id', 'name_cn', 'name_jp', 'type')}}
+
     def products(self, keyword):
         return {'products': self.query('products.js', {'keyword': keyword})['products']}
 
@@ -393,6 +400,11 @@ def create_server(worker, token, port):
                     if type(version_id) is not int or not 0 < version_id < 2**53:
                         raise ValueError('invalid version')
                     operation = lambda: worker.product_for_version(version_id)
+                elif self.path == '/v1/card-detail':
+                    card_id = payload['card_id']
+                    if type(card_id) is not int or not 0 < card_id < 2**53:
+                        raise ValueError('invalid card')
+                    operation = lambda: worker.card_detail(card_id)
                 elif self.path == '/v1/products':
                     keyword = payload.get('keyword', '')
                     if not isinstance(keyword, str) or len(keyword) > 160:

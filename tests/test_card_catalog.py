@@ -126,6 +126,75 @@ def test_ambiguous_alias_keeps_version_pending(db):
     assert db.execute('SELECT COUNT(*) FROM jhs_versions').fetchone()[0] == 1
 
 
+def test_japanese_identity_resolves_colliding_chinese_translations(db):
+    first = card(cid=1, passcode=1, name='迅捷飞鼠')
+    second = card(cid=2, passcode=2, name='迅捷飞鼠')
+    first['jp_name'], second['jp_name'] = '素早いモモンガ', '素早いムササビ'
+    load(db, [first, second])
+    row = version(name='迅捷飞鼠')
+    row['identity'] = {'id': 139, 'name_jp': '素早いムササビ', 'type': '效果怪兽'}
+    cat.import_pack(db, 'TEST', [row])
+    assert cat.find(db, '2')[0]['versions'][0]['jhs_version_id'] == 1
+    # 后续列表没有详情时，仍使用已核实的身份，不能退回中文歧义匹配。
+    cat.import_pack(db, 'TEST', [version(name='迅捷飞鼠')])
+    assert cat.find(db, '2')[0]['versions'][0]['jhs_version_id'] == 1
+
+
+def test_unknown_japanese_identity_cannot_fall_back_to_wrong_chinese_card(db):
+    load(db, [card()])
+    row = version()
+    row['identity'] = {'id': 139, 'name_jp': '別のカード', 'type': '效果怪兽'}
+    assert cat.import_pack(db, 'TEST', [row])['unmatched_cards'] == 1
+
+
+def test_jhs_token_is_archived_and_stays_excluded_on_refresh(db):
+    row = version(name='河马衍生物')
+    row['identity'] = {'id': 139, 'name_jp': 'カバートークン', 'type': 'token'}
+    cat.import_pack(db, 'TEST', [row])
+    cat.import_pack(db, 'TEST', [version(name='河马衍生物')])
+    assert db.execute('SELECT object_type FROM jhs_versions').fetchone()[0] == 'token'
+    assert cat.stats(db)['unmatched_jhs_cards'] == 0
+    assert not db.execute("SELECT * FROM import_issues WHERE source='jhs_mapping'").fetchall()
+
+
+def test_card_identity_for_another_card_is_rejected(db):
+    row = version()
+    row['identity'] = {'id': 999, 'name_jp': '青眼の白龍', 'type': 'token'}
+    with pytest.raises(ValueError, match='身份'):
+        cat.import_pack(db, 'TEST', [row])
+
+
+def test_stats_ignores_archived_goods_in_unmatched_count(db):
+    cat.import_pack(db, 'TEST', [version()])
+    db.execute("UPDATE jhs_versions SET object_type='goods'")
+    assert cat.stats(db)['unmatched_jhs_cards'] == 0
+
+
+def test_reconcile_resumes_and_preserves_versions_and_products(db, tmp_path, monkeypatch):
+    first, second = card(cid=1, passcode=1), card(cid=2, passcode=2)
+    second['jp_name'] = '別のカード'
+    load(db, [first, second])
+    rows = [version(), version(vid=2, jhs_id=140, name='河马衍生物')]
+    product = {'id': 10, 'name': '测试商品'}
+    cat.import_pack(db, None, [{**r, 'pack': product} for r in rows], product=product)
+    before = [tuple(r) for r in db.execute('SELECT * FROM jhs_version_products')]
+    calls = []
+    def fetch(url, *, data, **kwargs):
+        jhs_id = json.loads(data)['card_id']
+        calls.append(jhs_id)
+        detail = {'id': jhs_id, 'name_jp': '別のカード' if jhs_id == 139 else 'カバートークン',
+                  'type': '效果怪兽' if jhs_id == 139 else 'token'}
+        return json.dumps({'card': detail}).encode()
+    monkeypatch.setattr(cat, 'fetch', fetch)
+    assert cat.reconcile_jhs(db, {'JHS_ACCESS_TOKEN': 'test'}, tmp_path) == {
+        'unique_japanese_name': 1, 'excluded_token': 1}
+    assert cat.reconcile_jhs(db, {'JHS_ACCESS_TOKEN': 'test'}, tmp_path) == {}
+    assert calls == [139, 140]
+    assert before == [tuple(r) for r in db.execute('SELECT * FROM jhs_version_products')]
+    assert db.execute('SELECT COUNT(*) FROM jhs_versions').fetchone()[0] == 2
+    assert cat.find(db, '2')[0]['versions'][0]['jhs_version_id'] == 1
+
+
 def test_refuse_unrelated_database(tmp_path):
     path = tmp_path / 'old.db'
     with sqlite3.connect(path) as existing:
