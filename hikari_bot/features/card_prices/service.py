@@ -29,13 +29,23 @@ def group_rarities(versions: list[CardVersion]) -> dict[str, list[CardVersion]]:
 
 
 class ComparisonService:
-    def __init__(self, jhs: JhsClient, cardrush: CardrushService):
+    def __init__(self, jhs: JhsClient, cardrush: CardrushService, version_catalog=None):
         self.jhs = jhs
         self.cardrush = cardrush
+        self.version_catalog = version_catalog
 
     async def versions(self, name_jp: str, rarity: str | None = None,
                        model_prefix: str | None = None,
-                       names_cn: tuple[str, ...] = ()) -> list[CardVersion]:
+                       names_cn: tuple[str, ...] = (), *, catalog_id: int | None = None) -> list[CardVersion]:
+        async def discover():
+            return await self.online_versions(name_jp, names_cn)
+        versions = (await self.version_catalog.get(catalog_id, name_jp, self.jhs, discover)
+                    if self.version_catalog is not None and catalog_id is not None else await discover())
+        # 完整列表先落库，再按本次罕贵和编号筛选，不能把筛选结果标为完整。
+        return [v for v in versions if (not rarity or v.rarity == rarity.upper())
+                and (not model_prefix or v.number.upper().startswith(model_prefix.upper() + '-'))]
+
+    async def online_versions(self, name_jp, names_cn):
         versions = await self.jhs.versions(name_jp)
         # 上游不能总是识别日文原名中的全角英数字/符号；原文无结果才补查等价写法。
         compatible_name = unicodedata.normalize("NFKC", name_jp)
@@ -50,9 +60,7 @@ class ComparisonService:
         elif len({v.card_id for v in versions if not v.name_jp}) > 1:
             raise JhsUnavailable("搜索返回多张卡片，无法确认对应关系")
         return [v for v in versions
-                if (not v.name_jp or normalized(v.name_jp) == normalized(name_jp))
-                and (not rarity or v.rarity == rarity.upper())
-                and (not model_prefix or v.number.upper().startswith(model_prefix.upper() + "-"))]
+                if not v.name_jp or normalized(v.name_jp) == normalized(name_jp)]
 
     async def compare(self, name_jp: str, versions: list[CardVersion], *, japanese: bool = False) -> list[Comparison]:
         # 先查编号再核对名称和罕贵，避免 LIKE 查询混入其他卡包或相似名称。

@@ -14,13 +14,14 @@ from hikari_bot.features.card_prices.service import (
 )
 from hikari_bot.features.cardrush.parsing import parse_price_query
 from hikari_bot.services.ygocard import get_card_info
+from hikari_bot.features.card_prices.version_catalog import shared_version_catalog
 
 
 def register_price_query(matcher, cardrush, *, japanese: bool = False):
     comparison = ComparisonService(JhsClient(
         settings.jihuanshe_bridge_url, settings.jihuanshe_bridge_token,
         settings.jihuanshe_bridge_timeout,
-    ), cardrush)
+    ), cardrush, shared_version_catalog(settings.card_catalog_path))
 
     @matcher.handle()
     async def start(state: T_State, args: Message = CommandArg()):
@@ -35,7 +36,8 @@ def register_price_query(matcher, cardrush, *, japanese: bool = False):
             name_jp = str((info or {}).get("jp_name") or name).strip()
             names_cn = tuple(str(info[k]) for k in ("cn_name", "sc_name", "md_name", "nwbbs_n", "cnocg_n")
                              if info and info.get(k))
-            versions = await comparison.versions(name_jp, rarity, prefix, names_cn)
+            versions = await comparison.versions(name_jp, rarity, prefix, names_cn,
+                                                 catalog_id=(info or {}).get('catalog_id'))
         except (JhsUnavailable, asyncio.TimeoutError):
             await matcher.finish("暂时无法获取集换社罕贵列表，请稍后重试。")
         except Exception as error:

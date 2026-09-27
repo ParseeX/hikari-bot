@@ -65,3 +65,42 @@ setImmediate(()=>console.log(JSON.stringify(context.__codexJhsFastProbe)));
     assert data['status'] == status
     if status == 'done':
         assert set(data['card']) == {'id', 'name_cn', 'name_jp', 'type'}
+
+
+@pytest.mark.parametrize('failure', ['', 'duplicate', 'wrong_owner', 'no_pack', 'token'])
+def test_complete_card_versions_template_requires_full_valid_identity(failure):
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('需要 Node.js 执行实际 JavaScript 模板')
+    source = Path('scripts/jihuanshe_bridge/card-versions.js').read_text(encoding='utf-8')
+    source = source.replace('__INPUT__', json.dumps({'card_id': 71}))
+    record = {'id': 71, 'name_cn': '迅捷飞鼠', 'name_jp': '素早いモモンガ', 'type': '效果怪兽',
+              'card_versions': [{'id': 709, 'ygo_card_id': 71, 'number': 'GS05-JP002', 'rarity': 'GR',
+                                 'min_price': '999', 'packs': [{'id': 10, 'name_cn': '商品一'}, {'id': 20, 'name_cn': '商品二'}]}]}
+    if failure == 'duplicate':
+        record['card_versions'] *= 2
+    elif failure == 'wrong_owner':
+        record['card_versions'][0]['ygo_card_id'] = 72
+    elif failure == 'no_pack':
+        record['card_versions'][0]['packs'] = []
+    elif failure == 'token':
+        record['type'] = 'token'
+    harness = r"""
+const vm=require('vm'),assert=require('assert');
+const context={require:()=>({cloudRequest:(params,name,url)=>{
+  assert.strictEqual(params.card_id,71);
+  assert.strictEqual(params.game_key,'ygo');
+  assert.strictEqual(params.game_sub_key,'ocg');
+  assert.strictEqual(name,'findCard');
+  return Promise.resolve({result:{data:RECORD}});
+}})};
+vm.runInNewContext(SOURCE,context);
+setImmediate(()=>console.log(JSON.stringify(context.__codexJhsFastProbe)));
+""".replace('RECORD', json.dumps(record)).replace('SOURCE', json.dumps(source))
+    result = subprocess.run([node, '-e', harness], capture_output=True, text=True, encoding='utf-8', check=True)
+    data = json.loads(result.stdout)
+    assert data['status'] == ('error' if failure else 'done')
+    if not failure:
+        assert data['complete'] is True and data['card_id'] == 71
+        assert [p['id'] for p in data['versions'][0]['packs']] == [10, 20]
+        assert 'min_price' not in data['versions'][0]

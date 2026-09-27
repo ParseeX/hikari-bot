@@ -175,6 +175,14 @@ CREATE TABLE IF NOT EXISTS sync_state (
     imported_at TEXT NOT NULL
 );
 
+-- 只有按卡片身份完整获取并原子写入后才能标记；按盒号导入不代表完整。
+CREATE TABLE IF NOT EXISTS jhs_card_version_sync (
+    card_id INTEGER PRIMARY KEY REFERENCES cards(id),
+    jhs_card_ids_json TEXT NOT NULL,
+    versions_json TEXT NOT NULL,
+    checked_at REAL NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sync_runs (
     id INTEGER PRIMARY KEY,
     source TEXT NOT NULL,

@@ -108,7 +108,7 @@ def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch, japan
     spec.loader.exec_module(adapter)
     calls = []
     class Service:
-        async def versions(self, name, rarity, prefix, names_cn):
+        async def versions(self, name, rarity, prefix, names_cn, *, catalog_id=None):
             assert name == '原石の皇脈'
             return [CardVersion(1, 'LOCR-JP076', 'SR'), CardVersion(2, 'LOCR-JP076', 'UTR')]
         async def compare(self, name, versions, **mode):

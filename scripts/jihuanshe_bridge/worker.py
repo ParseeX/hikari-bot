@@ -312,6 +312,12 @@ class Worker:
                 result[key] = card[key]
         return {'card': result}
 
+    def card_versions(self, card_id):
+        data = self.query('card-versions.js', {'card_id': card_id})
+        if data.get('complete') is not True or data.get('card_id') != card_id or not data.get('versions'):
+            raise SourceValidationError('incomplete_card_versions')
+        return {key: data[key] for key in ('complete', 'card_id', 'versions')}
+
     def products(self, keyword):
         return {'products': self.query('products.js', {'keyword': keyword})['products']}
 
@@ -411,6 +417,11 @@ def create_server(worker, token, port):
                     if type(card_id) is not int or not 0 < card_id < 2**53:
                         raise ValueError('invalid card')
                     operation = lambda: worker.card_detail(card_id)
+                elif self.path == '/v1/card-versions':
+                    card_id = payload['card_id']
+                    if type(card_id) is not int or not 0 < card_id < 2**53:
+                        raise ValueError('invalid card')
+                    operation = lambda: worker.card_versions(card_id)
                 elif self.path == '/v1/products':
                     keyword = payload.get('keyword', '')
                     if not isinstance(keyword, str) or len(keyword) > 160:

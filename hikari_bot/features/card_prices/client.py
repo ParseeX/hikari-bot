@@ -40,6 +40,9 @@ class JhsClient:
         except (KeyError, TypeError, ValueError) as exc:
             raise JhsUnavailable("集换社版本数据无效") from exc
 
+    async def complete_versions(self, card_id: int) -> dict:
+        return await self._post('/v1/card-versions', {'card_id': card_id})
+
     async def prices(self, version_ids: list[int]) -> dict[int, JhsPrice]:
         if len(version_ids) > 20:
             result: dict[int, JhsPrice] = {}

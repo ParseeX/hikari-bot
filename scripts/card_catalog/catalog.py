@@ -676,6 +676,10 @@ def import_pack(db, prefix, rows, *, expected_cards=None, expected_versions=None
                            'ON CONFLICT(jhs_version_id,product_id) DO UPDATE SET '
                            'last_seen_at=excluded.last_seen_at,source_json=excluded.source_json',
                            (version_id, product_id, stamp, stamp, payload))
+            if not old or old['number_raw'] != row.get('number', '') or old['rarity_raw'] != row['rarity']:
+                # 卡盒同步发现新增/变更版本后，旧的整卡快照需要重新确认。
+                db.execute('DELETE FROM jhs_card_version_sync WHERE card_id IN '
+                           '(SELECT card_id FROM jhs_cards WHERE jhs_card_id=?)', (row['card_id'],))
             counts['inserted' if not old else 'unchanged' if old['source_json'] == payload else 'updated'] += 1
         # 未返回的旧版本不删除；last_seen_at 可识别需要复核的历史记录。
         result = dict(counts, prefix=prefix, product_id=product_id, cards=len(grouped), versions=len(selected))
