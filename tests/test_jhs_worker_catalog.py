@@ -46,3 +46,33 @@ def test_product_filter_still_rejects_wrong_series(worker):
                               'current_page': 1, 'last_page': 1, 'total': 1}
     with pytest.raises(ValueError):
         worker.product_versions(1)
+
+
+@pytest.mark.parametrize('reported', [38, 40, 0, None, '39'])
+def test_reference_count_does_not_reject_complete_card_list(worker, reported):
+    # SD26 实际为 39 个版本；不同的详情计数都不应改变完整列表的验收结果。
+    def query(template, payload):
+        page = payload['page']
+        rows = [{'id': i, 'object_type': 'card'} for i in range(1, 40)]
+        return {'product': {'id': 588, 'version_count': reported, 'sample_version_ids': [1, 2, 3]} if page == 1 else None,
+                'entries': rows[(page-1)*15:page*15], 'current_page': page, 'last_page': 3, 'total': 40}
+    worker.query = query
+    result = worker.product_versions(588)
+    assert len(result['versions']) == 39
+    assert result['card_count'] == 39
+    assert result['count_mismatch'] is True
+
+
+def test_zero_reference_count_cannot_bypass_identity_check(worker):
+    worker.query = lambda *_: {'product': {'id': 1, 'version_count': 0, 'sample_version_ids': [99]},
+                              'entries': [{'id': 2, 'object_type': 'card'}],
+                              'current_page': 1, 'last_page': 1, 'total': 1}
+    with pytest.raises(ValueError, match='product_filter_ignored'):
+        worker.product_versions(1)
+
+
+def test_empty_product_is_still_rejected(worker):
+    worker.query = lambda *_: {'product': {'id': 1, 'version_count': 0, 'sample_version_ids': [1]},
+                              'entries': [], 'current_page': 1, 'last_page': 1, 'total': 0}
+    with pytest.raises(ValueError):
+        worker.product_versions(1)

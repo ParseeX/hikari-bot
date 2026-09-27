@@ -181,7 +181,7 @@ python3 scripts/card_catalog/catalog.py --db /path/to/catalog.sqlite3 find-produ
 
 仍使用 `crawl_jhs.py --packs-file` 批量导入，断点分别使用 `jhs:4404`、`DBGV`，兼容旧断点，不会因此重采所有已完成盒号。确认官方对应关系后可加 `konami_pid`、`name`、`source_url`、`release_date`；其中 `name` 始终是官方名称，集换社名称从实际接口获取。
 
-按商品采集使用已核对的 `packId` 参数（普通搜索中的 `pack_id` 会被忽略），普通盒号搜索和按商品搜索均最多 300 页。验证分页稳定、版本 ID 不重复、商品详情中的卡片版本数与实收数量一致，并用商品详情中的版本样本独立核验筛选结果；失败整盒不写入。搜索返回的 `card_object_type` 用于过滤卡册等周边，数量校验只计算 `card`；旧误录周边保留在原表中并标记 `object_type`，不再参与卡片查询。搜索 `total` 可能包含未拆封原盒，不能直接当作卡片版本数量。显式 `expected_cards` / `expected_versions` 仍会额外校验。
+按商品采集使用已核对的 `packId` 参数（普通搜索中的 `pack_id` 会被忽略），普通盒号搜索和按商品搜索均最多 300 页。验证分页稳定、版本 ID 不重复、实际卡片列表非空，并用商品详情中的版本样本独立核验筛选结果；这些检查失败时整盒不写入。商品详情的 `card_version_count` 与实际可返回版本列表并非稳定的一一对应关系，仅作为参考计数，差异记入日志和快照的 `count_mismatch`，不据此拒绝关联。搜索返回的 `card_object_type` 用于过滤卡册等周边，实际卡片计数只计算 `card`；旧误录周边保留在原表中并标记 `object_type`，不再参与卡片查询。搜索 `total` 可能包含未拆封原盒，不能直接当作卡片版本数量。显式 `expected_cards` / `expected_versions` 仍会额外校验。
 
 在 DbGate 查看集换社名称和卡片版本：
 

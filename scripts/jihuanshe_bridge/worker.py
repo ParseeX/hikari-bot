@@ -320,16 +320,21 @@ class Worker:
                 seen.add(item['id'])
                 entries.append({**item, 'pack': product})
             if page >= last_page:
-                # 搜索 total 可能包含“未拆封原盒”；商品详情的计数只包含卡片版本。
-                expected = product.get('version_count', total)
+                # 商品详情计数与列表并非同一口径，仅作诊断参考；total 还可能包含原盒。
+                reported = product.get('version_count')
                 cards = [item for item in entries if item.get('object_type') == 'card']
-                if type(expected) is not int or not cards or len(cards) != expected:
+                if not cards:
                     raise SourceValidationError('incomplete_product')
                 # 卡片详情只给出一个主商品，无法验证共用版本；改用独立商品详情的样本。
                 references = set(product.get('sample_version_ids', []))
-                if not references or len(references & seen) < min(3, expected, len(references)):
+                if not references or len(references & seen) < min(3, len(cards), len(references)):
                     raise SourceValidationError('product_filter_ignored')
-                return {'product': product, 'versions': entries, 'reported_total': total}
+                mismatch = type(reported) is not int or reported != len(cards)
+                if mismatch:
+                    logging.warning('product count reference differs pack_id=%d reported=%s actual=%d',
+                                    pack_id, reported if type(reported) is int else 'unknown', len(cards))
+                return {'product': product, 'versions': entries, 'reported_total': total,
+                        'card_count': len(cards), 'count_mismatch': mismatch}
         raise SourceValidationError('too_many_product_versions')
 
     def close(self):
