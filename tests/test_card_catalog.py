@@ -275,7 +275,7 @@ def test_v1_migration_preserves_versions_and_official_name(tmp_path):
         old.execute('INSERT INTO jhs_versions VALUES (1,139,?,?,?,?,?,?,?,?,?)',
                     ('TEST', 'TEST-JP001（异画）', 'S1R', '青眼白龙', '', '{}', cat.now(), cat.now(), cat.now()))
     with cat.connect(path) as db:
-        assert db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()[0] == '3'
+        assert db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()[0] == '4'
         assert db.execute('SELECT number_raw FROM jhs_versions').fetchone()[0] == 'TEST-JP001（异画）'
         assert db.execute('SELECT name,konami_pid FROM product_official_links').fetchone()[:] == ('官网商品名', '123')
         assert cat.stats(db)['foreign_key_errors'] == []

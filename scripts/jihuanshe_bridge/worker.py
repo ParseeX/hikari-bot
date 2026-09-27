@@ -304,7 +304,13 @@ class Worker:
         if (not isinstance(card, dict) or type(card.get('id')) is not int or card['id'] != card_id
                 or not all(isinstance(card.get(k), str) for k in ('name_cn', 'name_jp', 'type'))):
             raise SourceValidationError('invalid_card_identity')
-        return {'card': {k: card[k] for k in ('id', 'name_cn', 'name_jp', 'type')}}
+        result = {k: card[k] for k in ('id', 'name_cn', 'name_jp', 'type')}
+        for key in ('desc', 'pendulum_desc'):
+            if key in card:
+                if not isinstance(card[key], str):
+                    raise SourceValidationError('invalid_card_text')
+                result[key] = card[key]
+        return {'card': result}
 
     def products(self, keyword):
         return {'products': self.query('products.js', {'keyword': keyword})['products']}

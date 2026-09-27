@@ -28,7 +28,7 @@ class CardCatalog:
     def validate(self):
         with self.connect() as db:
             version = db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()
-            if not version or version[0] not in {'1', '2', '3'}:
+            if not version or version[0] not in {'1', '2', '3', '4'}:
                 raise ValueError('不支持的卡片主库版本')
             if not db.execute('SELECT 1 FROM cards LIMIT 1').fetchone():
                 raise ValueError('卡片主库为空，请先执行 sync-base')
@@ -56,8 +56,8 @@ class CardCatalog:
                 'cid': row['konami_cid'], 'catalog_id': row['id'],
                 'passcode': row['passcode'], 'temporary_id': row['temporary_id'],
                 'jp_ruby': row['japanese_reading'] or ''}
-        for name in db.execute('SELECT source,name FROM card_names WHERE card_id=?', (row['id'],)):
-            if name['source'].startswith('ygocdb:'):
+        for name in db.execute("SELECT source,name FROM card_names WHERE card_id=? ORDER BY source LIKE 'ygocdb:%'", (row['id'],)):
+            if name['source'].startswith('ygocdb:') or name['source'] in {'jhs:cn_name', 'jhs:jp_name'}:
                 info[name['source'].split(':', 1)[1]] = name['name']
         text = db.execute("SELECT * FROM card_texts WHERE card_id=? AND language='zh' "
                           "ORDER BY source='ygocdb' DESC,source LIMIT 1", (row['id'],)).fetchone()
@@ -83,11 +83,11 @@ class CardCatalog:
                 return self._info(db, self._by_id(db, key))
             # 精确别名优先；模糊查询仅搜索卡名，百分号和下划线都是普通文字。
             row = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                             'WHERE n.normalized=? ORDER BY c.konami_cid LIMIT 1', (key,)).fetchone()
+                             'WHERE n.normalized=? ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
             if row is None:
                 row = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
                                  'WHERE instr(n.normalized,?)>0 '
-                                 'ORDER BY length(n.normalized),c.konami_cid LIMIT 1', (key,)).fetchone()
+                                 'ORDER BY length(n.normalized),c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
             return self._info(db, row)
 
     def random_id(self, seed=None, *, include_artworks=False):
@@ -115,7 +115,7 @@ class CardCatalog:
     def metaltronus(self, value):
         with self.connect() as db:
             target = self._by_id(db, value)
-            if target is None or not target['type_code'] & 1:
+            if target is None or not (target['type_code'] or 0) & 1:
                 return []
             if not target['race_code'] or not target['attribute_code']:
                 return []

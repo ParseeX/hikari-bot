@@ -90,7 +90,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await ygo_card_id.finish("查询失败！")
             return
 
-        await ygo_card_id.finish(card_info.get("passcode") or str(card_info["id"]))
+        await ygo_card_id.finish(card_info.get("passcode") or (str(card_info["id"]) if card_info["id"] else "该卡暂无卡密。"))
 
 
 ygo_card_effect = on_cmd("效果查询", aliases={"游戏王效果", "效果"}, priority=5)
@@ -117,7 +117,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             result = result + p_effect + "\n---------------\n"
         
         if effect == "":
-            effect = "※公式のデュエルでは使用できません。"
+            effect = "暂无效果资料。"
         result = result + effect
 
         await ygo_card_effect.finish(result)

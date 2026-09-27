@@ -67,10 +67,10 @@ def connect(path: Path) -> sqlite3.Connection:
         raise ValueError('目标文件不是卡片主库，拒绝修改')
     if tables:
         row = db.execute("SELECT value FROM catalog_meta WHERE key='schema_version'").fetchone()
-        if row is None or row[0] not in {'1', '2', '3'}:
+        if row is None or row[0] not in {'1', '2', '3', '4'}:
             db.close()
             raise ValueError('不支持的卡片主库版本')
-        if row[0] in {'1', '2'}:
+        if row[0] in {'1', '2', '3'}:
             backup(db, path)
         if row[0] == '1':
             try:
@@ -94,9 +94,22 @@ def connect(path: Path) -> sqlite3.Connection:
                 db.rollback()
                 db.close()
                 raise
+        if row[0] in {'1', '2', '3'}:
+            # 重建 cards 的可空 cid 约束；子表仍引用原表名和原内部 ID。
+            db.execute('PRAGMA foreign_keys=OFF')
+            try:
+                db.executescript(Path(__file__).with_name('migrate_v4.sql').read_text(encoding='utf-8'))
+                if db.execute('PRAGMA foreign_key_check').fetchone():
+                    raise ValueError('迁移后的外键校验失败')
+                db.commit()
+            except Exception:
+                db.rollback()
+                db.close()
+                raise
+            db.execute('PRAGMA foreign_keys=ON')
     db.execute('PRAGMA journal_mode=WAL')
     db.executescript(Path(__file__).with_name('schema.sql').read_text(encoding='utf-8'))
-    db.execute("INSERT OR IGNORE INTO catalog_meta VALUES ('schema_version','3')")
+    db.execute("INSERT OR IGNORE INTO catalog_meta VALUES ('schema_version','4')")
     db.commit()
     return db
 
@@ -193,12 +206,30 @@ def import_cards(db, rows: dict, changes: dict) -> dict:
             issue(db, 'ygocdb', source_key, 'excluded_token', record)
             counts['excluded_token'] += 1
             continue
+        old = db.execute('SELECT * FROM cards WHERE konami_cid=?', (cid,)).fetchone() if cid > 0 else None
+        if old and not t and not record.get('id') and db.execute(
+                "SELECT 1 FROM jhs_cards j JOIN jhs_versions v USING(jhs_card_id) "
+                "JOIN jhs_version_products vp USING(jhs_version_id) WHERE j.card_id=? AND v.object_type='card' LIMIT 1",
+                (old['id'],)).fetchone():
+            # 百鸽没有模拟器参数不等于没有实体卡；保留已核实的集换社资料。
+            clear_issue(db, 'ygocdb', source_key)
+            counts['retained_jhs_metadata'] += 1
+            continue
         # 不把缺少资料的官方奖品卡/特殊卡猜成普通卡或衍生物。
         if cid <= 0 or not t or not (int(data.get('ot') or 0) & 11):
             issue(db, 'ygocdb', source_key, 'missing_or_out_of_scope_data', record)
             counts['pending'] += 1
             continue
-        old = db.execute('SELECT * FROM cards WHERE konami_cid=?', (cid,)).fetchone()
+        if old is None and record.get('jp_name'):
+            matches = db.execute("SELECT DISTINCT c.* FROM cards c JOIN card_names n ON n.card_id=c.id "
+                "WHERE c.konami_cid IS NULL AND n.source='jhs:jp_name' AND n.normalized=?",
+                (normalize(record['jp_name']),)).fetchall()
+            if len(matches) == 1:
+                old = matches[0]
+            elif len(matches) > 1:
+                issue(db, 'ygocdb', source_key, 'ambiguous_jhs_identity', record)
+                counts['pending'] += 1
+                continue
         source_hash = digest(record)
         if old and old['source_hash'] == source_hash:
             clear_issue(db, 'ygocdb', source_key)
@@ -446,7 +477,58 @@ def resolve_jhs_card(db, jhs_id, entries):
     if len(candidates) == 1:
         return next(iter(candidates)), 'unique_japanese_name' if any(
             (r.get('identity') or {}).get('name_jp') or r.get('name_jp') for r in entries) else 'unique_exact_name'
+    # 平台详情和商品归属都已确认的实体卡，可以不依赖官方 cid 建立主库身份。
+    # 存在名称歧义时仍待核对，不凭新建记录绕过冲突。
+    if not candidates:
+        detail = next((r['identity'] for r in entries if r.get('identity')), None)
+        has_product = any((r.get('pack') or {}).get('id') for r in entries) or db.execute(
+            'SELECT 1 FROM jhs_versions v JOIN jhs_version_products vp USING(jhs_version_id) '
+            'JOIN products p ON p.id=vp.product_id WHERE v.jhs_card_id=? AND p.jhs_pack_id IS NOT NULL LIMIT 1',
+            (jhs_id,)).fetchone()
+        if detail and detail.get('type') and has_product:
+            return create_jhs_card(db, jhs_id, entries, detail), 'jhs_identity'
     return None, 'pending'
+
+
+def create_jhs_card(db, jhs_id, entries, detail):
+    """只收录详情确认的卡片；无卡密和官方编号时留空，不生成替代号码。"""
+    if detail['id'] != jhs_id or detail.get('type', '').casefold() == 'token':
+        raise ValueError('集换社卡片身份或类型不符')
+    name_cn = detail.get('name_cn') or entries[0].get('name_cn')
+    if not name_cn:
+        raise ValueError('集换社卡片缺少名称')
+    stamp = now()
+    # 来源已有官方 cid 时必须保留；没有卡密的 id=0 不能转换成 00000000。
+    base_matches = []
+    for source_key, raw in db.execute("SELECT source_key,payload_json FROM import_issues WHERE source='ygocdb'"):
+        base = json.loads(raw)
+        if (detail.get('name_jp') and normalize(base.get('jp_name') or '') == normalize(detail['name_jp'])
+                and int(base.get('cid') or 0) > 0):
+            base_matches.append((source_key, base))
+    if len({b['cid'] for _, b in base_matches}) > 1:
+        raise ValueError('集换社卡片对应多个官方编号')
+    base = base_matches[0][1] if base_matches else {}
+    if (base.get('data') or {}).get('type', 0) & TYPE_TOKEN:
+        raise ValueError('集换社卡片与基础来源的衍生物类型冲突')
+    payload = {'source': 'jhs', 'jhs_card_id': jhs_id, 'identity': detail, 'ygocdb': base}
+    card_id = db.execute('INSERT INTO cards(konami_cid,japanese_reading,source_hash,source_json,created_at,updated_at) VALUES (?,?,?,?,?,?)',
+                         (base.get('cid'), base.get('jp_ruby'), digest(payload), encode(payload), stamp, stamp)).lastrowid
+    names = [('zh', 'jhs:cn_name', name_cn), ('ja', 'jhs:jp_name', detail.get('name_jp'))]
+    names.extend(('zh', 'jhs:alias', n) for r in entries for n in [r.get('name_cn'), *(r.get('aliases') or [])]
+                 if n and normalize(n) != normalize(detail.get('name_jp', '')))
+    for language, source, name in names:
+        if name:
+            db.execute('INSERT OR IGNORE INTO card_names VALUES (?,?,?,?,?)',
+                       (card_id, language, source, name, normalize(name)))
+    for field, language in NAME_FIELDS.items():
+        if base.get(field):
+            db.execute('INSERT OR IGNORE INTO card_names VALUES (?,?,?,?,?)',
+                       (card_id, language, 'ygocdb:' + field, base[field], normalize(base[field])))
+    for source_key, _ in base_matches:
+        clear_issue(db, 'ygocdb', source_key)
+    db.execute('INSERT INTO card_texts VALUES (?,?,?,?,?,?,?)',
+               (card_id, 'zh', 'jhs', detail['type'], detail.get('desc') or '', detail.get('pendulum_desc') or '', stamp))
+    return card_id
 
 
 def enrich_identities(db, rows, env, snapshots):
@@ -458,7 +540,9 @@ def enrich_identities(db, rows, env, snapshots):
     details = {}
     for jhs_id, entries in grouped.items():
         detail = cached_identity(db, jhs_id)
-        if detail is None and len(candidate_cards(db, entries)) != 1:
+        candidates = candidate_cards(db, entries)
+        if (detail is None and len(candidates) != 1) or (detail is not None and not candidates
+                and detail.get('type', '').casefold() != 'token' and 'desc' not in detail):
             raw = fetch(f"http://127.0.0.1:{int(env.get('JHS_HTTP_PORT', '8791'))}/v1/card-detail",
                         data=encode({'card_id': jhs_id}).encode(), timeout=180,
                         headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env['JHS_ACCESS_TOKEN']})
@@ -481,9 +565,9 @@ def reconcile_jhs(db, env, snapshots):
     for jhs_id in ids:
         versions = db.execute("SELECT jhs_version_id,source_json FROM jhs_versions WHERE jhs_card_id=? AND object_type='card'", (jhs_id,)).fetchall()
         entries = enrich_identities(db, [json.loads(v['source_json']) for v in versions], env, snapshots)
-        card_id, method = resolve_jhs_card(db, jhs_id, entries)
         stamp = now()
         with db:
+            card_id, method = resolve_jhs_card(db, jhs_id, entries)
             db.execute('UPDATE jhs_cards SET card_id=?,match_method=?,updated_at=? WHERE jhs_card_id=?',
                        (card_id, method, stamp, jhs_id))
             for version, row in zip(versions, entries):

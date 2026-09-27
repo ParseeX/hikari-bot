@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS catalog_meta (
 
 CREATE TABLE IF NOT EXISTS cards (
     id INTEGER PRIMARY KEY,
-    konami_cid INTEGER NOT NULL UNIQUE CHECK(konami_cid > 0),
+    konami_cid INTEGER UNIQUE CHECK(konami_cid IS NULL OR konami_cid > 0),
     passcode TEXT UNIQUE CHECK(passcode IS NULL OR
         (length(passcode) = 8 AND passcode NOT GLOB '*[^0-9]*')),
     temporary_id TEXT UNIQUE CHECK(temporary_id IS NULL OR
@@ -184,8 +184,8 @@ CREATE TABLE IF NOT EXISTS sync_runs (
 
 CREATE VIEW IF NOT EXISTS card_catalog AS
 SELECT c.*,
-    (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.source='ygocdb:jp_name' LIMIT 1) AS name_jp,
-    (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.source='ygocdb:en_name' LIMIT 1) AS name_en,
-    (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.source='ygocdb:cn_name' LIMIT 1) AS name_cn,
+    (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.language='ja' ORDER BY n.source='ygocdb:jp_name' DESC,n.source LIMIT 1) AS name_jp,
+    (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.language='en' ORDER BY n.source='ygocdb:en_name' DESC,n.source LIMIT 1) AS name_en,
+    (SELECT name FROM card_names n WHERE n.card_id=c.id AND n.source IN ('ygocdb:cn_name','jhs:cn_name') ORDER BY n.source='ygocdb:cn_name' DESC LIMIT 1) AS name_cn,
     (SELECT COUNT(*) FROM jhs_versions v JOIN jhs_cards j USING(jhs_card_id) WHERE j.card_id=c.id AND v.object_type='card') AS jhs_version_count
 FROM cards c;
