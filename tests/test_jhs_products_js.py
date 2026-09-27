@@ -37,3 +37,31 @@ setImmediate(()=>console.log(JSON.stringify(context.__codexJhsFastProbe)));
     assert data['entries'][0]['object_type'] == 'card'
     assert data['entries'][1]['object_type'] == 'goods'
     assert data['product']['sample_version_ids'] == [1]
+
+
+@pytest.mark.parametrize('source_id,status', [(71, 'done'), (72, 'error')])
+def test_card_detail_template_checks_id_and_returns_only_public_identity(source_id, status):
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('需要 Node.js 执行实际 JavaScript 模板')
+    source = Path('scripts/jihuanshe_bridge/card-detail.js').read_text(encoding='utf-8')
+    source = source.replace('__INPUT__', json.dumps({'card_id': 71}))
+    harness = r"""
+const vm=require('vm'),assert=require('assert');
+const context={require:()=>({cloudRequest:(params,name,url)=>{
+  assert.strictEqual(params.card_id,71);
+  assert.strictEqual(params.game_key,'ygo');
+  assert.strictEqual(params.game_sub_key,'ocg');
+  assert.strictEqual(name,'findCard');
+  assert.strictEqual(url,'/api/market/cards/71');
+  return Promise.resolve({result:{data:{id:SOURCE_ID,name_cn:'迅捷飞鼠',
+    name_jp:'素早いモモンガ',type:'效果怪兽',effect_by_html:'ignored',extra:'ignored'}}});
+}})};
+vm.runInNewContext(SOURCE,context);
+setImmediate(()=>console.log(JSON.stringify(context.__codexJhsFastProbe)));
+""".replace('SOURCE_ID', str(source_id)).replace('SOURCE', json.dumps(source))
+    result = subprocess.run([node, '-e', harness], capture_output=True, text=True, encoding='utf-8', check=True)
+    data = json.loads(result.stdout)
+    assert data['status'] == status
+    if status == 'done':
+        assert set(data['card']) == {'id', 'name_cn', 'name_jp', 'type'}
