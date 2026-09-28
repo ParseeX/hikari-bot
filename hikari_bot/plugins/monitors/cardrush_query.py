@@ -31,7 +31,7 @@ def register_price_query(matcher, cardrush, *, japanese: bool = False):
             await matcher.finish(f"请输入卡片名称或卡密，例如：{command} 原石之皇脉")
         name, rarity, prefix = parse_price_query(text)
         try:
-            info = await asyncio.wait_for(get_card_info(name), timeout=15)
+            info = await asyncio.wait_for(get_card_info(name, fuzzy=True), timeout=15)
             # 查询集换社时必须保留日文原文中的空格、标点和全角字符。
             name_jp = str((info or {}).get("jp_name") or name).strip()
             names_cn = tuple(str(info[k]) for k in ("cn_name", "sc_name", "md_name", "nwbbs_n", "cnocg_n")
@@ -44,7 +44,7 @@ def register_price_query(matcher, cardrush, *, japanese: bool = False):
             await log_message(f"[card_price] versions failed: {type(error).__name__}")
             await matcher.finish("查询罕贵列表失败，请稍后重试。")
         if not versions:
-            await matcher.finish(f"集换社暂无【{name_jp}】的匹配版本，请核对日文完整卡名。")
+            await matcher.finish(f"集换社暂无【{name_jp}】的匹配版本，可尝试其他卡名关键词或卡密。")
         groups = group_rarities(versions)
         state["price_name_jp"] = name_jp
         state["price_groups"] = groups

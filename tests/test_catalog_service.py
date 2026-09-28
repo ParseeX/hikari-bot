@@ -59,6 +59,24 @@ def test_identifiers_are_exact_and_not_internal_ids(catalog):
     assert catalog.by_id(100000002)['id'] == 100000002
 
 
+def test_price_fuzzy_search_ranks_names_and_keeps_identity(catalog, monkeypatch):
+    db = importer.connect(catalog.path)
+    with db:
+        importer.import_cards(db, {'9': record(9, 9000, '青眼究极龙'),
+                                   '10': record(10, 10000, '青眼白龙王')}, {})
+    db.close()
+    for name in ('青眼', '青眼白隆', '青眼龙', '青·眼白龙', 'Blue Eyes White Dragon'):
+        assert catalog.search(name, fuzzy=True)['id'] == 1234
+    assert catalog.search('青眼究极', fuzzy=True)['id'] == 9000
+    assert catalog.search('青眼白龙王', fuzzy=True)['id'] == 10000
+    assert catalog.search('青眼白隆王', fuzzy=True)['id'] == 10000
+    assert catalog.search('青眼白隆') is None
+    for name in ('%', '_', '青隆', '绝对不存在的卡片', '1236'):
+        assert catalog.search(name, fuzzy=True) is None
+    monkeypatch.setattr(ygocard, 'catalog', catalog)
+    assert asyncio.run(ygocard.get_card_info('青眼白隆', fuzzy=True))['id'] == 1234
+
+
 def test_effect_and_stats_contract(catalog):
     info = catalog.search('蓝眼白龙')
     assert info['text'] == {'types': '[怪兽|通常]', 'desc': '原文效果', 'pdesc': ''}

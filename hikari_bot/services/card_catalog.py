@@ -1,5 +1,6 @@
 """Bot 的卡片资料入口；每次查询打开只读连接，及时看到主库更新。"""
 from contextlib import contextmanager
+from difflib import SequenceMatcher
 from pathlib import Path
 import random
 import sqlite3
@@ -74,7 +75,7 @@ class CardCatalog:
         with self.connect() as db:
             return self._info(db, self._by_id(db, value))
 
-    def search(self, keyword: str):
+    def search(self, keyword: str, *, fuzzy=False):
         key = normalize(keyword)
         if not key:
             return None
@@ -88,7 +89,41 @@ class CardCatalog:
                 row = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
                                  'WHERE instr(n.normalized,?)>0 '
                                  'ORDER BY length(n.normalized),c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
+            if row is None and fuzzy:
+                row = self._closest_name(db, key)
             return self._info(db, row)
+
+    @staticmethod
+    def _closest_name(db, key):
+        """补充标点差异、漏字和少量错字；始终返回一张已确定身份的卡。"""
+        query = ''.join(c for c in key if c.isalnum())
+        if not query or len(query) > 128:
+            return None
+        best, card_id = None, None
+        rows = db.execute('SELECT DISTINCT n.card_id,n.normalized,c.konami_cid '
+                          'FROM card_names n JOIN cards c ON c.id=n.card_id')
+        for row in rows:
+            name = ''.join(c for c in row['normalized'] if c.isalnum())
+            if not name:
+                continue
+            if query in name:
+                score = (2, len(query) / len(name))
+            else:
+                # 短输入只做包含匹配，避免一两个字的错字匹配到无关卡片。
+                if len(query) < 3 or min(len(query), len(name)) / max(len(query), len(name)) < .6:
+                    continue
+                matcher = SequenceMatcher(None, query, name, autojunk=False)
+                if matcher.quick_ratio() < .75:
+                    continue
+                similarity = matcher.ratio()
+                if similarity < .75:
+                    continue
+                score = (1, similarity)
+            # 同分时稳定排序，不依赖 SQL 返回顺序或同一张卡的别名数量。
+            rank = (*score, -(row['konami_cid'] is None), -(row['konami_cid'] or 0), -row['card_id'])
+            if best is None or rank > best:
+                best, card_id = rank, row['card_id']
+        return db.execute('SELECT * FROM cards WHERE id=?', (card_id,)).fetchone() if card_id else None
 
     def random_id(self, seed=None, *, include_artworks=False):
         with self.connect() as db:

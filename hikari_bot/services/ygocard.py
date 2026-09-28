@@ -169,9 +169,9 @@ async def get_card_info_by_id(id: str):
     return await asyncio.to_thread(catalog.by_id, id)
 
 
-async def get_card_info(keyword: str):
+async def get_card_info(keyword: str, *, fuzzy=False):
     """通过主库的所有语言卡名及别名搜索。"""
-    return await asyncio.to_thread(catalog.search, keyword)
+    return await asyncio.to_thread(catalog.search, keyword, fuzzy=fuzzy)
 
 
 def normalize_card_art(data: bytes) -> bytes:

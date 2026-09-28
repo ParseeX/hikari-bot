@@ -115,7 +115,8 @@ def test_interaction_select_cancel_invalid_and_separate_state(monkeypatch, japan
             assert mode == ({'japanese': True} if japanese else {})
             calls.append([v.id for v in versions])
             return [Comparison(v, JhsPrice(v.id, Decimal('.5'), Decimal('2.2'), None), ()) for v in versions]
-    async def card_info(name):
+    async def card_info(name, *, fuzzy=False):
+        assert fuzzy is True
         return {'jp_name': '原石の皇脈'}
     monkeypatch.setattr(adapter, 'get_card_info', card_info)
     monkeypatch.setattr(adapter, 'ComparisonService', lambda *args: Service())
