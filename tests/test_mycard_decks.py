@@ -164,10 +164,35 @@ def test_query_link_hides_username_in_persistent_short_code(tmp_path):
     assert player not in link
 
 
+def test_query_title_counts_copies_sorts_labels_and_reloads_rules(tmp_path):
+    store = ArchiveStore(tmp_path, set())
+    record(store, 'one', 100, main=(123,123,123,456), extra=(789,), side=(999,))
+    rules = {'version':1, 'rules':[
+        {'label':'黯蜜','cards':[123]}, {'label':'黑魔导','cards':[456]},
+        {'label':'额外不参与','cards':[789]}, {'label':'Side不参与','cards':[999]},
+    ]}
+    store.rules_path.write_text(json.dumps(rules), encoding='utf-8')
+    links = ShortLinks(tmp_path / 'short-links.sqlite3')
+    version = store.library.latest('甲')
+    text = player_text('水桥', version, links=links)
+    assert text.startswith('水桥【黑魔导黯蜜】（更新：')
+    old_link = text.splitlines()[1]
+    rules['rules'][0]['label'] = '新分类'
+    store.rules_path.write_text(json.dumps(rules), encoding='utf-8')
+    text = player_text('水桥', version, links=links)
+    assert text.startswith('水桥【黑魔导新分类】（更新：')
+    assert text.splitlines()[1] == old_link
+    store.rules_path.write_text('{"version":1,"rules":[]}', encoding='utf-8')
+    assert player_text('水桥', version, links=links).startswith('水桥（更新：')
+
+
 def test_top100_preserves_live_rank_and_missing_players(tmp_path):
     async def run():
         store = ArchiveStore(tmp_path, set())
         record(store, 'one', 100)
+        store.rules_path.write_text(json.dumps({'version':1,'rules':[
+            {'label':'双张','cards':[1]}, {'label':'单张','cards':[2]},
+        ]}), encoding='utf-8')
         names = ['未知', '甲'] + [str(i) for i in range(98)]
         calls = []
         async def fetch():
@@ -177,7 +202,7 @@ def test_top100_preserves_live_rank_and_missing_players(tmp_path):
         texts = await top_texts(store.library, board)
         assert len(texts) == 100
         assert texts[0] == '1. 未知：暂无卡组'
-        assert texts[1].startswith('2. 甲（更新：')
+        assert texts[1].startswith('2. 甲【单张双张】（更新：')
         assert texts[1].splitlines()[1:] == [ShortLinks(tmp_path / 'short-links.sqlite3').url('甲')]
         assert texts[-1] == '100. 97：暂无卡组'
         await board.players()

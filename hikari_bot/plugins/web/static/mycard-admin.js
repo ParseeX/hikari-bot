@@ -67,7 +67,7 @@ function renderRules() {
     const label = document.createElement('strong'); label.textContent = rule.label;
     const actions = document.createElement('div'); actions.className = 'actions';
     actions.append(button('编辑', () => {
-      editing = index; $('label').value = rule.label; $('match').value = rule.match || 'any';
+      editing = index; $('label').value = rule.label;
       selected = rule.cards.map(id => ({id, name: snapshot.names[id] || String(id)}));
       $('editor-title').textContent = '编辑映射'; $('save').textContent = '保存修改'; $('cancel').hidden = false;
       searchResults = []; $('search-result').replaceChildren(); renderSelected(); $('label').focus();
@@ -78,7 +78,7 @@ function renderRules() {
       });
     }, 'quiet danger'));
     title.append(label, actions);
-    const detail = document.createElement('p'); detail.textContent = (rule.match === 'all' ? '全部命中：' : '任一命中：') + names.join('、');
+    const detail = document.createElement('p'); detail.textContent = names.join('、');
     row.append(title, detail); rows.push(row);
   });
   if (!rows.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = snapshot.rules.length ? '没有匹配的映射' : '还没有分类映射。添加第一张识别卡片吧。'; rows.push(empty); }
@@ -123,7 +123,7 @@ $('rule-form').addEventListener('submit', event => {
   event.preventDefault(); action(async () => {
     if (!selected.length) throw new Error('请先选择识别卡片');
     await api('rules', {revision: snapshot.revision, index: editing, label: $('label').value,
-      cards: selected.map(c => c.id), match: $('match').value});
+      cards: selected.map(c => c.id)});
     reset(); await load(); status('映射已保存');
   });
 });

@@ -71,18 +71,21 @@ def classify(deck: Deck, rules: list[dict], *, catalog=None) -> dict:
         except sqlite3.Error:
             # 主库不可用时仍可精确匹配原卡号，不能阻断原始录像归档。
             pass
-    normalized = {identities[code] for code in present}
-    labels, evidence = [], []
+    counts = Counter(deck.main)
+    label_cards = {}
     for rule in rules:
         required = {identities[code] for code in rule['cards']}
-        matched = sorted(code for code in present if identities[code] in required)
-        hit = required <= normalized if rule.get("match", "any") == "all" else bool(matched)
-        if hit:
+        matched = {code for code in present if identities[code] in required}
+        if matched:
             label = rule["label"].strip()
-            if label not in labels:
-                labels.append(label)
-            evidence.append({"label": label, "cards": matched})
-    return {"name": "＋".join(labels) if labels else "未识别", "labels": labels, "evidence": evidence}
+            # 同一分类的多条规则先合并证据，不能对同一张实卡重复计数。
+            label_cards.setdefault(label, set()).update(matched)
+    matched_counts = {label: sum(counts[code] for code in cards) for label, cards in label_cards.items()}
+    # 稳定排序：张数相同时保留分类在规则表中首次命中的顺序。
+    labels = sorted(label_cards, key=matched_counts.get)
+    evidence = [{'label': label, 'cards': sorted(label_cards[label]), 'count': matched_counts[label]}
+                for label in labels]
+    return {"name": "".join(labels) if labels else "未识别", "labels": labels, "evidence": evidence}
 
 
 def consolidated_decks(replays: list[dict]) -> list[Deck]:

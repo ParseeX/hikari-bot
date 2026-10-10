@@ -133,7 +133,7 @@ class RuleEdit(BaseModel):
     index: int | None = Field(default=None, ge=0)
     label: str = Field(min_length=1, max_length=60)
     cards: list[StrictInt] = Field(min_length=1)
-    match: Literal['any', 'all'] = 'any'
+    match: Literal['any'] = 'any'
 
 
 @router.post('/mc/admin/api/rules', dependencies=[Depends(admin)])

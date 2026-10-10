@@ -80,6 +80,7 @@ def test_edit_rules_multilabel_main_only_conflict_and_logout(web, root):
     state = client.get('/mc/admin/api/rules').json()
     original = state['revision']
     body = {'revision': original, 'label': '分类甲', 'cards': [123], 'match': 'any'}
+    assert client.post('/mc/admin/api/rules', json={**body, 'match':'all'}).status_code == 422
     assert client.post('/mc/admin/api/rules', json=body).status_code == 200
     assert client.post('/mc/admin/api/rules', json=body).status_code == 409
     state = client.get('/mc/admin/api/rules').json()

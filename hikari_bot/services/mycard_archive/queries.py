@@ -7,6 +7,20 @@ from zoneinfo import ZoneInfo
 import aiohttp
 
 from .short_links import ShortLinks
+from .presentation import classify, read_rules
+
+
+class ClassificationRulesError(ValueError):
+    pass
+
+
+def query_rules(path):
+    try:
+        return read_rules(path)
+    except FileNotFoundError:
+        return []
+    except (OSError, ValueError) as exc:
+        raise ClassificationRulesError('分类规则读取失败') from exc
 
 
 class Leaderboard:
@@ -39,10 +53,15 @@ class Leaderboard:
             return list(players)
 
 
-def player_text(player, version, rank=None, *, links):
+def player_text(player, version, rank=None, *, links, rules=None):
     title = (f'{rank}. ' if rank is not None else '') + player
     if version is None:
         return title + '：暂无卡组'
+    if rules is None:
+        rules = query_rules(links.path.with_name('deck-rules.json'))
+    classification = classify(version.deck, rules)
+    if classification['labels']:
+        title += '【' + classification['name'] + '】'
     updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
     link = links.url(player)
     return title + f'（更新：{updated}）\n' + link
@@ -53,6 +72,7 @@ async def top_texts(library, leaderboard):
     def render():
         latest = library.latest_many(players)
         links = ShortLinks(library.path.with_name('short-links.sqlite3'))
-        return [player_text(player, latest.get(player), index, links=links)
+        rules = query_rules(library.path.with_name('deck-rules.json'))
+        return [player_text(player, latest.get(player), index, links=links, rules=rules)
                 for index, player in enumerate(players, 1)]
     return await asyncio.to_thread(render)

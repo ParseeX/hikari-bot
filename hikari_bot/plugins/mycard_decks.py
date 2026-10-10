@@ -10,7 +10,7 @@ from nonebot.permission import SUPERUSER
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.config import settings
 from hikari_bot.services.mycard_archive.library import DeckLibrary
-from hikari_bot.services.mycard_archive.queries import Leaderboard, player_text, top_texts
+from hikari_bot.services.mycard_archive.queries import ClassificationRulesError, Leaderboard, player_text, top_texts
 from hikari_bot.services.mycard_archive.short_links import ShortLinks
 from hikari_bot.services.qq_forward_receipt import forward_resource
 
@@ -36,6 +36,8 @@ async def query_player(event: MessageEvent, args: Message = CommandArg()):
         text = await asyncio.to_thread(player_text, player, version, links=links)
     except sqlite3.Error:
         await deck_query.finish('卡组库暂不可用')
+    except ClassificationRulesError:
+        await deck_query.finish('分类规则读取失败')
     except ValueError:
         await deck_query.finish('卡组链接生成失败')
     await deck_query.finish(MessageSegment.text(text))
