@@ -83,12 +83,13 @@ class ArchiveRuntime:
                         eligible = await self.rank_filter.eligible(state.players)
                         break
                     except Exception:
-                        self.last_error = "排名查询失败，未确认前 500 的对局暂不入场"
+                        rank_error = "排名查询失败，未确认前 500 的对局暂不入场"
+                        self.last_error = rank_error
                         try:
                             await asyncio.wait_for(state.ended.wait(), 30)
                         except asyncio.TimeoutError:
                             continue
-                        await asyncio.to_thread(self.store.issue, state.match_id, self.last_error)
+                        await asyncio.to_thread(self.store.issue, state.match_id, rank_error)
                         await asyncio.to_thread(self.store.finalize, state.match_id, False)
                         return
                 if not eligible:

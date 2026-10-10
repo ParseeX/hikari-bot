@@ -127,7 +127,7 @@ async def handle_delete_event(bot: Bot, room_id):
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
-        if await get_notify_enabled():
+        if not _archive and await get_notify_enabled():
             await message_superusers(f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
 
         if rec["isfirstwin"]:

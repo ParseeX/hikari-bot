@@ -81,7 +81,7 @@ def test_share_link_round_trip_including_partial_side():
     deck = Deck('玩家+甲&乙', (2, 1, 2), (9,), (3, 3, 4))
     assert decode_ourygo(deck_url(deck)) == [Counter(deck.main), Counter(deck.extra), Counter(deck.side)]
     assert deck.ydk().split('#main\n')[1].startswith('1\n2\n2\n')
-    assert 'Side不完整' in parse_qs(urlparse(deck_url(deck)).query)['name'][0]
+    assert parse_qs(urlparse(deck_url(deck)).query)['name'] == [deck.player]
 
 
 def test_inferred_side_uses_max_multiset_delta_and_replay_time():
@@ -263,12 +263,20 @@ def test_credentials_errors_never_include_secret(tmp_path):
     assert len(join_packets('观战', 42, 'M#room', 0x1362)) == 94
 
 
-def test_messages_include_links_partial_side_and_file_command():
+def test_messages_only_contain_match_and_players_deck_links():
     messages = build_messages('a'*24, ['甲', '乙'], [{'decks': [
         {'player': '甲', 'main': [1], 'extra': [2]}, {'player': '乙', 'main': [3], 'extra': []}]}], [], True, [])
     text = '\n'.join(messages)
     assert text.count('http://deck.ourygo.top/') == 2
-    assert '不完整' in text and '未识别' in text and 'MyCard文件' in text
+    assert messages == ['甲 vs 乙\n甲：' + deck_url(Deck('甲', (1,), (2,)))
+                        + '\n乙：' + deck_url(Deck('乙', (3,), ()))]
+
+
+def test_failed_notification_names_the_actual_error_without_archive_details():
+    assert build_messages('a'*24, ['甲', '乙'], [], [
+        '观战异常：ConnectionResetError', '未确认正常结束信号，归档可能缺少小局',
+        '未收到录像，不能提取卡组'], False, []) == [
+            '甲 vs 乙\n提取失败：ConnectionResetError（观战连接被重置）']
 
 
 def test_restart_recovers_unindexed_replay_and_finalizes_missing_room(tmp_path):
@@ -282,7 +290,9 @@ def test_restart_recovers_unindexed_replay_and_finalizes_missing_room(tmp_path):
         await runtime.process({'event': 'init', 'data': []})
         assert runtime.store.stats()['partial'] == 1
         assert len(runtime.store.replays(mid)) == 1
-        assert '重启后' in runtime.store.pending()[0]['message']
+        assert runtime.store.pending()[0]['message'].count('http://deck.ourygo.top/') == 2
+        manifest = json.loads((tmp_path / mid / 'manifest.json').read_text(encoding='utf-8'))
+        assert any('重启后' in issue for issue in manifest['issues'])
         await runtime.close()
     asyncio.run(run())
 
@@ -318,7 +328,7 @@ def test_queued_room_finishes_immediately_and_slot_is_not_leaked(tmp_path):
         task = runtime.rooms[room['id']].task
         await runtime.process({'event': 'delete', 'data': room['id']})
         await asyncio.wait_for(task, 2)
-        assert '等待观战名额' in runtime.store.pending()[0]['message']
+        assert 'QueueFull（排队时对局已结束）' in runtime.store.pending()[0]['message']
         assert runtime.semaphore.locked()
         runtime.semaphore.release()
         async with runtime.slot(asyncio.Event()) as available:

@@ -1,6 +1,7 @@
 """OURYGO 分享码与可热更新的卡组标签规则，无网络请求。"""
 import base64
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from urllib.parse import quote, urlencode
@@ -24,7 +25,7 @@ def deck_url(deck: Deck) -> str:
     payload = int(bits, 2).to_bytes(len(bits) // 8, "big")
     code = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
     query = urlencode({"ygotype": "deck", "v": "1", "d": code,
-                       "name": f"{deck.player}（Side不完整）"}, quote_via=quote)
+                       "name": deck.player}, quote_via=quote)
     # 站点目前只提供 HTTP，不能擅自改成未开放的 HTTPS。
     return "http://deck.ourygo.top/?" + query
 
@@ -78,28 +79,55 @@ def consolidated_decks(replays: list[dict]) -> list[Deck]:
     return result
 
 
+def failure_reason(issues: list[str], replays: list[dict]) -> str:
+    """只输出一个简短原因；完整诊断留在归档中，不拼接到私聊。"""
+    if any(not replay.get("decks") for replay in replays):
+        return "ReplayParseError（录像解析失败）"
+    reasons = (
+        ("等待观战名额", "QueueFull（排队时对局已结束）"),
+        ("排名查询失败", "RankLookupError（排名查询失败）"),
+        ("禁止观战", "WatchDenied（房间禁止观战）"),
+        ("账号正在参与", "AccountInDuel（观战账号正在对局）"),
+        ("认证或观战被拒绝", "AuthError（认证或观战被拒绝）"),
+        ("重启后", "Interrupted（采集进程重启）"),
+        ("连接中断", "ConnectionClosed（观战连接断开）"),
+    )
+    for issue in reversed(issues):
+        match = re.fullmatch(r"观战异常：([A-Za-z][A-Za-z0-9_]*Error)", issue)
+        if match:
+            kind = match[1]
+            detail = {"ConnectionResetError": "观战连接被重置", "TimeoutError": "观战连接超时"}.get(kind)
+            return kind + (f"（{detail}）" if detail else "")
+        for text, reason in reasons:
+            if text in issue:
+                return reason
+    return "NoReplay（未收到录像）"
+
+
 def build_messages(match_id: str, players: list[str], replays: list[dict], issues: list[str],
                    complete: bool, rules: list[dict]) -> list[str]:
-    """每位玩家展示基准卡组加已观察 Side，全部小局原件另行保留。"""
-    state = "对局已结束" if complete else "对局归档不完整"
-    messages = [f"MyCard {state}\n{' vs '.join(players)}\n"
-                f"归档编号：{match_id}\n收到 {len(replays)} 份录像。以最早录像为基准；Side 仅含后来观察到的换入卡，不完整。"]
-    for deck in consolidated_decks(replays):
-        line = (f"{deck.player}\n卡组：{classify(deck, rules)['name']}\n"
-                f"主卡 {len(deck.main)} / 额外 {len(deck.extra)} / 已观察 Side {len(deck.side)}（不完整）\n")
+    """私聊仅包含双方名字、卡组，或简短的提取失败原因。"""
+    messages = [' vs '.join(players)]
+    decks = {deck.player: deck for deck in consolidated_decks(replays)}
+    if not decks:
+        return [messages[0] + "\n提取失败：" + failure_reason(issues, replays)]
+    for player in players:
+        deck = decks.get(player)
+        if deck is None:
+            messages.append(f"{player}：提取失败，{failure_reason(issues, replays)}")
+            continue
+        label = classify(deck, rules)
+        line = f"{player}：" + (label['name'] + "\n" if label['labels'] else "")
         try:
             line += deck_url(deck)
         except ValueError:
-            line += "此卡组不能编码为 OURYGO 链接，原始 YDK 已保留。"
+            line += "提取失败，DeckLinkError（卡组链接生成失败）"
         messages.append(line)
-    if issues:
-        messages.append("采集说明：" + "；".join(dict.fromkeys(issues)))
-    messages.append(f"原始文件：私聊发送 MyCard文件 {match_id}")
     # QQ 长文本分段，保持 URL 完整且玩家名/标签作为纯文本发送。
     chunks = [messages[0]]
     for message in messages[1:]:
-        if len(chunks[-1]) + len(message) + 2 <= 1800:
-            chunks[-1] += "\n\n" + message
+        if len(chunks[-1]) + len(message) + 1 <= 1800:
+            chunks[-1] += "\n" + message
         else:
             chunks.append(message)
     return chunks
