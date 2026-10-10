@@ -21,11 +21,12 @@ class RoomTask:
 
 class ArchiveRuntime:
     def __init__(self, root: Path, credentials: Path, recipients, send_message,
-                 *, concurrency=8, join_interval=0.5, watch_room=watch):
+                 *, concurrency=8, join_interval=0.5, watch_room=watch, rank_filter=None):
         self.store = ArchiveStore(root, recipients)
         self.credentials = Credentials(credentials)
         self.send_message = send_message
         self.watch_room = watch_room
+        self.rank_filter = rank_filter
         self.rooms: dict[str, RoomTask] = {}
         self.semaphore = asyncio.Semaphore(concurrency)
         self.join_lock = asyncio.Lock()
@@ -71,11 +72,35 @@ class ArchiveRuntime:
         state = RoomTask(match_id, players)
         self.rooms[room_id] = state
         options = room.get("options") or {}
-        if options.get("no_watch") or len(players) not in (2, 4):
-            await asyncio.to_thread(self.store.issue, match_id, "房间禁止观战或玩家数量不受支持")
-            state.task = asyncio.create_task(self.finish_unavailable(room_id, state))
-            return
-        state.task = asyncio.create_task(self.collect(room_id, state), name=f"mycard-capture-{match_id}")
+        unavailable = bool(options.get("no_watch") or len(players) not in (2, 4))
+        state.task = asyncio.create_task(self.select(room_id, state, unavailable), name=f"mycard-capture-{match_id}")
+
+    async def select(self, room_id, state, unavailable):
+        try:
+            if self.rank_filter:
+                while True:
+                    try:
+                        eligible = await self.rank_filter.eligible(state.players)
+                        break
+                    except Exception:
+                        self.last_error = "排名查询失败，未确认前 500 的对局暂不入场"
+                        try:
+                            await asyncio.wait_for(state.ended.wait(), 30)
+                        except asyncio.TimeoutError:
+                            continue
+                        await asyncio.to_thread(self.store.issue, state.match_id, self.last_error)
+                        await asyncio.to_thread(self.store.finalize, state.match_id, False)
+                        return
+                if not eligible:
+                    await asyncio.to_thread(self.store.exclude, state.match_id)
+                    return
+            if unavailable:
+                await asyncio.to_thread(self.store.issue, state.match_id, "房间禁止观战或玩家数量不受支持")
+                await self.finish_unavailable(room_id, state)
+            else:
+                await self.collect(room_id, state)
+        finally:
+            self.rooms.pop(room_id, None)
 
     async def finish_unavailable(self, room_id, state):
         try:
@@ -108,6 +133,9 @@ class ArchiveRuntime:
                     await asyncio.to_thread(self.store.issue, state.match_id, "对局在等待观战名额期间结束，未能入场")
                 while available and not state.ended.is_set():
                     try:
+                        if self.rank_filter and not await self.rank_filter.eligible(state.players):
+                            await asyncio.to_thread(self.store.exclude, state.match_id)
+                            return
                         identity = await self.credentials.get()
                         # 本人对局不能以同一账号加入，避免干扰用户正在进行的游戏。
                         if identity[0] in state.players:
@@ -188,6 +216,8 @@ class ArchiveRuntime:
         stats = await asyncio.to_thread(self.store.stats)
         connected = sum(s.connected for s in self.rooms.values())
         return (f"MyCard 采集：跟踪 {len(self.rooms)} 场，已连接 {connected} 场\n"
+                f"筛选：{'至少一方竞技场前 500（排名缓存 5 分钟）' if self.rank_filter else '所有对局'}\n"
+                f"不符合排名范围 {stats.get('excluded', 0)} 场\n"
                 f"完整结束 {stats.get('complete', 0)} 场，不完整 {stats.get('partial', 0)} 场\n"
                 f"待投递 {stats['pending_messages']} 条\n"
                 f"最近异常：{self.last_error or '无'}")

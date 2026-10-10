@@ -16,6 +16,7 @@ from hikari_bot.services.mycard_archive.replay import Deck, parse_replay
 from hikari_bot.services.mycard_archive.runtime import ArchiveRuntime
 from hikari_bot.services.mycard_archive.spectator import Credentials, CredentialError, join_packets, watch
 from hikari_bot.services.mycard_archive.store import ArchiveStore
+from hikari_bot.services.mycard_archive.ranking import RankFilter
 
 
 def replay(main_a=(123, 123), main_b=(789,), extra=(456,), timestamp=100, *, compressed=True, extended=True):
@@ -323,5 +324,46 @@ def test_queued_room_finishes_immediately_and_slot_is_not_leaked(tmp_path):
         async with runtime.slot(asyncio.Event()) as available:
             assert available and runtime.semaphore.locked()
         assert not runtime.semaphore.locked()
+        await runtime.close()
+    asyncio.run(run())
+
+
+def test_rank_boundary_cache_refresh_and_unknown_are_not_false_negatives():
+    async def run():
+        values = {'甲': 500, '乙': 501, '丙': 900}
+        calls = []
+        async def fetch(name):
+            calls.append(name)
+            return values[name]
+        ranks = RankFilter(fetch_rank=fetch)
+        assert await ranks.eligible(['乙', '甲'])
+        assert not await ranks.eligible(['乙', '丙'])
+        assert calls.count('乙') == 1
+        values['甲'] = 501
+        ranks.cache['甲'] = (500, -1000)
+        assert not await ranks.eligible(['甲', '乙'])
+        with pytest.raises(ValueError):
+            await ranks.eligible(['未知', '乙'])
+        values['丙'] = 1
+        ranks.cache.pop('丙')
+        assert await ranks.eligible(['未知', '丙'])
+    asyncio.run(run())
+
+
+def test_outside_top500_never_joins_or_notifies(tmp_path):
+    async def run():
+        async def send(*args):
+            pytest.fail('排名范围外不发归档私聊')
+        async def watch_room(*args, **kwargs):
+            pytest.fail('排名范围外不能观战')
+        async def rank(name):
+            return 501
+        runtime = ArchiveRuntime(tmp_path, tmp_path/'credentials', {'1'}, send,
+                                 rank_filter=RankFilter(fetch_rank=rank), watch_room=watch_room)
+        room = {'id': 'M#excluded', 'users': [{'username': '甲'}, {'username': '乙'}]}
+        await runtime.process({'event': 'create', 'data': room})
+        await asyncio.wait_for(runtime.rooms[room['id']].task, 2)
+        assert runtime.store.stats()['excluded'] == 1
+        assert runtime.store.pending() == []
         await runtime.close()
     asyncio.run(run())

@@ -28,6 +28,7 @@ from hikari_bot.core.whitelist import message_superusers
 from hikari_bot.services.mycard import fetch_latest_record, get_subscribe_list, unsubscribe_all
 from hikari_bot.services.mycard_archive.runtime import ArchiveRuntime
 from hikari_bot.services.mycard_archive.presentation import read_rules
+from hikari_bot.services.mycard_archive.ranking import RankFilter
 
 
 # ── 常量与状态 ───────────────────────────────────────────────────────────────────────
@@ -235,7 +236,8 @@ async def _on_bot_connect(bot: Bot):
                 _archive = ArchiveRuntime(settings.mycard_archive_dir, settings.mycard_credentials_file,
                                           settings.superusers, send_archive_message,
                                           concurrency=settings.mycard_capture_concurrency,
-                                          join_interval=settings.mycard_join_interval)
+                                          join_interval=settings.mycard_join_interval,
+                                          rank_filter=RankFilter())
                 _archive.start()
             except Exception as exc:
                 logger.error(f"[mycard_archive] 归档启动失败：{type(exc).__name__}")

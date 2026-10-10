@@ -44,9 +44,11 @@ Playwright 的 Chromium 浏览器不包含在 Python 锁文件中，因此每个
 
 ## 生产环境配置
 
-### MyCard 全平台录像与卡组归档
+### MyCard 前 500 玩家对局录像与卡组归档
 
-设置 `MYCARD_CAPTURE_ENABLED=true` 后，Bot 使用正常 MyCard 账号观战监控列表内的全部对局。
+设置 `MYCARD_CAPTURE_ENABLED=true` 后，Bot 监控全平台房间，仅在双方至少一人的当前竞技场排名位于前 500 时使用正常 MyCard 账号观战。
+排名通过官方 `arena/user` 的 `arena_rank` 字段查询，缓存 5 分钟；排队后入场前重新检查缓存是否过期。
+双方均在范围外时不观战、不发送归档通知；排名查询失败时暂不入场并重试，不能把未知名次视为符合条件。
 对局结束后，向 `SUPERUSERS` 私聊发送双方 OURYGO 卡组链接、归档编号和采集异常说明。
 归档独立保存在 `MYCARD_ARCHIVE_DIR`（默认 `~/.local/share/hikari-mycard`），不进入 Git，也不会随部署清理。
 保留服务端原始 `.yrp`、每小局 `.ydk`、每位玩家合并后的 `.ydk`、`manifest.json` 和 SQLite 投递记录。

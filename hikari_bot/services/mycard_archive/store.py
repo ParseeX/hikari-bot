@@ -79,6 +79,12 @@ class ArchiveStore:
         with self.connect() as db:
             return [dict(row) for row in db.execute("SELECT * FROM matches WHERE status='active'")]
 
+    def exclude(self, match_id: str):
+        """不符合排名范围的房间只保留监控索引，不观战、不发归档通知。"""
+        with self.connect() as db:
+            db.execute("UPDATE matches SET status='excluded',finished=? WHERE id=? AND status='active'",
+                       (time.time(), match_id))
+
     def issue(self, match_id: str, message: str):
         with self.connect() as db:
             row = db.execute("SELECT issues FROM matches WHERE id=?", (match_id,)).fetchone()
