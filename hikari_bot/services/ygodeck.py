@@ -140,44 +140,29 @@ def parse_ydk(deck_text):
 
 
 async def batch_get_images(card_ids, *, size=(100, 145), preserve_positions=False):
-    # 极度保守的配置，避免内存溢出和死机
-    batch_size = 3  # 每批只处理3张，极大降低内存峰值
-    semaphore = asyncio.Semaphore(1)  # 一次只下载1张，完全避免并发压力
-    all_images = []
-    
-    async def download_single(card_id):
-        async with semaphore:
+    # 原始卡图由 get_ygopic 持久缓存；本次生成中重复卡片共享只读缩略图。
+    card_ids = list(card_ids)
+    unique_ids = list(dict.fromkeys(card_ids))
+    pending = iter(unique_ids)
+    images = {}
+
+    def resize(data):
+        with Image.open(io.BytesIO(data)) as source:
+            return source.resize(size, Image.Resampling.LANCZOS)
+
+    async def worker():
+        for card_id in pending:
             try:
                 img_data = await get_ygopic(card_id)
-                if img_data:
-                    image = Image.open(io.BytesIO(img_data))
-                    # 缩小图片尺寸以节省内存
-                    image = image.resize(size, Image.Resampling.LANCZOS)
-                    return image
-                return None
+                images[card_id] = await asyncio.to_thread(resize, img_data) if img_data else None
             except Exception as e:
                 await log_message(f"[ygodeck] Exception occurred while downloading card image {card_id}: {e}")
-                return None
-    
-    # 分批处理，并强制垃圾回收
-    for i in range(0, len(card_ids), batch_size):
-        batch = card_ids[i:i + batch_size]
-        tasks = [download_single(card_id) for card_id in batch]
-        batch_images = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # 过滤掉异常和None
-        for img in batch_images:
-            if isinstance(img, Image.Image):
-                all_images.append(img)
-            elif preserve_positions:
-                all_images.append(None)
-        
-        # 手动触发垃圾回收并增加延迟
-        import gc
-        gc.collect()
-        await asyncio.sleep(0.5)
-    
-    return all_images
+                images[card_id] = None
+
+    # 限制同时下载、解码的数量，避免缓存命中时仍逐批等待。
+    await asyncio.gather(*(worker() for _ in range(min(3, len(unique_ids)))))
+    return [images[card_id] for card_id in card_ids
+            if preserve_positions or images[card_id] is not None]
 
 
 def draw_section(img, card_images, title, start_x, start_y, card_width, card_height, rows, padding):

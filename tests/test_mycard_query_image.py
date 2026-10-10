@@ -60,3 +60,64 @@ def test_batch_keeps_missing_slots_when_requested(monkeypatch):
     images=asyncio.run(ygodeck.batch_get_images(['missing','ok'],size=(200,290),preserve_positions=True))
     assert images[0] is None and images[1].size==(200,290)
     images[1].close()
+
+
+def test_cached_batch_reuses_duplicates_without_artificial_waits(tmp_path, monkeypatch):
+    from hikari_bot.services import ygocard
+
+    Image.new('RGB', (200, 290), 'red').save(tmp_path/'1.jpg')
+    Image.new('RGB', (200, 290), 'blue').save(tmp_path/'2.jpg')
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
+    calls, waits = [], []
+
+    async def cached(code):
+        calls.append(code)
+        return await ygocard.get_ygopic(code)
+
+    async def sleep(delay):
+        waits.append(delay)
+
+    def network(*args, **kwargs):
+        raise AssertionError('缓存命中不应下载卡图')
+
+    monkeypatch.setattr(ygodeck, 'get_ygopic', cached)
+    monkeypatch.setattr(ygodeck.asyncio, 'sleep', sleep)
+    monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', network)
+    images = asyncio.run(ygodeck.batch_get_images(['1','2','1','2','1','2']))
+    assert waits == []
+    assert calls == ['1','2']
+    assert len(images) == 6
+    assert [img.getpixel((0,0)) for img in images] == [(254,0,0),(0,0,254)]*3
+    for img in images:
+        img.close()
+
+
+def test_batch_bounds_concurrency_and_retains_order_on_failure(monkeypatch):
+    buffer = io.BytesIO()
+    Image.new('RGB', (20,20), 'red').save(buffer, format='PNG')
+    active, peak = 0, 0
+
+    async def download(code):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        try:
+            await asyncio.sleep(0)
+            if code == 'bad':
+                return b'invalid image'
+            return buffer.getvalue()
+        finally:
+            active -= 1
+
+    async def log(message):
+        pass
+
+    monkeypatch.setattr(ygodeck, 'get_ygopic', download)
+    monkeypatch.setattr(ygodeck, 'log_message', log)
+    images = asyncio.run(ygodeck.batch_get_images(
+        ['1','bad','2','3','4','bad','1'], preserve_positions=True))
+    assert 1 < peak <= 3
+    assert [img is None for img in images] == [False,True,False,False,False,True,False]
+    for img in images:
+        if img is not None:
+            img.close()
