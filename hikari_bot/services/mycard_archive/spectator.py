@@ -13,6 +13,10 @@ class CredentialError(RuntimeError):
     pass
 
 
+class HandshakeTimeoutError(TimeoutError):
+    pass
+
+
 class Credentials:
     def __init__(self, path: Path):
         self.path = path
@@ -83,7 +87,7 @@ async def read_frame(reader) -> tuple[int, bytes]:
 
 async def watch(room_id: str, identity: tuple[str, int], ended: asyncio.Event, save_replay,
                 *, host="tiramisu.moecube.com", port=8911, version=0x1362, drain_seconds=30,
-                connected=None) -> bool:
+                connected=None, handshake_seconds=15) -> bool:
     """返回是否收到 DUEL_END。房间从列表消失后仍留出时间接收延迟录像。"""
     packets = join_packets(*identity, room_id, version)
     reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), 20)
@@ -91,13 +95,18 @@ async def watch(room_id: str, identity: tuple[str, int], ended: asyncio.Event, s
     frame_task = None
     deadline = None
     spectator = False
+    handshake_deadline = asyncio.get_running_loop().time() + handshake_seconds
     try:
         writer.write(packets)
         await writer.drain()
         while True:
             frame_task = asyncio.create_task(read_frame(reader))
             if not ended.is_set():
-                await asyncio.wait((frame_task, end_task), return_when=asyncio.FIRST_COMPLETED)
+                timeout = None if spectator else max(0, handshake_deadline - asyncio.get_running_loop().time())
+                done, _ = await asyncio.wait((frame_task, end_task), timeout=timeout,
+                                             return_when=asyncio.FIRST_COMPLETED)
+                if not done:
+                    raise HandshakeTimeoutError("服务器未在握手期限内授予观战身份")
             if ended.is_set():
                 if deadline is None:
                     deadline = asyncio.get_running_loop().time() + drain_seconds
@@ -130,4 +139,7 @@ async def watch(room_id: str, identity: tuple[str, int], ended: asyncio.Event, s
                 task.cancel()
         await asyncio.gather(*(task for task in (end_task, frame_task) if task), return_exceptions=True)
         writer.close()
-        await writer.wait_closed()
+        try:
+            await asyncio.wait_for(writer.wait_closed(), 5)
+        except (OSError, asyncio.TimeoutError):
+            pass

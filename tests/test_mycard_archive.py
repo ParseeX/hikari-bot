@@ -377,3 +377,114 @@ def test_outside_top500_never_joins_or_notifies(tmp_path):
         assert runtime.store.pending() == []
         await runtime.close()
     asyncio.run(run())
+
+
+def test_failed_handshakes_share_cooldown_and_only_one_recovery_probe(tmp_path):
+    async def run():
+        from hikari_bot.services.mycard_archive.admission import JoinGate
+        calls = []
+        third, probing, release_probe = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        async def watcher(room, identity, ended, save, **kwargs):
+            calls.append(room)
+            if len(calls) <= 3:
+                if len(calls) == 3:
+                    third.set()
+                raise ConnectionResetError()
+            probing.set()
+            await release_probe.wait()
+            kwargs['connected']()
+            await ended.wait()
+            return True
+        async def send(*args):
+            pass
+        runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', {'1'}, send,
+                                 watch_room=watcher, join_interval=0)
+        runtime.join_gate = JoinGate(interval=0, cooldown=0.15)
+        async def identity():
+            return '观战', 42
+        runtime.credentials.get = identity
+        try:
+            for index in range(8):
+                await runtime.add({'id': f'M#{index}', 'users': [{'username': '甲'}, {'username': '乙'}]})
+            await asyncio.wait_for(third.wait(), 2)
+            await asyncio.sleep(0.05)
+            assert len(calls) == 3
+            await asyncio.wait_for(probing.wait(), 2)
+            await asyncio.sleep(0.05)
+            assert len(calls) == 4
+            release_probe.set()
+            # 成功后释放握手锁，其他对局可并行观战，不必等这一场结束。
+            async with asyncio.timeout(2):
+                while len(calls) < 8:
+                    await asyncio.sleep(0.01)
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('accept', [False, True])
+def test_handshake_deadline_does_not_limit_accepted_match(accept):
+    async def run():
+        from hikari_bot.services.mycard_archive.spectator import HandshakeTimeoutError
+        async def server(reader, writer):
+            try:
+                await reader.readexactly(94)
+                if accept:
+                    writer.write(b'\x02\x00\x13\x07')
+                    await writer.drain()
+                    await asyncio.sleep(0.12)
+                    writer.write(b'\x01\x00\x16')
+                    await writer.drain()
+                await reader.read()
+            finally:
+                writer.close()
+                await writer.wait_closed()
+        listener = await asyncio.start_server(server, '127.0.0.1', 0)
+        async def save(data):
+            pass
+        try:
+            task = watch('M#x', ('观战', 42), asyncio.Event(), save,
+                         host='127.0.0.1', port=listener.sockets[0].getsockname()[1], handshake_seconds=0.05)
+            if accept:
+                assert await asyncio.wait_for(task, 1)
+            else:
+                with pytest.raises(HandshakeTimeoutError):
+                    await asyncio.wait_for(task, 1)
+        finally:
+            listener.close()
+            await listener.wait_closed()
+    asyncio.run(run())
+
+
+def test_join_gate_releases_cancelled_waiters_and_rooms_ending_in_cooldown():
+    async def run():
+        from hikari_bot.services.mycard_archive.admission import JoinGate
+        gate = JoinGate(interval=0, cooldown=60)
+        async with gate.attempt(asyncio.Event()) as accepted:
+            async def queued(ended):
+                async with gate.attempt(ended) as probe:
+                    assert probe is None
+            ended = asyncio.Event()
+            waiter = asyncio.create_task(queued(ended))
+            await asyncio.sleep(0)
+            waiter.cancel()
+            await asyncio.gather(waiter, return_exceptions=True)
+            assert gate.lock.locked()
+            accepted()
+        # 三个失败后进入冷却；冷却中的房间结束不再计为握手失败。
+        for _ in range(3):
+            async with gate.attempt(asyncio.Event()):
+                pass
+        assert gate.failures == 3 and gate.remaining > 59
+        ended = asyncio.Event()
+        waiter = asyncio.create_task(queued(ended))
+        await asyncio.sleep(0)
+        ended.set()
+        await asyncio.wait_for(waiter, 1)
+        assert gate.failures == 3 and not gate.lock.locked()
+        waiter = asyncio.create_task(queued(asyncio.Event()))
+        await asyncio.sleep(0)
+        waiter.cancel()
+        await asyncio.gather(waiter, return_exceptions=True)
+        assert not gate.lock.locked()
+    asyncio.run(run())

@@ -84,6 +84,7 @@ def failure_reason(issues: list[str], replays: list[dict]) -> str:
     if any(not replay.get("decks") for replay in replays):
         return "ReplayParseError（录像解析失败）"
     reasons = (
+        ("入场冷却", "ServerUnavailable（观战入口暂不可用）"),
         ("等待观战名额", "QueueFull（排队时对局已结束）"),
         ("排名查询失败", "RankLookupError（排名查询失败）"),
         ("禁止观战", "WatchDenied（房间禁止观战）"),
@@ -96,7 +97,8 @@ def failure_reason(issues: list[str], replays: list[dict]) -> str:
         match = re.fullmatch(r"观战异常：([A-Za-z][A-Za-z0-9_]*Error)", issue)
         if match:
             kind = match[1]
-            detail = {"ConnectionResetError": "观战连接被重置", "TimeoutError": "观战连接超时"}.get(kind)
+            detail = {"ConnectionResetError": "观战连接被重置", "TimeoutError": "观战连接超时",
+                      "HandshakeTimeoutError": "观战入场无响应"}.get(kind)
             return kind + (f"（{detail}）" if detail else "")
         for text, reason in reasons:
             if text in issue:

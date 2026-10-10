@@ -6,6 +6,7 @@ from pathlib import Path
 
 from nonebot import logger
 
+from .admission import JoinGate
 from .spectator import CredentialError, Credentials, watch
 from .store import ArchiveStore
 
@@ -29,8 +30,7 @@ class ArchiveRuntime:
         self.rank_filter = rank_filter
         self.rooms: dict[str, RoomTask] = {}
         self.semaphore = asyncio.Semaphore(concurrency)
-        self.join_lock = asyncio.Lock()
-        self.join_interval = join_interval
+        self.join_gate = JoinGate(interval=join_interval)
         self.delivery_task = None
         self.last_error = ""
         self.initialized = False
@@ -143,18 +143,20 @@ class ArchiveRuntime:
                             await asyncio.to_thread(self.store.issue, state.match_id, "观战账号正在参与本场对局，未重复加入")
                             await state.ended.wait()
                             break
-                        async with self.join_lock:
-                            await asyncio.sleep(self.join_interval)
-                        if state.ended.is_set():
-                            break
-
                         async def save(data):
                             await asyncio.to_thread(self.store.save_replay, state.match_id, data)
 
-                        def connected():
-                            state.connected = True
+                        async with self.join_gate.attempt(state.ended) as admitted:
+                            if admitted is None:
+                                if self.join_gate.failures >= 3:
+                                    await asyncio.to_thread(self.store.issue, state.match_id, "入场冷却期间对局结束")
+                                break
 
-                        complete = await self.watch_room(room_id, identity, state.ended, save, connected=connected)
+                            def connected():
+                                state.connected = True
+                                admitted()
+
+                            complete = await self.watch_room(room_id, identity, state.ended, save, connected=connected)
                         if complete or state.ended.is_set():
                             break
                         await asyncio.to_thread(self.store.issue, state.match_id, "观战连接中断，已尝试重连；完整性以实际收到录像为准")
@@ -221,6 +223,7 @@ class ArchiveRuntime:
                 f"不符合排名范围 {stats.get('excluded', 0)} 场\n"
                 f"完整结束 {stats.get('complete', 0)} 场，不完整 {stats.get('partial', 0)} 场\n"
                 f"待投递 {stats['pending_messages']} 条\n"
+                f"入场冷却：{int(self.join_gate.remaining)} 秒\n"
                 f"最近异常：{self.last_error or '无'}")
 
     async def close(self):
