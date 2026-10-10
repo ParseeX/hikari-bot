@@ -91,7 +91,7 @@ def test_partial_replay_is_saved_but_empty_failure_does_not_reset_deck(tmp_path)
     assert store.library.latest('甲') == known
 
 
-def test_link_contains_merged_side_and_large_side_is_not_truncated(tmp_path):
+def test_side_overflow_starts_new_version_and_link_uses_only_new_observation(tmp_path):
     store = ArchiveStore(tmp_path, set())
     record(store, 'one', 100, side=tuple(range(100, 115)))
     record(store, 'two', 200, side=(200, 201))
@@ -101,13 +101,54 @@ def test_link_contains_merged_side_and_large_side_is_not_truncated(tmp_path):
     assert '更新：' in text and 'JST' not in text
     assert text.splitlines()[1:] == [mapping.url('甲')]
     links = deck_links(version.deck)
-    assert len(links) == 2
+    assert len(links) == 1
     seen = Counter()
     for link in links:
         main, extra, side = decode_ourygo(link)
         assert main == Counter(version.deck.main) and extra == Counter(version.deck.extra)
         seen += side
     assert seen == Counter(version.deck.side)
+    assert seen == Counter((200, 201))
+    history = store.library.history('甲')
+    assert [v.deck.side for v in history] == [tuple(range(100, 115)), (200, 201)]
+    assert [v.first_seen for v in history] == [100, 200]
+    assert [v.observations for v in history] == [1, 1]
+
+
+@pytest.mark.parametrize('old,new,split', [
+    (tuple(range(100, 114)), (200,), False),  # 恰好 15 张仍补全原版本。
+    (tuple(range(100, 115)), (200,), True),
+    (tuple(range(100, 115)), (100, 101), False),  # 已见过的卡不重复增加数量。
+    (tuple(range(100, 112)) + (200, 200), (200, 200, 200), False),
+    (tuple(range(100, 113)) + (200, 200), (200, 200, 200), True),  # 按张数而非种类数。
+])
+def test_side_limit_counts_copies_and_preserves_exact_15(tmp_path, old, new, split):
+    store = ArchiveStore(tmp_path, set())
+    record(store, 'old', 100, side=old)
+    record(store, 'new', 200, side=new)
+    history = store.library.history('甲')
+    assert len(history) == (2 if split else 1)
+    expected = Counter(new) if split else Counter(old) | Counter(new)
+    assert Counter(history[-1].deck.side) == expected
+    assert history[-1].observations == (1 if split else 2)
+
+
+def test_side_reset_continues_from_new_evidence_and_replays_history_read_only(tmp_path):
+    store = ArchiveStore(tmp_path, set())
+    # 较早的完整观测后到，仍按对局时间重建版本。
+    record(store, 'new', 200, side=(200, 201))
+    record(store, 'old', 100, side=tuple(range(100, 115)))
+    record(store, 'followup', 300, side=(201, 202))
+    with store.library.connect() as db:
+        before = [tuple(row) for row in db.execute('SELECT * FROM deck_observations ORDER BY match_id,player')]
+    library = DeckLibrary(tmp_path / 'archive.sqlite3')
+    history = library.history('甲')
+    assert [v.deck.side for v in history] == [tuple(range(100, 115)), (200, 201, 202)]
+    assert history[-1].first_seen == 200 and history[-1].observations == 2
+    assert library.latest_many(['甲'])['甲'] == history[-1]
+    with library.connect() as db:
+        after = [tuple(row) for row in db.execute('SELECT * FROM deck_observations ORDER BY match_id,player')]
+    assert after == before
 
 
 def test_query_link_hides_username_in_persistent_short_code(tmp_path):

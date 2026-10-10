@@ -73,12 +73,14 @@ class DeckLibrary:
             previous = versions[-1] if versions else None
             if previous and (previous.deck.main, previous.deck.extra) == (deck.main, deck.extra):
                 side = tuple(sorted((Counter(previous.deck.side) | Counter(deck.side)).elements()))
-                versions[-1] = DeckVersion(Deck(deck.player, deck.main, deck.extra, side),
-                                           previous.first_seen, max(previous.updated_at, row['updated_at']),
-                                           previous.observations + 1)
-            else:
-                # A -> B -> A 是三个连续版本，不把首次 A 的 Side 带进后来重建的 A。
-                versions.append(DeckVersion(deck, row['observed_at'], row['updated_at'], 1))
+                if len(side) <= 15:
+                    versions[-1] = DeckVersion(Deck(deck.player, deck.main, deck.extra, side),
+                                               previous.first_seen, max(previous.updated_at, row['updated_at']),
+                                               previous.observations + 1)
+                    continue
+                # 合并超过 15 张说明 Side 已调整，仅用本场观测开始新版本。
+            # 核心变化或 Side 超限均另存连续版本，保留旧版本而不继承旧 Side。
+            versions.append(DeckVersion(deck, row['observed_at'], row['updated_at'], 1))
         return versions
 
     def history(self, player):

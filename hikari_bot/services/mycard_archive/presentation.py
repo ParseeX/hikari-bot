@@ -32,7 +32,7 @@ def deck_url(deck: Deck) -> str:
 
 
 def deck_links(deck: Deck) -> list[str]:
-    """跨场 Side 证据超过一副容量时分链接保留，不截断观测到的卡片。"""
+    """单场 Side 观测异常超出容量时分链接保留，不截断原始证据。"""
     side, = sort_sections(deck.side)
     parts = [side[i:i + 15] for i in range(0, len(side), 15)] or [()]
     return [deck_url(Deck(deck.player, deck.main, deck.extra, part)) for part in parts]
