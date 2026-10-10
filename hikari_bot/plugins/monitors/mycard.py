@@ -236,7 +236,7 @@ async def _on_bot_connect(bot: Bot):
         else:
             try:
                 _archive = ArchiveRuntime(settings.mycard_archive_dir, settings.mycard_credentials_file,
-                                          settings.superusers, send_archive_message,
+                                          set(), send_archive_message,
                                           concurrency=settings.mycard_capture_concurrency,
                                           join_interval=settings.mycard_join_interval,
                                           watch_room=partial(watch, host=settings.mycard_spectator_host,

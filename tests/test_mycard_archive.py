@@ -211,6 +211,32 @@ def test_delivery_failure_retries_without_resending_successful_recipient(tmp_pat
     asyncio.run(run())
 
 
+def test_disabled_notifications_preserve_archive_without_sending_backlog(tmp_path):
+    async def run():
+        store = ArchiveStore(tmp_path, {'1'})
+        old, _ = store.begin('old', ['甲', '乙'])
+        store.save_replay(old, replay())
+        store.finalize(old, True)
+        backlog = store.pending()
+        assert backlog
+        sent = []
+        async def send(uid, text):
+            sent.append((uid, text))
+        runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', set(), send)
+        runtime.start()
+        assert runtime.delivery_task is None
+        new, _ = runtime.store.begin('new', ['甲', '乙'])
+        runtime.store.save_replay(new, replay())
+        runtime.store.finalize(new, True)
+        assert await runtime.deliver_once() == 0
+        assert sent == []
+        assert runtime.store.pending() == backlog
+        assert runtime.store.library.latest('甲').observations == 2
+        assert runtime.store.replays(new)
+        await runtime.close()
+    asyncio.run(run())
+
+
 def test_protocol_reassembles_fragments_drains_after_delete_and_closes(tmp_path):
     async def run():
         ended = asyncio.Event()

@@ -36,7 +36,8 @@ class ArchiveRuntime:
         self.initialized = False
 
     def start(self):
-        self.delivery_task = asyncio.create_task(self.deliver(), name="mycard-archive-delivery")
+        if self.store.recipients:
+            self.delivery_task = asyncio.create_task(self.deliver(), name="mycard-archive-delivery")
 
     async def process(self, payload: dict):
         event, data = payload.get("event"), payload.get("data")
@@ -188,6 +189,9 @@ class ArchiveRuntime:
             self.rooms.pop(room_id, None)
 
     async def deliver_once(self) -> int:
+        # 关闭通知时也不补发历史待投递消息，保留原记录。
+        if not self.store.recipients:
+            return 0
         pending = await asyncio.to_thread(self.store.pending)
         for row in pending:
             try:
