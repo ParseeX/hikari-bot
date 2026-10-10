@@ -1,11 +1,14 @@
 import asyncio
 from collections import Counter
 import importlib.util
+import json
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message
+from nonebot.adapters.onebot.v11.exception import ActionFailed
 from nonebot.permission import SUPERUSER
 
 from hikari_bot.services.mycard_archive.library import DeckLibrary
@@ -181,3 +184,62 @@ def test_command_permissions_and_forward_destination(monkeypatch, tmp_path, grou
     assert data['group_id' if group else 'user_id'] == (222 if group else 111)
     assert len(data['messages']) == 10
     assert all(node.data['content'][0].type == 'text' for node in data['messages'])
+
+
+@pytest.mark.parametrize('group', [False, True])
+def test_forward_receipt_failure_does_not_report_failure_after_confirmed_history(monkeypatch, group):
+    module = load_plugin(monkeypatch)
+    async def texts(*args):
+        return ['卡组'] * 100
+    monkeypatch.setattr(module, 'top_texts', texts)
+    calls = []
+    async def call(api, **kwargs):
+        calls.append(api)
+        if api.startswith('send_'):
+            raise ActionFailed(retcode=1200, message='发送转发消息（res_id：test/resource+abc 失败')
+        assert api == ('get_group_msg_history' if group else 'get_friend_msg_history')
+        return {'messages': [{'sender': {'user_id': 333}, 'real_seq': '1034389', 'time': time.time(),
+                              'message': [{'type': 'json', 'data': {'data': json.dumps({
+                                  'app': 'com.tencent.multimsg',
+                                  'meta': {'detail': {'resid': 'test/resource+abc'}}})}}]}]}
+    bot = SimpleNamespace(self_id='333', call_api=call)
+    event = GroupMessageEvent.model_construct(group_id=222, user_id=111) if group else SimpleNamespace(user_id=111)
+    asyncio.run(module.query_top(bot, event))
+    assert module.top_decks.message is None
+    assert calls == (['send_group_forward_msg', 'get_group_msg_history'] if group else
+                     ['send_private_forward_msg', 'get_friend_msg_history'])
+
+
+@pytest.mark.parametrize('history_error', [False, True])
+def test_unconfirmed_forward_is_not_retried_or_claimed_successful(monkeypatch, history_error):
+    module = load_plugin(monkeypatch)
+    async def texts(*args):
+        return ['卡组'] * 100
+    monkeypatch.setattr(module, 'top_texts', texts)
+    calls = []
+    async def call(api, **kwargs):
+        calls.append(api)
+        if api.startswith('send_'):
+            raise ActionFailed(retcode=1200, message='发送转发消息（res_id：unconfirmed 失败')
+        if history_error:
+            raise TimeoutError()
+        return {'messages': []}
+    with pytest.raises(Finished):
+        asyncio.run(module.query_top(SimpleNamespace(self_id='333', call_api=call), SimpleNamespace(user_id=111)))
+    assert module.top_decks.message == 'QQ 未确认发送结果，请先查看聊天记录'
+    assert calls == ['send_private_forward_msg', 'get_friend_msg_history']
+
+
+def test_real_forward_rejection_is_still_reported_without_history_probe(monkeypatch):
+    module = load_plugin(monkeypatch)
+    async def texts(*args):
+        return ['卡组'] * 100
+    monkeypatch.setattr(module, 'top_texts', texts)
+    calls = []
+    async def call(api, **kwargs):
+        calls.append(api)
+        raise ActionFailed(retcode=1400, message='invalid payload')
+    with pytest.raises(Finished):
+        asyncio.run(module.query_top(SimpleNamespace(self_id='333', call_api=call), SimpleNamespace(user_id=111)))
+    assert module.top_decks.message == '卡组消息发送失败（ActionFailed，retcode=1400）'
+    assert calls == ['send_private_forward_msg']

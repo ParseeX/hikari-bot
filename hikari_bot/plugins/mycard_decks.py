@@ -1,6 +1,7 @@
 """群聊和私聊的 MyCard 玩家卡组查询。"""
 import asyncio
 import sqlite3
+import time
 
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
@@ -11,6 +12,7 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.config import settings
 from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.queries import Leaderboard, player_text, top_texts
+from hikari_bot.services.qq_forward_receipt import confirm_forward, forward_resource
 
 
 deck_query = on_cmd('卡组查询', priority=5, block=True, permission=SUPERUSER)
@@ -50,11 +52,23 @@ async def query_top(bot: Bot, event: MessageEvent):
     nodes = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname='前排卡组信息',
                                         content=Message(MessageSegment.text('\n\n'.join(texts[i:i + 10]))))
              for i in range(0, len(texts), 10)]
+    started = time.time()
     try:
         if isinstance(event, GroupMessageEvent):
             await bot.call_api('send_group_forward_msg', group_id=event.group_id, messages=nodes)
         else:
             await bot.call_api('send_private_forward_msg', user_id=event.user_id, messages=nodes)
     except Exception as exc:
-        logger.warning(f'[mycard_decks] 合并转发失败：{type(exc).__name__}')
-        await top_decks.finish('卡组消息发送失败')
+        resource = forward_resource(exc)
+        if resource:
+            target = {'group_id': event.group_id} if isinstance(event, GroupMessageEvent) else {'user_id': event.user_id}
+            if await confirm_forward(bot, resource=resource, since=started, **target):
+                logger.info('[mycard_decks] 转发回执异常，历史记录已确认发送')
+                return
+            logger.warning('[mycard_decks] 转发资源已上传，发送结果未确认')
+            await top_decks.finish('QQ 未确认发送结果，请先查看聊天记录')
+        info = getattr(exc, 'info', {})
+        code = info.get('retcode') if isinstance(info, dict) else None
+        detail = type(exc).__name__ + (f'，retcode={code}' if isinstance(code, int) else '')
+        logger.warning(f'[mycard_decks] 合并转发失败：{detail}')
+        await top_decks.finish(f'卡组消息发送失败（{detail}）')
