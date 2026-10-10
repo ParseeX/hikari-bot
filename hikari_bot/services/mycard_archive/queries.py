@@ -6,9 +6,7 @@ from zoneinfo import ZoneInfo
 
 import aiohttp
 
-from .presentation import deck_url
-from .replay import Deck
-from .sorting import sort_sections
+from .presentation import deck_links
 
 
 class Leaderboard:
@@ -46,11 +44,7 @@ def player_text(player, version, rank=None):
     if version is None:
         return title + '：暂无卡组'
     updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
-    deck = version.deck
-    # 只换 Side 的长期观测可能累计超过 15 张；分链接保留全部证据，不截断数据。
-    ordered_side, = sort_sections(deck.side)
-    sides = [ordered_side[i:i + 15] for i in range(0, len(ordered_side), 15)] or [()]
-    links = [deck_url(Deck(player, deck.main, deck.extra, side)) for side in sides]
+    links = deck_links(version.deck)
     return title + f'（更新：{updated}）\n' + '\n'.join(links)
 
 
