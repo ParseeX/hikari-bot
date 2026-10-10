@@ -129,6 +129,12 @@ class Settings:
     mycard_join_interval: float = field(
         default_factory=lambda: _positive_float("MYCARD_JOIN_INTERVAL", 0.5)
     )
+    mycard_spectator_host: str = field(
+        default_factory=lambda: os.getenv("MYCARD_SPECTATOR_HOST", "tiramisu.moecube.com").strip()
+    )
+    mycard_spectator_port: int = field(
+        default_factory=lambda: _positive_int("MYCARD_SPECTATOR_PORT", 8911)
+    )
     card_catalog_path: Path = field(
         default_factory=lambda: _path(
             "CARD_CATALOG_PATH", Path.home() / ".local/share/hikari-card-catalog/catalog.sqlite3"

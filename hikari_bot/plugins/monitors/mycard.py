@@ -12,6 +12,7 @@ import asyncio
 import json
 import re
 import base64
+from functools import partial
 
 import aiohttp
 
@@ -29,6 +30,7 @@ from hikari_bot.services.mycard import fetch_latest_record, get_subscribe_list, 
 from hikari_bot.services.mycard_archive.runtime import ArchiveRuntime
 from hikari_bot.services.mycard_archive.presentation import read_rules
 from hikari_bot.services.mycard_archive.ranking import RankFilter
+from hikari_bot.services.mycard_archive.spectator import watch
 
 
 # ── 常量与状态 ───────────────────────────────────────────────────────────────────────
@@ -237,6 +239,8 @@ async def _on_bot_connect(bot: Bot):
                                           settings.superusers, send_archive_message,
                                           concurrency=settings.mycard_capture_concurrency,
                                           join_interval=settings.mycard_join_interval,
+                                          watch_room=partial(watch, host=settings.mycard_spectator_host,
+                                                             port=settings.mycard_spectator_port),
                                           rank_filter=RankFilter())
                 _archive.start()
             except Exception as exc:
