@@ -81,14 +81,22 @@ class ArchiveStore:
         finally:
             db.close()
 
-    def begin(self, room_id: str, players: list[str]) -> tuple[str, bool]:
+    def begin(self, room_id: str, players: list[str], *, revive_excluded=False) -> tuple[str, bool]:
         match_id = hashlib.sha256(room_id.encode("utf-8")).hexdigest()[:24]
         with self.connect() as db:
             db.execute("INSERT OR IGNORE INTO matches(id,room_id,players,started) VALUES(?,?,?,?)",
                        (match_id, room_id, json.dumps(players, ensure_ascii=False), time.time()))
+            if revive_excluded:
+                # 仅恢复公开实时列表中仍在进行的房间；首次监控时间保持不变。
+                db.execute("UPDATE matches SET status='active',finished=NULL WHERE id=? AND status='excluded'",
+                           (match_id,))
             row = db.execute("SELECT status FROM matches WHERE id=?", (match_id,)).fetchone()
         (self.root / match_id).mkdir(exist_ok=True)
         return match_id, row["status"] == "active"
+
+    def first_seen(self, match_id):
+        with self.connect() as db:
+            return db.execute('SELECT started FROM matches WHERE id=?', (match_id,)).fetchone()[0]
 
     def active(self) -> list[dict]:
         with self.connect() as db:

@@ -18,7 +18,7 @@ async def until(predicate):
             await asyncio.sleep(0.001)
 
 
-def test_priority_counts_only_valid_players_and_all_side_copies(tmp_path):
+def test_weights_ignore_partial_side_count_and_count_only_top500(tmp_path):
     runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', set(), ignore)
     versions = {name: SimpleNamespace(deck=SimpleNamespace(side=tuple([1]*count)))
                 for name, count in [('zero',0), ('seven',7), ('other-seven',7), ('fifteen',15)]}
@@ -27,8 +27,8 @@ def test_priority_counts_only_valid_players_and_all_side_copies(tmp_path):
               ['unknown','other-unknown'], ['unknown'], ['zero']]
     states = [RoomTask(str(i), names+['outside'], valid_players=names) for i,names in enumerate(groups)]
     keys = asyncio.run(runtime.priorities(states))
-    assert keys == [(-2,0,15),(-2,0,14),(-2,-1,15),(-2,-2,0),(-1,-1,0),(-1,0,0)]
-    assert sorted(range(len(keys)), key=keys.__getitem__) == [3,2,1,0,4,5]
+    assert keys == [(-0.5,0),(-1,0),(-1,0),(-2,0),(-1,0),(-0.5,0)]
+    assert sorted(range(len(keys)), key=keys.__getitem__) == [3,1,2,4,0,5]
 
 
 def test_rank_checks_both_players_and_500_boundary():
@@ -154,6 +154,7 @@ def test_finishing_match_is_saved_before_next_priority_lookup(tmp_path):
             kwargs['connected']()
             calls.append(room)
             if room=='active': await release.wait()
+            else: assert saved, '新连接必须在前一场归档后开始'
             return True
         runtime=ArchiveRuntime(tmp_path,tmp_path/'creds',set(),ignore,concurrency=1,
                                join_interval=0,watch_room=watch)
@@ -165,12 +166,6 @@ def test_finishing_match_is_saved_before_next_priority_lookup(tmp_path):
             original_finalize(match_id,complete)
             saved.append(match_id)
         runtime.store.finalize=finalize
-        original_priorities=runtime.slots.priorities
-        async def priorities(states):
-            if any(state.players==['next'] for state in states):
-                assert saved, '下一场排序必须等本场卡组入库后进行'
-            return await original_priorities(states)
-        runtime.slots.priorities=priorities
         async def add(name):
             mid,_=runtime.store.begin(name,[name])
             state=RoomTask(mid,[name],valid_players=[name])

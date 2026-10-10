@@ -387,20 +387,24 @@ def test_rank_boundary_cache_refresh_and_unknown_are_not_false_negatives():
     asyncio.run(run())
 
 
-def test_outside_top500_never_joins_or_notifies(tmp_path):
+def test_outside_top500_joins_when_idle_without_notifications(tmp_path):
     async def run():
         async def send(*args):
             pytest.fail('排名范围外不发归档私聊')
         async def watch_room(*args, **kwargs):
-            pytest.fail('排名范围外不能观战')
+            kwargs['connected']()
+            await args[3](replay())
+            return True
         async def rank(name):
             return 501
-        runtime = ArchiveRuntime(tmp_path, tmp_path/'credentials', {'1'}, send,
+        runtime = ArchiveRuntime(tmp_path, tmp_path/'credentials', set(), send,
                                  rank_filter=RankFilter(fetch_rank=rank), watch_room=watch_room)
+        async def identity(): return '观战',42
+        runtime.credentials.get=identity
         room = {'id': 'M#excluded', 'users': [{'username': '甲'}, {'username': '乙'}]}
         await runtime.process({'event': 'create', 'data': room})
         await asyncio.wait_for(runtime.rooms[room['id']].task, 2)
-        assert runtime.store.stats()['excluded'] == 1
+        assert runtime.store.stats()['complete'] == 1
         assert runtime.store.pending() == []
         await runtime.close()
     asyncio.run(run())
