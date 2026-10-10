@@ -102,9 +102,10 @@ def test_labels_are_ordered_deduplicated_and_rules_reload(tmp_path):
         {'label': '系列甲', 'cards': [123]}, {'label': '引擎乙', 'cards': [456, 999]},
         {'label': '系列甲', 'cards': [456]}, {'label': '不应命中', 'match': 'all', 'cards': [123, 999]},
     ]}), encoding='utf-8')
-    result = classify(Deck('甲', (123,), (456,)), read_rules(path))
+    result = classify(Deck('甲', (123, 456), (999,)), read_rules(path))
     assert result['name'] == '系列甲＋引擎乙'
     assert result['evidence'][1]['cards'] == [456]
+    assert classify(Deck('甲', (), (123, 456), (999,)), read_rules(path))['labels'] == []
     path.write_text('{"version":1,"rules":[]}', encoding='utf-8')
     assert classify(Deck('甲', (123,), (456,)), read_rules(path))['name'] == '未识别'
     path.write_text('{"version":1,"rules":[{"label":"x","cards":[true]}]}', encoding='utf-8')

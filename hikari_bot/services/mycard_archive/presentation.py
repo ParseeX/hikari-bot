@@ -40,6 +40,10 @@ def deck_links(deck: Deck) -> list[str]:
 
 def read_rules(path: Path) -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
+    return validate_rules(data)
+
+
+def validate_rules(data: dict) -> list[dict]:
     if not isinstance(data, dict) or data.get("version") != 1 or not isinstance(data.get("rules"), list):
         raise ValueError("规则格式需要 version: 1 和 rules 数组")
     for rule in data["rules"]:
@@ -54,7 +58,7 @@ def read_rules(path: Path) -> list[dict]:
 
 
 def classify(deck: Deck, rules: list[dict]) -> dict:
-    present = set(deck.main + deck.extra)
+    present = set(deck.main)
     labels, evidence = [], []
     for rule in rules:
         required = set(rule["cards"])

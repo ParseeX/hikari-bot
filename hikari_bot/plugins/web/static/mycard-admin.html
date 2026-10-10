@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>卡组分类 · MyCard 管理</title>
+  <link rel="stylesheet" href="/mc/admin/style.css">
+  <script src="/mc/admin/app.js" defer></script>
+</head>
+<body>
+  <header><a href="/">YGO 工具箱</a><span>MyCard 管理</span><button id="logout" class="quiet" hidden>退出登录</button></header>
+  <main>
+    <section class="heading"><p class="eyebrow">MYCARD / ADMIN</p><h1>卡组分类</h1><p>按主卡组中的卡片识别分类，多个分类可以同时命中。</p></section>
+    <p id="status" role="status" aria-live="polite" hidden></p>
+    <section id="login-panel" class="panel login">
+      <h2>管理员登录</h2>
+      <form id="login-form"><label for="password">管理密码</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit">登录</button></form>
+    </section>
+    <div id="workspace" hidden>
+      <section class="panel">
+        <div class="section-title"><h2 id="editor-title">添加映射</h2><button id="cancel" class="quiet" hidden>取消编辑</button></div>
+        <form id="rule-form">
+          <label for="label">分类名称</label><input id="label" placeholder="例如：青眼" maxlength="60" required>
+          <label for="card-query">识别卡片</label>
+          <div class="search"><input id="card-query" placeholder="输入卡名或卡号" maxlength="100"><button type="button" id="search" class="secondary">查找卡片</button></div>
+          <div id="search-result" aria-live="polite"></div>
+          <div id="selected" class="chips"></div>
+          <label for="match">命中条件</label><select id="match"><option value="any">包含任意一张所选卡片</option><option value="all">包含全部所选卡片</option></select>
+          <button type="submit" id="save">添加映射</button>
+        </form>
+      </section>
+      <section class="panel list-panel">
+        <div class="section-title"><h2>分类映射 <span id="count" class="count">0</span></h2><button id="refresh" class="quiet">刷新</button></div>
+        <label class="sr-only" for="filter">筛选映射</label><input id="filter" type="search" placeholder="按分类名称、卡名或卡号筛选">
+        <div id="rules"></div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
