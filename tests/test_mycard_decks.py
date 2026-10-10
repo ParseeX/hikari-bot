@@ -187,7 +187,7 @@ def test_command_permissions_and_forward_destination(monkeypatch, tmp_path, grou
 
 
 @pytest.mark.parametrize('group', [False, True])
-def test_forward_receipt_failure_does_not_report_failure_after_confirmed_history(monkeypatch, group):
+def test_local_history_must_not_hide_unconfirmed_forward(monkeypatch, group):
     module = load_plugin(monkeypatch)
     async def texts(*args):
         return ['卡组'] * 100
@@ -204,10 +204,10 @@ def test_forward_receipt_failure_does_not_report_failure_after_confirmed_history
                                   'meta': {'detail': {'resid': 'test/resource+abc'}}})}}]}]}
     bot = SimpleNamespace(self_id='333', call_api=call)
     event = GroupMessageEvent.model_construct(group_id=222, user_id=111) if group else SimpleNamespace(user_id=111)
-    asyncio.run(module.query_top(bot, event))
-    assert module.top_decks.message is None
-    assert calls == (['send_group_forward_msg', 'get_group_msg_history'] if group else
-                     ['send_private_forward_msg', 'get_friend_msg_history'])
+    with pytest.raises(Finished):
+        asyncio.run(module.query_top(bot, event))
+    assert module.top_decks.message == 'QQ 未确认发送结果，请先查看聊天记录'
+    assert calls == (['send_group_forward_msg'] if group else ['send_private_forward_msg'])
 
 
 @pytest.mark.parametrize('history_error', [False, True])
@@ -227,7 +227,7 @@ def test_unconfirmed_forward_is_not_retried_or_claimed_successful(monkeypatch, h
     with pytest.raises(Finished):
         asyncio.run(module.query_top(SimpleNamespace(self_id='333', call_api=call), SimpleNamespace(user_id=111)))
     assert module.top_decks.message == 'QQ 未确认发送结果，请先查看聊天记录'
-    assert calls == ['send_private_forward_msg', 'get_friend_msg_history']
+    assert calls == ['send_private_forward_msg']
 
 
 def test_real_forward_rejection_is_still_reported_without_history_probe(monkeypatch):
@@ -243,3 +243,21 @@ def test_real_forward_rejection_is_still_reported_without_history_probe(monkeypa
         asyncio.run(module.query_top(SimpleNamespace(self_id='333', call_api=call), SimpleNamespace(user_id=111)))
     assert module.top_decks.message == '卡组消息发送失败（ActionFailed，retcode=1400）'
     assert calls == ['send_private_forward_msg']
+
+
+def test_forward_preview_is_small_while_all_100_decks_remain_inside(monkeypatch):
+    module = load_plugin(monkeypatch)
+    texts = [f'{i}. 玩家{i}\nhttp://deck.ourygo.top/?d=' + 'x' * 350 for i in range(1, 101)]
+    async def full_board(*args):
+        return texts
+    monkeypatch.setattr(module, 'top_texts', full_board)
+    async def call(api, **kwargs):
+        assert api == 'send_group_forward_msg'
+        body = '\n\n'.join(str(node.data['content']) for node in kwargs['messages'])
+        assert all(text in body for text in texts)
+        assert len(kwargs['messages']) == 10
+        # NapCat 没有 news 时会复制所有节点的全文到外层 ARK；覆盖这一真实默认行为。
+        news = kwargs.get('news') or [{'text': str(node.data['content'])} for node in kwargs['messages']]
+        assert len(json.dumps(news, ensure_ascii=False).encode()) < 1024
+    bot = SimpleNamespace(self_id='333', call_api=call)
+    asyncio.run(module.query_top(bot, GroupMessageEvent.model_construct(group_id=222, user_id=111)))

@@ -1,7 +1,6 @@
 """群聊和私聊的 MyCard 玩家卡组查询。"""
 import asyncio
 import sqlite3
-import time
 
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
@@ -12,7 +11,7 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.config import settings
 from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.queries import Leaderboard, player_text, top_texts
-from hikari_bot.services.qq_forward_receipt import confirm_forward, forward_resource
+from hikari_bot.services.qq_forward_receipt import forward_resource
 
 
 deck_query = on_cmd('卡组查询', priority=5, block=True, permission=SUPERUSER)
@@ -52,19 +51,18 @@ async def query_top(bot: Bot, event: MessageEvent):
     nodes = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname='前排卡组信息',
                                         content=Message(MessageSegment.text('\n\n'.join(texts[i:i + 10]))))
              for i in range(0, len(texts), 10)]
-    started = time.time()
+    # NapCat 默认把所有节点全文复制进外层 ARK 预览，长链接会使群转发卡片过大。
+    preview = {'source': '前排卡组信息', 'news': [{'text': '竞技场前 100 名卡组'}],
+               'summary': '查看完整 100 名', 'prompt': '[前排卡组信息]'}
     try:
         if isinstance(event, GroupMessageEvent):
-            await bot.call_api('send_group_forward_msg', group_id=event.group_id, messages=nodes)
+            await bot.call_api('send_group_forward_msg', group_id=event.group_id, messages=nodes, **preview)
         else:
-            await bot.call_api('send_private_forward_msg', user_id=event.user_id, messages=nodes)
+            await bot.call_api('send_private_forward_msg', user_id=event.user_id, messages=nodes, **preview)
     except Exception as exc:
         resource = forward_resource(exc)
         if resource:
-            target = {'group_id': event.group_id} if isinstance(event, GroupMessageEvent) else {'user_id': event.user_id}
-            if await confirm_forward(bot, resource=resource, since=started, **target):
-                logger.info('[mycard_decks] 转发回执异常，历史记录已确认发送')
-                return
+            # 本机消息历史和 real_seq 不能证明接收方可见，不据此吞掉发送异常。
             logger.warning('[mycard_decks] 转发资源已上传，发送结果未确认')
             await top_decks.finish('QQ 未确认发送结果，请先查看聊天记录')
         info = getattr(exc, 'info', {})
