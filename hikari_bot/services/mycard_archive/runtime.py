@@ -1,5 +1,6 @@
 """房间生命周期与私聊投递；重连去重、限速入场、持久化失败重试。"""
 import asyncio
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,7 +21,7 @@ class RoomTask:
 
 class ArchiveRuntime:
     def __init__(self, root: Path, credentials: Path, recipients, send_message,
-                 *, concurrency=256, join_interval=0.5, watch_room=watch):
+                 *, concurrency=8, join_interval=0.5, watch_room=watch):
         self.store = ArchiveStore(root, recipients)
         self.credentials = Credentials(credentials)
         self.send_message = send_message
@@ -83,12 +84,29 @@ class ArchiveRuntime:
         finally:
             self.rooms.pop(room_id, None)
 
+    @asynccontextmanager
+    async def slot(self, ended):
+        """排队期间房间结束时立即退出；取消与同时完成均不泄漏名额。"""
+        acquire = asyncio.create_task(self.semaphore.acquire())
+        finish = asyncio.create_task(ended.wait())
+        try:
+            await asyncio.wait((acquire, finish), return_when=asyncio.FIRST_COMPLETED)
+            yield acquire.done() and not acquire.cancelled() and not ended.is_set()
+        finally:
+            acquire.cancel()
+            finish.cancel()
+            await asyncio.gather(acquire, finish, return_exceptions=True)
+            if not acquire.cancelled() and acquire.exception() is None and acquire.result():
+                self.semaphore.release()
+
     async def collect(self, room_id: str, state: RoomTask):
         complete = False
         backoff = 5
         try:
-            async with self.semaphore:
-                while not state.ended.is_set():
+            async with self.slot(state.ended) as available:
+                if not available:
+                    await asyncio.to_thread(self.store.issue, state.match_id, "对局在等待观战名额期间结束，未能入场")
+                while available and not state.ended.is_set():
                     try:
                         identity = await self.credentials.get()
                         # 本人对局不能以同一账号加入，避免干扰用户正在进行的游戏。

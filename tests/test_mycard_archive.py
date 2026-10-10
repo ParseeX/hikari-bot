@@ -304,3 +304,24 @@ def test_forbidden_room_waits_until_end_without_joining(tmp_path):
         assert '禁止观战' in runtime.store.pending()[0]['message']
         await runtime.close()
     asyncio.run(run())
+
+
+def test_queued_room_finishes_immediately_and_slot_is_not_leaked(tmp_path):
+    async def run():
+        async def send(*args):
+            pass
+        runtime = ArchiveRuntime(tmp_path, tmp_path/'credentials', {'1'}, send, concurrency=1)
+        await runtime.semaphore.acquire()
+        room = {'id': 'M#queued', 'users': [{'username': '甲'}, {'username': '乙'}]}
+        await runtime.process({'event': 'create', 'data': room})
+        task = runtime.rooms[room['id']].task
+        await runtime.process({'event': 'delete', 'data': room['id']})
+        await asyncio.wait_for(task, 2)
+        assert '等待观战名额' in runtime.store.pending()[0]['message']
+        assert runtime.semaphore.locked()
+        runtime.semaphore.release()
+        async with runtime.slot(asyncio.Event()) as available:
+            assert available and runtime.semaphore.locked()
+        assert not runtime.semaphore.locked()
+        await runtime.close()
+    asyncio.run(run())

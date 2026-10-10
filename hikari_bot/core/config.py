@@ -124,7 +124,7 @@ class Settings:
         default_factory=lambda: _path("MYCARD_CREDENTIALS_FILE", Path.home() / ".local/share/hikari-mycard/credentials.json")
     )
     mycard_capture_concurrency: int = field(
-        default_factory=lambda: _positive_int("MYCARD_CAPTURE_CONCURRENCY", 256)
+        default_factory=lambda: _positive_int("MYCARD_CAPTURE_CONCURRENCY", 8)
     )
     mycard_join_interval: float = field(
         default_factory=lambda: _positive_float("MYCARD_JOIN_INTERVAL", 0.5)
