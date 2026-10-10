@@ -5,6 +5,7 @@ import sqlite3
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
+from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.config import settings
@@ -12,7 +13,7 @@ from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.queries import Leaderboard, player_text, top_texts
 
 
-deck_query = on_cmd('卡组查询', priority=5, block=True)
+deck_query = on_cmd('卡组查询', priority=5, block=True, permission=SUPERUSER)
 top_decks = on_cmd('前排卡组信息', priority=5, block=True)
 leaderboard = Leaderboard()
 

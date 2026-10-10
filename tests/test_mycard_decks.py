@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message
+from nonebot.permission import SUPERUSER
 
 from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.queries import Leaderboard, player_text, top_texts
@@ -155,9 +156,10 @@ def load_plugin(monkeypatch):
 
 
 @pytest.mark.parametrize('group', [False, True])
-def test_commands_are_public_and_forward_to_correct_destination(monkeypatch, tmp_path, group):
+def test_command_permissions_and_forward_destination(monkeypatch, tmp_path, group):
     module = load_plugin(monkeypatch)
-    assert 'permission' not in module.deck_query.options and 'permission' not in module.top_decks.options
+    assert module.deck_query.options['permission'] is SUPERUSER
+    assert 'permission' not in module.top_decks.options
     store = ArchiveStore(tmp_path, set())
     record(store, 'one', 100)
     monkeypatch.setattr(module, 'library', lambda: store.library)
