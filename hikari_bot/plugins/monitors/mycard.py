@@ -11,19 +11,23 @@ mycard.py — MyCard 对局实时监控插件
 import asyncio
 import json
 import re
+import base64
 
 import aiohttp
 
 from nonebot import get_driver, logger
-from nonebot.adapters.onebot.v11 import ActionFailed, Bot, Message, MessageEvent
+from nonebot.adapters.onebot.v11 import ActionFailed, Bot, Message, MessageEvent, MessageSegment, PrivateMessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
 from hikari_bot.core.commands import on_cmd
+from hikari_bot.core.config import settings
 from hikari_bot.core.feature_flags import get_notify_enabled, set_notify_enabled
 from hikari_bot.core.logger import log_message
 from hikari_bot.core.whitelist import message_superusers
 from hikari_bot.services.mycard import fetch_latest_record, get_subscribe_list, unsubscribe_all
+from hikari_bot.services.mycard_archive.runtime import ArchiveRuntime
+from hikari_bot.services.mycard_archive.presentation import read_rules
 
 
 # ── 常量与状态 ───────────────────────────────────────────────────────────────────────
@@ -32,6 +36,7 @@ WS_URL = "wss://tiramisu.moecube.com:8923/?filter=started"
 
 _ws_task: asyncio.Task | None = None
 room_list: dict = {}
+_archive: ArchiveRuntime | None = None
 
 # ── 通知推送 ─────────────────────────────────────────────────────────────────────────
 
@@ -136,6 +141,11 @@ async def handle_delete_event(bot: Bot, room_id):
 
 
 async def process_mycard_event(bot: Bot, payload: dict):
+    if _archive:
+        try:
+            await _archive.process(payload)
+        except Exception as exc:
+            logger.error(f"[mycard_archive] 房间事件处理失败：{type(exc).__name__}")
     event = payload.get("event") or "?"
     data  = payload.get("data") or {}
 
@@ -200,28 +210,55 @@ def ws_status_check() -> bool:
 driver = get_driver()
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
-    global _ws_task
+    global _ws_task, _archive
     if _ws_task and not _ws_task.done():
         _ws_task.cancel()
         try:
             await _ws_task
+        except asyncio.CancelledError:
+            pass
         except Exception as e:
             await log_message(f"[mycard_subscriber] Exception occurred while canceling ws task: {e}")
         await log_message("[mycard_subscriber] MyCard monitor canceled old task.")
     
+    async def send_archive_message(recipient: str, text: str):
+        await bot.send_private_msg(user_id=int(recipient), message=MessageSegment.text(text))
+
+    if settings.mycard_capture_enabled:
+        if not settings.superusers or not all(uid.isdigit() for uid in settings.superusers):
+            logger.error("[mycard_archive] 未配置有效的 SUPERUSERS，归档采集未启动")
+        elif _archive:
+            # QQ 重连只更换投递连接，不中断正在进行的观战。
+            _archive.send_message = send_archive_message
+        else:
+            try:
+                _archive = ArchiveRuntime(settings.mycard_archive_dir, settings.mycard_credentials_file,
+                                          settings.superusers, send_archive_message,
+                                          concurrency=settings.mycard_capture_concurrency,
+                                          join_interval=settings.mycard_join_interval)
+                _archive.start()
+            except Exception as exc:
+                logger.error(f"[mycard_archive] 归档启动失败：{type(exc).__name__}")
+                _archive = None
     _ws_task = asyncio.create_task(ws_runner(bot))
     await log_message("[mycard_subscriber] MyCard monitor started.")
 
 @driver.on_shutdown
 async def _on_shutdown():
-    global _ws_task
+    global _ws_task, _archive
     if _ws_task and not _ws_task.done():
         _ws_task.cancel()
         try:
             await _ws_task
+        except asyncio.CancelledError:
+            pass
         except Exception as e:
             await log_message(f"[mycard_subscriber] Exception occurred while canceling ws task on shutdown: {e}")
         await log_message("[mycard_subscriber] MyCard monitor canceled on shutdown.")
+    _ws_task = None
+    if _archive:
+        await _archive.close()
+        _archive = None
 
 
 # ── 管理员命令 ─────────────────────────────────────────────────────────────────────
@@ -237,3 +274,48 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     else:
         await set_notify_enabled(True)
         await notify_switch.finish("已开启MyCard对局通知。")
+
+
+archive_status = on_cmd("MyCard采集状态", permission=SUPERUSER, priority=5)
+archive_files = on_cmd("MyCard文件", permission=SUPERUSER, priority=5)
+archive_rules = on_cmd("MyCard规则检查", permission=SUPERUSER, priority=5)
+
+
+@archive_status.handle()
+async def _archive_status(event: PrivateMessageEvent):
+    if not _archive:
+        await archive_status.finish("MyCard 归档未启用，请检查 MYCARD_CAPTURE_ENABLED 与管理员配置。")
+    await archive_status.finish(await _archive.status())
+
+
+@archive_rules.handle()
+async def _archive_rules(event: PrivateMessageEvent):
+    if not _archive:
+        await archive_rules.finish("MyCard 归档未启用。")
+    try:
+        rules = await asyncio.to_thread(read_rules, _archive.store.rules_path)
+    except (OSError, ValueError):
+        await archive_rules.finish("规则文件格式错误，请检查 deck-rules.json；原始文件与卡组链接仍会保留。")
+    await archive_rules.finish(f"规则有效，共 {len(rules)} 条。规则在每场结束时重新读取，无需重启。")
+
+
+@archive_files.handle()
+async def _archive_files(bot: Bot, event: PrivateMessageEvent, args: Message = CommandArg()):
+    if not _archive:
+        await archive_files.finish("MyCard 归档未启用。")
+    try:
+        path = await asyncio.to_thread(_archive.store.bundle, args.extract_plain_text().strip())
+    except ValueError as exc:
+        await archive_files.finish(str(exc))
+    except OSError:
+        await archive_files.finish("归档文件暂时无法读取，请检查服务器存储后重试。")
+    try:
+        data = await asyncio.to_thread(path.read_bytes)
+        if len(data) > 8 * 1024 * 1024:
+            await archive_files.finish("归档超过私聊传输上限，文件仍保存在服务器归档目录。")
+        # NapCat 支持 base64 文件，避免 Bot 与 QQ 端不共享文件系统导致上传失败。
+        await bot.upload_private_file(user_id=event.user_id, file="base64://" + base64.b64encode(data).decode("ascii"),
+                                      name=f"mycard-{path.parent.name}.zip")
+    except ActionFailed:
+        await archive_files.finish("文件发送失败，归档已保留；请确认可以与 Bot 私聊后重试。")
+    await archive_files.finish("已发送原始录像、各小局 YDK 和含部分 Side 的合并 YDK。")

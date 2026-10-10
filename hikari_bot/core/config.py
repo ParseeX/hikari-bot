@@ -114,6 +114,21 @@ T = TypeVar("T")
 
 @dataclass(frozen=True)
 class Settings:
+    mycard_capture_enabled: bool = field(
+        default_factory=lambda: os.getenv("MYCARD_CAPTURE_ENABLED", "false").strip().lower() in ("1", "true", "yes")
+    )
+    mycard_archive_dir: Path = field(
+        default_factory=lambda: _path("MYCARD_ARCHIVE_DIR", Path.home() / ".local/share/hikari-mycard")
+    )
+    mycard_credentials_file: Path = field(
+        default_factory=lambda: _path("MYCARD_CREDENTIALS_FILE", Path.home() / ".local/share/hikari-mycard/credentials.json")
+    )
+    mycard_capture_concurrency: int = field(
+        default_factory=lambda: _positive_int("MYCARD_CAPTURE_CONCURRENCY", 256)
+    )
+    mycard_join_interval: float = field(
+        default_factory=lambda: _positive_float("MYCARD_JOIN_INTERVAL", 0.5)
+    )
     card_catalog_path: Path = field(
         default_factory=lambda: _path(
             "CARD_CATALOG_PATH", Path.home() / ".local/share/hikari-card-catalog/catalog.sqlite3"
