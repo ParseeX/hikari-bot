@@ -139,7 +139,7 @@ def parse_ydk(deck_text):
 
 
 
-async def batch_get_images(card_ids):
+async def batch_get_images(card_ids, *, size=(100, 145), preserve_positions=False):
     # 极度保守的配置，避免内存溢出和死机
     batch_size = 3  # 每批只处理3张，极大降低内存峰值
     semaphore = asyncio.Semaphore(1)  # 一次只下载1张，完全避免并发压力
@@ -152,7 +152,7 @@ async def batch_get_images(card_ids):
                 if img_data:
                     image = Image.open(io.BytesIO(img_data))
                     # 缩小图片尺寸以节省内存
-                    image = image.resize((100, 145), Image.Resampling.LANCZOS)
+                    image = image.resize(size, Image.Resampling.LANCZOS)
                     return image
                 return None
             except Exception as e:
@@ -169,6 +169,8 @@ async def batch_get_images(card_ids):
         for img in batch_images:
             if isinstance(img, Image.Image):
                 all_images.append(img)
+            elif preserve_positions:
+                all_images.append(None)
         
         # 手动触发垃圾回收并增加延迟
         import gc
@@ -262,7 +264,14 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
     # 批量获取卡片图片
     all_card_ids = main_deck + extra_deck + side_deck
-    all_card_images = await batch_get_images(all_card_ids)
+    all_card_images = await batch_get_images(all_card_ids, size=(card_width, card_height), preserve_positions=True)
+    # 下载失败保留原位置，避免主卡缺图后把额外或 Side 错分到前一区。
+    for i, card_img in enumerate(all_card_images):
+        if card_img is None:
+            placeholder = Image.new('RGB', (card_width, card_height), '#eeeeee')
+            ImageDraw.Draw(placeholder).text((12, card_height // 2), str(all_card_ids[i]),
+                                             fill='black', font=ImageFont.truetype(font_path_sc, 24))
+            all_card_images[i] = placeholder
 
     # 分割批量获取的图片结果
     main_images = all_card_images[:len(main_deck)]
@@ -296,9 +305,10 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
     text_y = y_offset - font_size - 50 - text_height
     draw.text((text_x, text_y), deck_name, fill="black", font=font)
     
-    font = ImageFont.truetype(font_path_sc, 50)
-    text_y -= text_height + margin // 2 
-    draw.text((text_x, text_y), f"{match} {result}", fill="black", font=font)
+    if match or result:
+        font = ImageFont.truetype(font_path_sc, 50)
+        text_y -= text_height + margin // 2
+        draw.text((text_x, text_y), f"{match} {result}", fill="black", font=font)
 
     font = ImageFont.truetype(font_path_sc, 80)
     bbox = font.getbbox("神人都市")

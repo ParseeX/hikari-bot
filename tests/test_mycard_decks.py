@@ -251,10 +251,19 @@ def test_command_permissions_and_forward_destination(monkeypatch, tmp_path, grou
     store = ArchiveStore(tmp_path, set())
     record(store, 'one', 100)
     monkeypatch.setattr(module, 'library', lambda: store.library)
+    rendered = []
+    async def image(player, version, rules_path):
+        rendered.append((player, version, rules_path))
+        return b'png-test-payload'
+    monkeypatch.setattr(module, 'player_image', image)
     event = GroupMessageEvent.model_construct(group_id=222, user_id=111) if group else SimpleNamespace(user_id=111)
     with pytest.raises(Finished):
         asyncio.run(module.query_player(event, Message('甲')))
-    assert ShortLinks(tmp_path / 'short-links.sqlite3').url('甲') in str(module.deck_query.message)
+    assert module.deck_query.message.type == 'image'
+    assert module.deck_query.message.data['file'].startswith('base64://')
+    assert rendered[0][0] == '甲' and rendered[0][1].deck.main == (1,1,2)
+    assert rendered[0][2] == store.rules_path
+    assert not (tmp_path / 'short-links.sqlite3').exists()
     async def fetch():
         return [{'username': '甲'}] + [{'username': str(i)} for i in range(99)]
     module.leaderboard = Leaderboard(fetch=fetch)
