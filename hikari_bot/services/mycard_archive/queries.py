@@ -2,12 +2,10 @@
 import asyncio
 from datetime import datetime
 import time
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import aiohttp
-
-from .presentation import deck_links
-
 
 class Leaderboard:
     def __init__(self, fetch=None, ttl=60):
@@ -44,8 +42,8 @@ def player_text(player, version, rank=None):
     if version is None:
         return title + '：暂无卡组'
     updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
-    links = deck_links(version.deck)
-    return title + f'（更新：{updated}）\n' + '\n'.join(links)
+    link = 'https://ygo.xyk.one/mc/' + quote(player, safe='')
+    return title + f'（更新：{updated}）\n' + link
 
 
 async def top_texts(library, leaderboard):

@@ -9,7 +9,7 @@ import pytest
 from hikari_bot.services.card_catalog import CardCatalog
 from hikari_bot.services.mycard_archive import sorting
 from hikari_bot.services.mycard_archive.presentation import deck_url
-from hikari_bot.services.mycard_archive.queries import player_text
+from hikari_bot.services.mycard_archive.presentation import deck_links
 from hikari_bot.services.mycard_archive.library import DeckVersion
 from hikari_bot.services.mycard_archive.replay import Deck
 from hikari_bot.services.mycard_archive.store import ArchiveStore
@@ -121,7 +121,7 @@ def test_old_bundle_regenerates_sorted_ydk_without_rewriting_originals(catalog, 
 def test_side_is_sorted_before_splitting_multiple_links(catalog):
     side = tuple(range(1, 16)) + (789,)
     version = DeckVersion(Deck('甲', (789,), (), side), 0, 0, 1)
-    links = player_text('甲', version).splitlines()[1:]
+    links = deck_links(version.deck)
     first, second = [decode_ourygo(link)[2] for link in links]
     assert list(first) == [789, *range(1, 15)]
     assert list(second) == [15]
