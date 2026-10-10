@@ -14,6 +14,7 @@ import zipfile
 
 from .presentation import build_messages, classify, consolidated_decks, read_rules
 from .replay import Deck, parse_replay
+from .library import DeckLibrary
 
 
 def atomic_write(path: Path, data: bytes):
@@ -54,6 +55,20 @@ class ArchiveStore:
                     UNIQUE(match_id, recipient, part)
                 );
             """)
+            DeckLibrary.initialize(db)
+        self.library = DeckLibrary(root / 'archive.sqlite3')
+        self.backfill_library()
+
+    def backfill_library(self):
+        """仅补录已结束且尚未入库的归档，不改写录像、通知或既有归档状态。"""
+        with self.connect() as db:
+            matches = db.execute("""SELECT m.* FROM matches m WHERE m.status IN ('complete','partial')
+                AND NOT EXISTS (SELECT 1 FROM deck_library_index i WHERE i.match_id=m.id)
+                ORDER BY m.started,m.id""").fetchall()
+        for match in matches:
+            replays = self.replays(match['id'])
+            with self.connect() as db:
+                DeckLibrary.record_match(db, match['id'], replays, match['started'], match['finished'])
 
     @contextmanager
     def connect(self):
@@ -167,6 +182,7 @@ class ArchiveStore:
                     "issues": issues, "replays": replays, "combined_decks": combined}
         atomic_write(self.root / match_id / "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"))
         with self.connect() as db:
+            DeckLibrary.record_match(db, match_id, replays, row['started'], finished)
             db.execute("UPDATE matches SET status=?,finished=? WHERE id=?",
                        ("complete" if complete else "partial", finished, match_id))
             for recipient in self.recipients:
