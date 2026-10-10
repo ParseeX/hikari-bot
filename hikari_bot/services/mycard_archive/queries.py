@@ -44,7 +44,7 @@ def player_text(player, version, rank=None):
     title = (f'{rank}. ' if rank is not None else '') + player
     if version is None:
         return title + '：暂无卡组'
-    updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Tokyo')).strftime('%Y-%m-%d %H:%M JST')
+    updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
     deck = version.deck
     # 只换 Side 的长期观测可能累计超过 15 张；分链接保留全部证据，不截断数据。
     sides = [deck.side[i:i + 15] for i in range(0, len(deck.side), 15)] or [()]

@@ -90,7 +90,7 @@ def test_link_contains_merged_side_and_large_side_is_not_truncated(tmp_path):
     record(store, 'two', 200, side=(200, 201))
     version = store.library.latest('甲')
     text = player_text('甲', version)
-    assert '更新：' in text and 'JST' in text
+    assert '更新：' in text and 'JST' not in text
     links = text.splitlines()[1:]
     assert len(links) == 2
     seen = Counter()
