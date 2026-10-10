@@ -100,6 +100,12 @@ class ArchiveStore:
             db.execute("UPDATE matches SET status='excluded',finished=? WHERE id=? AND status='active'",
                        (time.time(), match_id))
 
+    def skip(self, match_id: str):
+        """主动跳过的对局不占名额，也不计为排名范围外或采集失败。"""
+        with self.connect() as db:
+            db.execute("UPDATE matches SET status='skipped',finished=? WHERE id=? AND status='active'",
+                       (time.time(), match_id))
+
     def issue(self, match_id: str, message: str):
         with self.connect() as db:
             row = db.execute("SELECT issues FROM matches WHERE id=?", (match_id,)).fetchone()

@@ -50,3 +50,13 @@ class RankFilter:
         if errors:
             raise ValueError('无法确认双方名次') from None
         return False
+
+    async def valid_players(self, players):
+        """分别确认所有玩家，不能在第一位命中时提前结束计数。"""
+        players = list(dict.fromkeys(players))
+        ranks = await asyncio.gather(*(self.rank(player) for player in players), return_exceptions=True)
+        valid = [player for player, rank in zip(players, ranks)
+                 if type(rank) is int and 1 <= rank <= self.cutoff]
+        if not valid and any(isinstance(rank, Exception) for rank in ranks):
+            raise ValueError('无法确认双方名次')
+        return valid

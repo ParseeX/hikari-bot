@@ -1,6 +1,5 @@
 """房间生命周期与私聊投递；重连去重、限速入场、持久化失败重试。"""
 import asyncio
-from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -9,6 +8,7 @@ from nonebot import logger
 from .admission import JoinGate
 from .spectator import CredentialError, Credentials, watch
 from .store import ArchiveStore
+from .scheduling import PrioritySlots
 
 
 @dataclass
@@ -18,6 +18,7 @@ class RoomTask:
     ended: asyncio.Event = field(default_factory=asyncio.Event)
     connected: bool = False
     task: asyncio.Task | None = None
+    valid_players: list[str] = field(default_factory=list)
 
 
 class ArchiveRuntime:
@@ -29,7 +30,8 @@ class ArchiveRuntime:
         self.watch_room = watch_room
         self.rank_filter = rank_filter
         self.rooms: dict[str, RoomTask] = {}
-        self.semaphore = asyncio.Semaphore(concurrency)
+        self.slots = PrioritySlots(concurrency, self.priorities)
+        self.semaphore = self.slots.semaphore
         self.join_gate = JoinGate(interval=join_interval)
         self.delivery_task = None
         self.last_error = ""
@@ -81,7 +83,8 @@ class ArchiveRuntime:
             if self.rank_filter:
                 while True:
                     try:
-                        eligible = await self.rank_filter.eligible(state.players)
+                        state.valid_players = await self.rank_filter.valid_players(state.players)
+                        eligible = bool(state.valid_players)
                         break
                     except Exception:
                         rank_error = "排名查询失败，未确认前 500 的对局暂不入场"
@@ -96,10 +99,25 @@ class ArchiveRuntime:
                 if not eligible:
                     await asyncio.to_thread(self.store.exclude, state.match_id)
                     return
+            else:
+                state.valid_players = list(dict.fromkeys(state.players))
             if unavailable:
                 await asyncio.to_thread(self.store.issue, state.match_id, "房间禁止观战或玩家数量不受支持")
                 await self.finish_unavailable(room_id, state)
             else:
+                # 身份检查在排队之前进行，自己的对局直接跳过，不占任何观战名额。
+                while not state.ended.is_set():
+                    try:
+                        identity = await self.credentials.get()
+                        if await self.skip_own_match(state, identity):
+                            return
+                        break
+                    except CredentialError:
+                        self.last_error = 'MyCard 认证失败，等待刷新凭据'
+                        try:
+                            await asyncio.wait_for(state.ended.wait(), 30)
+                        except asyncio.TimeoutError:
+                            pass
                 await self.collect(room_id, state)
         finally:
             self.rooms.pop(room_id, None)
@@ -111,26 +129,32 @@ class ArchiveRuntime:
         finally:
             self.rooms.pop(room_id, None)
 
-    @asynccontextmanager
-    async def slot(self, ended):
-        """排队期间房间结束时立即退出；取消与同时完成均不泄漏名额。"""
-        acquire = asyncio.create_task(self.semaphore.acquire())
-        finish = asyncio.create_task(ended.wait())
-        try:
-            await asyncio.wait((acquire, finish), return_when=asyncio.FIRST_COMPLETED)
-            yield acquire.done() and not acquire.cancelled() and not ended.is_set()
-        finally:
-            acquire.cancel()
-            finish.cancel()
-            await asyncio.gather(acquire, finish, return_exceptions=True)
-            if not acquire.cancelled() and acquire.exception() is None and acquire.result():
-                self.semaphore.release()
+    async def skip_own_match(self, state, identity):
+        if identity[0] not in state.players:
+            return False
+        await asyncio.to_thread(self.store.issue, state.match_id, '观战账号正在参与本场对局，已跳过')
+        await asyncio.to_thread(self.store.skip, state.match_id)
+        return True
+
+    async def priorities(self, states):
+        players = {player for state in states if state for player in state.valid_players}
+        latest = await asyncio.to_thread(self.store.library.latest_many, list(players))
+        keys = []
+        for state in states:
+            valid = state.valid_players if state else []
+            unknown = sum(player not in latest for player in valid)
+            side = sum(len(latest[player].deck.side) for player in valid if player in latest)
+            keys.append((-len(valid), -unknown, side))
+        return keys
+
+    def slot(self, ended, state=None):
+        return self.slots.slot(ended, state)
 
     async def collect(self, room_id: str, state: RoomTask):
         complete = False
         backoff = 5
         try:
-            async with self.slot(state.ended) as available:
+            async with self.slot(state.ended, state) as available:
                 if not available:
                     await asyncio.to_thread(self.store.issue, state.match_id, "对局在等待观战名额期间结束，未能入场")
                 while available and not state.ended.is_set():
@@ -140,10 +164,8 @@ class ArchiveRuntime:
                             return
                         identity = await self.credentials.get()
                         # 本人对局不能以同一账号加入，避免干扰用户正在进行的游戏。
-                        if identity[0] in state.players:
-                            await asyncio.to_thread(self.store.issue, state.match_id, "观战账号正在参与本场对局，未重复加入")
-                            await state.ended.wait()
-                            break
+                        if await self.skip_own_match(state, identity):
+                            return
                         async def save(data):
                             await asyncio.to_thread(self.store.save_replay, state.match_id, data)
 
@@ -176,9 +198,10 @@ class ArchiveRuntime:
                     except asyncio.TimeoutError:
                         pass
                     backoff = min(backoff * 2, 120)
-            if not complete:
-                await asyncio.to_thread(self.store.issue, state.match_id, "未确认正常结束信号，归档可能缺少小局")
-            await asyncio.to_thread(self.store.finalize, state.match_id, complete)
+                # 先入库再释放名额，使下一次排序能看到刚补齐的卡组和 Side。
+                if not complete:
+                    await asyncio.to_thread(self.store.issue, state.match_id, "未确认正常结束信号，归档可能缺少小局")
+                await asyncio.to_thread(self.store.finalize, state.match_id, complete)
         except asyncio.CancelledError:
             # 保留 active 和原始文件，下次 init 恢复；不伪造对局结束。
             raise
@@ -237,4 +260,5 @@ class ArchiveRuntime:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        await self.slots.close()
         self.rooms.clear()
