@@ -51,7 +51,7 @@ def web(root, monkeypatch):
     monkeypatch.setattr(module, 'settings', SimpleNamespace(mycard_archive_dir=root, card_catalog_path=root/'cards.db'))
     cards = {123: {'id': 123, 'cn_name': '主卡甲'}, 456: {'id': 456, 'cn_name': '主卡乙'}}
     monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(
-        by_id=lambda code: cards.get(code), search=lambda query: cards.get(123) if query == '主卡甲' else None))
+        by_id=lambda code: cards.get(code), search_many=lambda query: [c for c in cards.values() if query in c['cn_name']]))
     app = FastAPI()
     app.include_router(module.router)
     with TestClient(app, base_url='https://ygo.xyk.one', headers={'Origin': module.ORIGIN}) as client:
@@ -74,7 +74,9 @@ def test_edit_rules_multilabel_main_only_conflict_and_logout(web, root):
     assert response.status_code == 200
     cookie = response.headers['set-cookie'].lower()
     assert 'secure' in cookie and 'httponly' in cookie and 'samesite=strict' in cookie
-    assert client.get('/mc/admin/api/cards?q=主卡甲').json()['card']['id'] == 123
+    assert client.get('/mc/admin/api/cards?q=主卡甲').json()['cards'][0]['id'] == 123
+    assert len(client.get('/mc/admin/api/cards?q=主卡').json()['cards']) == 2
+    assert client.get('/mc/admin/api/cards?q=不存在').json()['cards'] == []
     state = client.get('/mc/admin/api/rules').json()
     original = state['revision']
     body = {'revision': original, 'label': '分类甲', 'cards': [123], 'match': 'any'}
@@ -102,6 +104,18 @@ def test_unconfigured_password_fails_closed(web, root):
     (root/'admin-password.json').unlink()
     assert client.post('/mc/admin/api/login', json={'password':PASSWORD}).status_code == 503
     assert client.get('/mc/admin/api/rules').status_code == 401
+
+
+def test_rule_can_save_more_than_twenty_selected_cards(web, root, monkeypatch):
+    module, client = web
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id':code}))
+    assert client.post('/mc/admin/api/login', json={'password':PASSWORD}).status_code == 200
+    revision = client.get('/mc/admin/api/rules').json()['revision']
+    cards = list(range(100, 130))
+    assert client.post('/mc/admin/api/rules', json={
+        'revision': revision, 'label':'系列', 'cards':cards, 'match':'any',
+    }).status_code == 200
+    assert read_rules(root/'deck-rules.json')[0]['cards'] == cards
 
 
 def test_atomic_rule_changes_preserve_old_rules_and_reject_stale_input(root):

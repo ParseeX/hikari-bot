@@ -2,9 +2,13 @@
 import base64
 import json
 import re
+import sqlite3
 from collections import Counter
 from pathlib import Path
 from urllib.parse import quote, urlencode
+
+from hikari_bot.core.config import settings
+from hikari_bot.services.card_catalog import CardCatalog
 
 from .replay import Deck
 from .sorting import sort_sections
@@ -57,13 +61,22 @@ def validate_rules(data: dict) -> list[dict]:
     return data["rules"]
 
 
-def classify(deck: Deck, rules: list[dict]) -> dict:
+def classify(deck: Deck, rules: list[dict], *, catalog=None) -> dict:
     present = set(deck.main)
+    codes = present | {code for rule in rules for code in rule['cards']}
+    identities = {code: code for code in codes}
+    if rules:
+        try:
+            identities.update((catalog or CardCatalog(settings.card_catalog_path)).canonical_codes(codes))
+        except sqlite3.Error:
+            # 主库不可用时仍可精确匹配原卡号，不能阻断原始录像归档。
+            pass
+    normalized = {identities[code] for code in present}
     labels, evidence = [], []
     for rule in rules:
-        required = set(rule["cards"])
-        matched = sorted(present & required)
-        hit = required <= present if rule.get("match", "any") == "all" else bool(matched)
+        required = {identities[code] for code in rule['cards']}
+        matched = sorted(code for code in present if identities[code] in required)
+        hit = required <= normalized if rule.get("match", "any") == "all" else bool(matched)
         if hit:
             label = rule["label"].strip()
             if label not in labels:

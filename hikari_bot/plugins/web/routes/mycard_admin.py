@@ -106,10 +106,11 @@ def card_info(card):
 @router.get('/mc/admin/api/cards', dependencies=[Depends(admin)])
 def search_card(q: str = Query(min_length=1, max_length=100)):
     try:
-        card = catalog().search(q.strip())
+        cards = [card_info(card) for card in catalog().search_many(q.strip())]
     except (OSError, sqlite3.Error):
         raise HTTPException(503, '卡片资料暂不可用') from None
-    return {'card': card_info(card) if card else None}
+    # 保留首项字段，让部署前已打开的旧页面仍能查卡；新页面使用完整列表。
+    return {'cards': cards, 'card': cards[0] if cards else None}
 
 
 @router.get('/mc/admin/api/rules', dependencies=[Depends(admin)])
@@ -131,7 +132,7 @@ class RuleEdit(BaseModel):
     revision: str = Field(min_length=64, max_length=64)
     index: int | None = Field(default=None, ge=0)
     label: str = Field(min_length=1, max_length=60)
-    cards: list[StrictInt] = Field(min_length=1, max_length=20)
+    cards: list[StrictInt] = Field(min_length=1)
     match: Literal['any', 'all'] = 'any'
 
 

@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 let snapshot = {rules: [], names: {}, revision: ''};
 let editing = null;
 let selected = [];
+let searchResults = [];
 let busy = false;
 function status(message, error = false) {
   $('status').textContent = message;
@@ -31,20 +32,28 @@ async function action(fn) {
   busy = true;
   document.querySelectorAll('button').forEach(b => b.disabled = true);
   try { await fn(); } catch (error) { status(error.message || '请求失败，请重试', true); }
-  finally { busy = false; document.querySelectorAll('button').forEach(b => b.disabled = false); }
+  finally { busy = false; document.querySelectorAll('button').forEach(b => b.disabled = b.dataset.selected === 'true'); }
 }
 function button(text, fn, className = 'quiet') {
   const el = document.createElement('button'); el.type = 'button'; el.textContent = text; el.className = className;
   el.addEventListener('click', fn); return el;
 }
 function reset() {
-  editing = null; selected = []; $('rule-form').reset(); $('search-result').replaceChildren();
+  editing = null; selected = []; searchResults = []; $('rule-form').reset(); $('search-result').replaceChildren();
   $('editor-title').textContent = '添加映射'; $('save').textContent = '添加映射'; $('cancel').hidden = true; renderSelected();
 }
 function renderSelected() {
   $('selected').replaceChildren(...selected.map(card => button(card.name + ' ×', () => {
     selected = selected.filter(c => c.id !== card.id); renderSelected();
   })));
+  const ids = new Set(selected.map(card => card.id));
+  $('search-result').querySelectorAll('button[data-card-id]').forEach(el => {
+    const picked = ids.has(Number(el.dataset.cardId));
+    el.dataset.selected = String(picked); el.disabled = busy || picked;
+    el.textContent = picked ? '已选择' : '选择';
+  });
+  const summary = $('search-summary');
+  if (summary) summary.textContent = `找到 ${searchResults.length} 张卡片 · 已选 ${selected.length} 张`;
 }
 function renderRules() {
   const filter = $('filter').value.trim().toLowerCase();
@@ -61,7 +70,7 @@ function renderRules() {
       editing = index; $('label').value = rule.label; $('match').value = rule.match || 'any';
       selected = rule.cards.map(id => ({id, name: snapshot.names[id] || String(id)}));
       $('editor-title').textContent = '编辑映射'; $('save').textContent = '保存修改'; $('cancel').hidden = false;
-      $('search-result').replaceChildren(); renderSelected(); $('label').focus();
+      searchResults = []; $('search-result').replaceChildren(); renderSelected(); $('label').focus();
     }), button('删除', () => {
       if (!confirm(`删除“${rule.label}”这条映射？`)) return;
       action(async () => {
@@ -90,17 +99,24 @@ $('logout').addEventListener('click', () => action(async () => { await api('logo
 $('search').addEventListener('click', () => action(async () => {
   const query = $('card-query').value.trim();
   if (!query) throw new Error('请输入卡名或卡号');
-  const {card} = await api('cards?q=' + encodeURIComponent(query));
+  const {cards} = await api('cards?q=' + encodeURIComponent(query));
+  searchResults = cards;
   $('search-result').replaceChildren();
-  if (!card) throw new Error('没有找到这张卡，请换一个卡名或卡号');
-  const result = document.createElement('div'); result.className = 'candidate';
-  const name = document.createElement('span'); name.textContent = card.name;
-  const id = document.createElement('small'); id.textContent = card.id; name.append(id);
-  result.append(name, button('选择', () => {
-    if (!selected.some(c => c.id === card.id)) selected.push(card);
-    renderSelected(); $('search-result').replaceChildren(); $('card-query').value = '';
-  }, 'secondary'));
-  $('search-result').append(result); status('');
+  if (!cards.length) throw new Error('没有找到匹配卡片，请换一个关键词或卡号');
+  const summary = document.createElement('p'); summary.id = 'search-summary';
+  const list = document.createElement('div'); list.className = 'candidate-list';
+  cards.forEach(card => {
+    const result = document.createElement('div'); result.className = 'candidate';
+    const name = document.createElement('span'); name.textContent = card.name;
+    const id = document.createElement('small'); id.textContent = card.id; name.append(id);
+    const choose = button('选择', () => {
+      if (!selected.some(c => c.id === card.id)) selected.push(card);
+      renderSelected();
+    }, 'secondary');
+    choose.dataset.cardId = card.id;
+    result.append(name, choose); list.append(result);
+  });
+  $('search-result').append(summary, list); renderSelected(); status('');
 }));
 $('card-query').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); $('search').click(); } });
 $('rule-form').addEventListener('submit', event => {

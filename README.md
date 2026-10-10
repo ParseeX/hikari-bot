@@ -92,7 +92,7 @@ Side 推断以每位玩家最早收到的小局录像为基准：比较后续小
 YDK 各分区使用上文的 YGOPro 排序规则。
 OURYGO 链接直接编码卡组，不上传文件；站点当前使用 HTTP。
 
-卡组分类管理页：`https://ygo.xyk.one/mc/admin`，使用独立管理员密码登录。支持按卡名或卡号选卡，添加、编辑、删除映射及筛选；保存后采集端无需重启。
+卡组分类管理页：`https://ygo.xyk.one/mc/admin`，使用独立管理员密码登录。按系列关键词或卡名搜索会列出全部匹配卡片，可连续点选，结果和关键词保留；也支持按卡号定位，以及添加、编辑、删除映射和筛选。保存后采集端无需重启。
 在可信本机终端运行 `.venv\Scripts\python.exe scripts/mycard_admin_password.py --ssh server` 设置或重置密码。密码隐藏输入，仅将 scrypt 哈希通过 SSH 保存到归档目录 `admin-password.json`（权限 0600），不要把密码写入聊天或 Git。重置后旧会话失效，旧哈希保留在同目录 `admin-password.previous.json` 供回滚。
 管理会话保存在独立 `admin-sessions.sqlite3`，12 小时到期；浏览器使用 Secure、HttpOnly、SameSite Cookie，写操作校验同源。密码尚未配置时禁止登录和编辑。
 规则保存在 `deck-rules.json`，每次管理页保存前备份到 `deck-rules.json.bak`；并发编辑发生冲突时拒绝覆盖，需刷新后重试。管理页不改写已有归档。
@@ -110,6 +110,7 @@ OURYGO 链接直接编码卡组，不上传文件；站点当前使用 HTTP。
 
 示例卡号仅示意，需替换为实际映射。规则仅检查主卡组，额外和 Side 不参与；`any` 表示任一卡命中，
 `all` 表示全部命中；标签按规则顺序去重后以 `＋` 拼接，并在清单中保留命中卡号。
+匹配前按卡片主库中显式关联的同一卡片身份归一化异画和临时编号，原卡与异画可命中同一规则；不凭卡名相似推断。原始录像、YDK 和命中证据保留实际卡号，未知卡号仍按原编号匹配。
 
 活跃对局没有 30 分钟或其他总时限。默认最多同时连接 8 场、每 0.5 秒入场一场，
 超额房间排队；`MYCARD_CAPTURE_CONCURRENCY` 和 `MYCARD_JOIN_INTERVAL` 可调整。

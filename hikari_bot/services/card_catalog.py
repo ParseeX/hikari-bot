@@ -75,6 +75,15 @@ class CardCatalog:
         with self.connect() as db:
             return self._info(db, self._by_id(db, value))
 
+    def canonical_codes(self, codes):
+        """仅按主库显式身份关系归一化异画、临时编号；未知卡号保持原值。"""
+        result = {}
+        with self.connect() as db:
+            for code in set(codes):
+                row = self._by_id(db, code)
+                result[code] = int(row['passcode'] or row['temporary_id'] or code) if row else code
+        return result
+
     def deck_sort_data(self, codes):
         """一次只读快照返回排序字段；异画使用原卡资料，但保留输入卡号。"""
         result = {}
@@ -103,6 +112,22 @@ class CardCatalog:
             if row is None and fuzzy:
                 row = self._closest_name(db, key)
             return self._info(db, row)
+
+    def search_many(self, keyword: str):
+        """返回所有名称包含关键词的卡，按卡片身份去重，精确名称优先。"""
+        key = normalize(keyword)
+        if not key:
+            return []
+        with self.connect() as db:
+            if key.isascii() and key.isdigit():
+                card = self._info(db, self._by_id(db, key))
+                return [card] if card else []
+            rows = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
+                              'WHERE instr(n.normalized,?)>0 '
+                              'AND (c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL) '
+                              'GROUP BY c.id ORDER BY MAX(n.normalized=?) DESC,MIN(length(n.normalized)),'
+                              'c.konami_cid IS NULL,c.konami_cid,c.id', (key, key)).fetchall()
+            return [self._info(db, row) for row in rows]
 
     @staticmethod
     def _closest_name(db, key):
