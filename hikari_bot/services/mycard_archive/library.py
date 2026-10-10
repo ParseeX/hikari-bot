@@ -89,6 +89,17 @@ class DeckLibrary:
                               (player,)).fetchall()
         return self._versions(rows)
 
+    def card_ids(self):
+        """返回历史卡组全部卡号，最近观测的卡片优先预缓存。"""
+        cards = {}
+        with self.connect() as db:
+            for row in db.execute('SELECT main,extra,side FROM deck_observations ORDER BY updated_at DESC'):
+                for section in row:
+                    for code in json.loads(section):
+                        if isinstance(code, int) and code > 0:
+                            cards[code] = None
+        return list(cards)
+
     def latest(self, player):
         return self.latest_many([player]).get(player)
 
