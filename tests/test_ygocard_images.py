@@ -1,5 +1,7 @@
 import asyncio
+import json
 import struct
+import pytest
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -77,6 +79,97 @@ def image_bytes(size=(624, 624), color='red'):
     return buffer.getvalue()
 
 
+def card_bytes(size=(200, 290)):
+    image = Image.new('RGB', size, 'red')
+    ImageDraw.Draw(image).rectangle((20, 40, 180, 200), fill='blue')
+    buffer = BytesIO()
+    image.save(buffer, format='PNG')
+    return buffer.getvalue()
+
+
+def test_temporary_id_resolves_exact_card_and_caches_real_backup(monkeypatch, tmp_path):
+    card = card_bytes()
+    session = _FakeSession([
+        _FakeResponse(404), _FakeResponse(404),
+        _FakeResponse(200, json.dumps({'data': [{'id': 50849686, 'name': 'Flashforce Sword'}]}).encode()),
+        _FakeResponse(200, card),
+    ])
+    monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
+    monkeypatch.setattr(ygocard, 'catalog', SimpleNamespace(by_id=lambda code: {'wiki_en': 'Flashforce Sword'}))
+    assert asyncio.run(ygocard.get_ygopic(100268021)) == card
+    assert session.urls[-1] == f'{ygocard.IMAGE_FULL}50849686.jpg'
+    assert not (tmp_path/'100268021.jpg').exists()
+    assert (tmp_path/'fallback'/'100268021.jpg').read_bytes() == card
+    assert asyncio.run(ygocard.get_ygopic(100268021)) == card
+    assert len(session.urls) == 4
+
+
+def test_blank_cache_and_primary_are_replaced_by_real_backup(monkeypatch, tmp_path):
+    blank = image_bytes((200, 290), 'white')
+    (tmp_path/'123.jpg').write_bytes(blank)
+    card = card_bytes()
+    session = _FakeSession([_FakeResponse(200, blank), _FakeResponse(200, card)])
+    monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
+    assert asyncio.run(ygocard.get_ygopic(123)) == card
+    assert (tmp_path/'fallback'/'123.jpg').read_bytes() == card
+
+
+def test_failed_sources_never_cache_placeholder_and_next_call_recovers(monkeypatch, tmp_path):
+    from hikari_bot.services.card_image_cache import _UNKNOWN
+    placeholder = BytesIO()
+    Image.frombytes('RGB', (8, 8), _UNKNOWN).save(placeholder, format='PNG')
+    unknown = placeholder.getvalue()
+    session = _FakeSession([_FakeResponse(200, unknown), _FakeResponse(200, unknown)])
+    monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
+    async def missing():
+        return unknown
+    monkeypatch.setattr(ygocard, 'get_unknown_card', missing)
+    assert asyncio.run(ygocard.get_ygopic(123)) == unknown
+    assert not list(tmp_path.rglob('*.jpg'))
+    card = card_bytes()
+    session.responses = iter([_FakeResponse(200, card)])
+    assert asyncio.run(ygocard.get_ygopic(123)) == card
+    assert (tmp_path/'123.jpg').read_bytes() == card
+
+
+def test_wrong_name_does_not_resolve_temporary_card(monkeypatch):
+    session = _FakeSession([_FakeResponse(200, json.dumps({'data': [
+        {'id': 50849686, 'name': 'Different Sword'}]}).encode())])
+    monkeypatch.setattr(ygocard, 'catalog', SimpleNamespace(by_id=lambda code: {'wiki_en': 'Flashforce Sword'}))
+    assert asyncio.run(ygocard._resolved_image_id(session, 100268021)) is None
+
+
+@pytest.mark.parametrize('data', [image_bytes(color='white'), image_bytes(color='black'), b'not an image'])
+def test_blank_and_corrupt_card_images_rejected(data):
+    with pytest.raises((ValueError, OSError)):
+        ygocard.valid_card_image(data)
+
+
+def test_transparent_card_image_rejected():
+    image = Image.new('RGBA', (200, 290), (0, 0, 0, 0))
+    ImageDraw.Draw(image).rectangle((20, 40, 180, 200), fill=(255, 0, 0, 0))
+    buffer = BytesIO()
+    image.save(buffer, format='PNG')
+    with pytest.raises(ValueError):
+        ygocard.valid_card_image(buffer.getvalue())
+
+
+def test_background_refresh_upgrades_cached_backup(monkeypatch, tmp_path):
+    backup = tmp_path/'fallback'
+    backup.mkdir()
+    (backup/'123.jpg').write_bytes(card_bytes())
+    chinese = card_bytes((400, 580))
+    session = _FakeSession([_FakeResponse(200, chinese)])
+    monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
+    assert asyncio.run(ygocard.get_ygopic(123, refresh=True)) == chinese
+    assert asyncio.run(ygocard.get_ygopic(123)) == chinese
+    assert len(session.urls) == 1
+
+
 def test_artwork_size_normalizes_matching_image_and_pads_other_ratios():
     for size in [(624, 624), (321, 321), (300, 150)]:
         with Image.open(BytesIO(ygocard.normalize_card_art(image_bytes(size)))) as image:
@@ -147,7 +240,7 @@ def test_unknown_card_does_not_download_images(monkeypatch):
 
 
 def test_full_card_timeout_uses_backup_instead_of_placeholder(monkeypatch, tmp_path):
-    session = _FakeSession([TimeoutError(), _FakeResponse(200, image_bytes((421, 614)))])
+    session = _FakeSession([TimeoutError(), _FakeResponse(200, card_bytes((421, 614)))])
     monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
     monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
     data = asyncio.run(ygocard.get_ygopic(23219323, half=False))

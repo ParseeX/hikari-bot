@@ -1,8 +1,10 @@
 import asyncio
 import io
+import json
 import os
 import sys
-import tempfile
+import sqlite3
+from urllib.parse import quote
 
 import aiohttp
 from PIL import Image, ImageOps
@@ -10,6 +12,7 @@ from PIL import Image, ImageOps
 from hikari_bot.core.config import PROJECT_ROOT, settings
 from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.services.card_catalog import CardCatalog
+from hikari_bot.services.card_image_cache import read_card_image, valid_card_image, write_card_image
 from hikari_bot.core.logger import log_message
 
 IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
@@ -80,38 +83,70 @@ def _valid_image(data: bytes) -> bytes:
     return data
 
 
-async def get_ygopic(id: int, half: bool = True):
-    """中文源优先；故障时使用完整卡面备用源，不缓存备用语言或占位图。"""
+async def _resolved_image_id(session, code):
+    """先行卡的临时编号与备用源不同；只接受主库英文名的精确匹配。"""
+    if int(code) < 100000000:
+        return None
+    try:
+        info = await asyncio.to_thread(catalog.by_id, code)
+        name = (info or {}).get('en_name') or (info or {}).get('wiki_en')
+        if not name:
+            return None
+        url = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + quote(name, safe='')
+        async with session.get(url, timeout=IMAGE_TIMEOUT) as response:
+            if response.status != 200:
+                return None
+            payload = json.loads(await response.read())
+        cards = payload.get('data', [])
+        if len(cards) == 1 and cards[0].get('name') == name:
+            resolved = cards[0].get('id')
+            if type(resolved) is int and 0 < resolved < 100000000:
+                return resolved
+    except (aiohttp.ClientError, TimeoutError, OSError, ValueError, TypeError, AttributeError, sqlite3.Error):
+        pass
+    return None
+
+
+async def get_ygopic(id: int, half: bool = True, *, refresh=False):
+    """中文源优先，真实备用卡图单独缓存；占位图和空白图片不入缓存。"""
     directory = CARD_PICS if half else os.path.join(CARD_PICS, 'full')
     local_path = os.path.join(directory, f'{id}.jpg')
-    try:
-        with open(local_path, 'rb') as f:
-            return await asyncio.to_thread(_valid_image, f.read())
-    except (OSError, ValueError):
-        pass
-    urls = (f"{IMAGE_CHINESE}{id}.jpg{'!half' if half else ''}", f'{IMAGE_FULL}{id}.jpg')
+    fallback_path = os.path.join(directory, 'fallback', f'{id}.jpg')
+    cached = await asyncio.to_thread(read_card_image, local_path)
+    if cached:
+        return cached
+    fallback = await asyncio.to_thread(read_card_image, fallback_path)
+    if fallback and not refresh:
+        return fallback
+
     async with aiohttp.ClientSession() as session:
-        for index, url in enumerate(urls):
+        async def download(url, path):
             try:
                 async with session.get(url, timeout=IMAGE_TIMEOUT) as resp:
                     if resp.status != 200:
-                        await log_message(f'[get_ygopic] 下载失败 id={id} source={index} status={resp.status}')
-                        continue
-                    data = await asyncio.to_thread(_valid_image, await resp.read())
-                    if index == 0:
-                        os.makedirs(directory, exist_ok=True)
-                        # 原子替换，避免并行查询读取到写了一半的缓存。
-                        fd, temporary = tempfile.mkstemp(dir=directory, suffix='.tmp')
-                        try:
-                            with os.fdopen(fd, 'wb') as f:
-                                f.write(data)
-                            os.replace(temporary, local_path)
-                        finally:
-                            if os.path.exists(temporary):
-                                os.unlink(temporary)
-                    return data
+                        await log_message(f'[get_ygopic] 下载失败 id={id} status={resp.status}')
+                        return None
+                    data = await asyncio.to_thread(valid_card_image, await resp.read())
+                await asyncio.to_thread(write_card_image, path, data)
+                return data
             except (aiohttp.ClientError, TimeoutError, OSError, ValueError) as error:
-                await log_message(f'[get_ygopic] 下载失败 id={id} source={index} error={type(error).__name__}')
+                await log_message(f'[get_ygopic] 下载失败 id={id} error={type(error).__name__}')
+                return None
+
+        data = await download(f"{IMAGE_CHINESE}{id}.jpg{'!half' if half else ''}", local_path)
+        if data:
+            return data
+        # 后台重试中文源时仍可继续使用真实备用图，无需重复下载。
+        if fallback:
+            return fallback
+        data = await download(f'{IMAGE_FULL}{id}.jpg', fallback_path)
+        if data:
+            return data
+        resolved = await _resolved_image_id(session, id)
+        if resolved is not None:
+            data = await download(f'{IMAGE_FULL}{resolved}.jpg', fallback_path)
+            if data:
+                return data
     return await get_unknown_card()
 
 

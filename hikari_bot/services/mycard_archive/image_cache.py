@@ -1,11 +1,12 @@
 """提前缓存已归档卡组的单卡图片，队列可从卡组库和磁盘缓存重建。"""
 import asyncio
+from functools import partial
 from pathlib import Path
 import time
 
 from nonebot import logger
-from PIL import Image
 
+from hikari_bot.services.card_image_cache import read_card_image
 from hikari_bot.services.ygocard import CARD_PICS, get_ygopic
 
 
@@ -14,7 +15,7 @@ class CardImageCache:
                  download_interval=0.25, retry_interval=300, clock=time.monotonic):
         self.library = library
         self.directory = Path(directory or CARD_PICS)
-        self.download = download or get_ygopic
+        self.download = download or partial(get_ygopic, refresh=True)
         self.scan_interval = scan_interval
         self.download_interval = download_interval
         self.retry_interval = retry_interval
@@ -28,18 +29,27 @@ class CardImageCache:
         self.last_status = None
 
     def cached(self, code):
-        path = self.directory / f'{code}.jpg'
+        if self.valid_file(self.directory / f'{code}.jpg'):
+            return True
+        path = self.directory / 'fallback' / f'{code}.jpg'
+        try:
+            # 真实备用图可以离线使用，每天由后台检查中文源是否补齐。
+            return time.time() - path.stat().st_mtime < 86400 and self.valid_file(path)
+        except OSError:
+            return False
+
+    def valid_file(self, path):
         try:
             stat = path.stat()
             signature = (stat.st_mtime_ns, stat.st_size)
-            if self.validated.get(code) == signature:
+            if self.validated.get(path) == signature:
                 return True
-            with Image.open(path) as image:
-                image.load()
-            self.validated[code] = signature
+            if not read_card_image(path):
+                raise ValueError('无效卡图')
+            self.validated[path] = signature
             return True
         except (OSError, ValueError):
-            self.validated.pop(code, None)
+            self.validated.pop(path, None)
             return False
 
     def inventory(self):
@@ -77,8 +87,7 @@ class CardImageCache:
                 if not await asyncio.to_thread(self.cached, code):
                     await self.download(code)
                     if not await asyncio.to_thread(self.cached, code):
-                        # 备用语言和占位图不算中文卡图缓存成功。
-                        raise ValueError('中文卡图未缓存')
+                        raise ValueError('卡图待刷新')
                     self.downloaded += 1
                 self.retries.pop(code, None)
             except Exception as exc:

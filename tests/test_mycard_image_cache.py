@@ -1,11 +1,13 @@
 import asyncio
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sqlite3
+import time
 from types import SimpleNamespace
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from hikari_bot.services.mycard_archive.image_cache import CardImageCache
 from hikari_bot.services.mycard_archive.library import DeckLibrary
@@ -26,7 +28,9 @@ def record(archive, main, extra=(), side=(), updated=1):
 
 def save(directory, code):
     directory.mkdir(exist_ok=True)
-    Image.new('RGB', (20,20), 'red').save(directory/f'{code}.jpg')
+    image = Image.new('RGB', (20,20), 'red')
+    ImageDraw.Draw(image).rectangle((2, 2, 10, 10), fill='blue')
+    image.save(directory/f'{code}.jpg')
 
 
 def test_inventory_covers_history_sections_and_prioritizes_recent_cards(tmp_path):
@@ -34,6 +38,20 @@ def test_inventory_covers_history_sections_and_prioritizes_recent_cards(tmp_path
     record(archive, [1,1], [2], [3])
     record(archive, [4], [2], [5], updated=2)
     assert archive.card_ids() == [4,2,5,1,3]
+
+
+def test_inventory_rejects_blank_cache_and_rechecks_aged_backup(tmp_path):
+    archive = library(tmp_path)
+    record(archive, [1, 2, 3])
+    directory = tmp_path/'pics'
+    directory.mkdir()
+    Image.new('RGB', (200, 290), 'white').save(directory/'1.jpg')
+    save(directory/'fallback', 2)
+    save(directory/'fallback', 3)
+    old = time.time() - 90000
+    os.utime(directory/'fallback'/'3.jpg', (old, old))
+    cache = CardImageCache(archive, directory=directory)
+    assert cache.inventory() == ([1, 2, 3], [1, 3])
 
 
 def test_prefetch_only_missing_deduplicates_and_enables_offline_render(tmp_path, monkeypatch):

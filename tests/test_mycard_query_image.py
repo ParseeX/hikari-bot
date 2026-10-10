@@ -65,8 +65,10 @@ def test_batch_keeps_missing_slots_when_requested(monkeypatch):
 def test_cached_batch_reuses_duplicates_without_artificial_waits(tmp_path, monkeypatch):
     from hikari_bot.services import ygocard
 
-    Image.new('RGB', (200, 290), 'red').save(tmp_path/'1.jpg')
-    Image.new('RGB', (200, 290), 'blue').save(tmp_path/'2.jpg')
+    for code, color in [(1, 'red'), (2, 'blue')]:
+        image = Image.new('RGB', (200, 290), color)
+        image.paste('white', (20, 20, 60, 60))
+        image.save(tmp_path/f'{code}.jpg')
     monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
     calls, waits = [], []
 
