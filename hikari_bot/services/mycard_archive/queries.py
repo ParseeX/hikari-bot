@@ -61,7 +61,8 @@ def player_text(player, version, rank=None, *, links, rules=None):
         rules = query_rules(links.path.with_name('deck-rules.json'))
     classification = classify(version.deck, rules)
     if classification['labels']:
-        title += '【' + classification['name'] + '】'
+        prefix = '60' if len(version.deck.main) == 60 else ''
+        title += '【' + prefix + classification['name'] + '】'
     updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
     link = links.url(player)
     return title + f'（更新：{updated}）\n' + link
