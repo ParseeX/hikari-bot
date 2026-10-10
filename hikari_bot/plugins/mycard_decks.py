@@ -11,6 +11,7 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.config import settings
 from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.queries import Leaderboard, player_text, top_texts
+from hikari_bot.services.mycard_archive.short_links import ShortLinks
 from hikari_bot.services.qq_forward_receipt import forward_resource
 
 
@@ -29,8 +30,10 @@ async def query_player(event: MessageEvent, args: Message = CommandArg()):
     if not player:
         await deck_query.finish('用法：卡组查询 MyCard用户名')
     try:
-        version = await asyncio.to_thread(library().latest, player)
-        text = await asyncio.to_thread(player_text, player, version)
+        archive = library()
+        version = await asyncio.to_thread(archive.latest, player)
+        links = ShortLinks(archive.path.with_name('short-links.sqlite3'))
+        text = await asyncio.to_thread(player_text, player, version, links=links)
     except sqlite3.Error:
         await deck_query.finish('卡组库暂不可用')
     except ValueError:

@@ -5,7 +5,7 @@ import json
 import time
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import unquote, urlsplit
+from urllib.parse import urlsplit
 
 import pytest
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message
@@ -15,6 +15,7 @@ from nonebot.permission import SUPERUSER
 from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.presentation import deck_links
 from hikari_bot.services.mycard_archive.queries import Leaderboard, player_text, top_texts
+from hikari_bot.services.mycard_archive.short_links import ShortLinks
 from hikari_bot.services.mycard_archive.store import ArchiveStore
 from test_mycard_archive import replay, decode_ourygo
 
@@ -95,9 +96,10 @@ def test_link_contains_merged_side_and_large_side_is_not_truncated(tmp_path):
     record(store, 'one', 100, side=tuple(range(100, 115)))
     record(store, 'two', 200, side=(200, 201))
     version = store.library.latest('甲')
-    text = player_text('甲', version)
+    mapping = ShortLinks(tmp_path / 'short-links.sqlite3')
+    text = player_text('甲', version, links=mapping)
     assert '更新：' in text and 'JST' not in text
-    assert text.splitlines()[1:] == ['https://ygo.xyk.one/mc/%E7%94%B2']
+    assert text.splitlines()[1:] == [mapping.url('甲')]
     links = deck_links(version.deck)
     assert len(links) == 2
     seen = Counter()
@@ -108,14 +110,17 @@ def test_link_contains_merged_side_and_large_side_is_not_truncated(tmp_path):
     assert seen == Counter(version.deck.side)
 
 
-def test_query_link_encodes_username_as_path(tmp_path):
+def test_query_link_hides_username_in_persistent_short_code(tmp_path):
     store = ArchiveStore(tmp_path, set())
     record(store, 'one', 100)
     player = '中文 空格/#?%'
-    link = player_text(player, store.library.latest('甲')).splitlines()[1]
+    mapping = ShortLinks(tmp_path / 'short-links.sqlite3')
+    link = player_text(player, store.library.latest('甲'), links=mapping).splitlines()[1]
     url = urlsplit(link)
     assert url.netloc == 'ygo.xyk.one' and not url.query and not url.fragment
-    assert unquote(url.path.removeprefix('/mc/')) == player
+    code = url.path.removeprefix('/mc/')
+    assert len(code) == 12 and mapping.player(code) == player
+    assert player not in link
 
 
 def test_top100_preserves_live_rank_and_missing_players(tmp_path):
@@ -132,7 +137,7 @@ def test_top100_preserves_live_rank_and_missing_players(tmp_path):
         assert len(texts) == 100
         assert texts[0] == '1. 未知：暂无卡组'
         assert texts[1].startswith('2. 甲（更新：')
-        assert texts[1].splitlines()[1:] == ['https://ygo.xyk.one/mc/%E7%94%B2']
+        assert texts[1].splitlines()[1:] == [ShortLinks(tmp_path / 'short-links.sqlite3').url('甲')]
         assert texts[-1] == '100. 97：暂无卡组'
         await board.players()
         assert len(calls) == 1
@@ -183,7 +188,7 @@ def test_command_permissions_and_forward_destination(monkeypatch, tmp_path, grou
     event = GroupMessageEvent.model_construct(group_id=222, user_id=111) if group else SimpleNamespace(user_id=111)
     with pytest.raises(Finished):
         asyncio.run(module.query_player(event, Message('甲')))
-    assert 'https://ygo.xyk.one/mc/%E7%94%B2' in str(module.deck_query.message)
+    assert ShortLinks(tmp_path / 'short-links.sqlite3').url('甲') in str(module.deck_query.message)
     async def fetch():
         return [{'username': '甲'}] + [{'username': str(i)} for i in range(99)]
     module.leaderboard = Leaderboard(fetch=fetch)

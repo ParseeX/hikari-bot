@@ -2,10 +2,12 @@
 import asyncio
 from datetime import datetime
 import time
-from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import aiohttp
+
+from .short_links import ShortLinks
+
 
 class Leaderboard:
     def __init__(self, fetch=None, ttl=60):
@@ -37,12 +39,12 @@ class Leaderboard:
             return list(players)
 
 
-def player_text(player, version, rank=None):
+def player_text(player, version, rank=None, *, links):
     title = (f'{rank}. ' if rank is not None else '') + player
     if version is None:
         return title + '：暂无卡组'
     updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
-    link = 'https://ygo.xyk.one/mc/' + quote(player, safe='')
+    link = links.url(player)
     return title + f'（更新：{updated}）\n' + link
 
 
@@ -50,5 +52,7 @@ async def top_texts(library, leaderboard):
     players = await leaderboard.players()
     def render():
         latest = library.latest_many(players)
-        return [player_text(player, latest.get(player), index) for index, player in enumerate(players, 1)]
+        links = ShortLinks(library.path.with_name('short-links.sqlite3'))
+        return [player_text(player, latest.get(player), index, links=links)
+                for index, player in enumerate(players, 1)]
     return await asyncio.to_thread(render)
