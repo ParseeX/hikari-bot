@@ -3,6 +3,8 @@ import lzma
 import struct
 from dataclasses import dataclass
 
+from .sorting import sort_sections
+
 MAX_DATA = 0x80000
 
 
@@ -14,10 +16,11 @@ class Deck:
     side: tuple[int, ...] = ()
 
     def ydk(self):
+        main, extra, side = sort_sections(self.main, self.extra, self.side)
         return '\n'.join([
             '#created by hikari-bot; Side INCOMPLETE (observed substitutions only)',
-            '#main', *map(str, sorted(self.main)), '#extra', *map(str, sorted(self.extra)),
-            '!side', *map(str, sorted(self.side)),
+            '#main', *map(str, main), '#extra', *map(str, extra),
+            '!side', *map(str, side),
             '# Side INCOMPLETE; unobserved side cards remain unknown', '',
         ])
 

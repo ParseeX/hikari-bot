@@ -75,6 +75,17 @@ class CardCatalog:
         with self.connect() as db:
             return self._info(db, self._by_id(db, value))
 
+    def deck_sort_data(self, codes):
+        """一次只读快照返回排序字段；异画使用原卡资料，但保留输入卡号。"""
+        result = {}
+        with self.connect() as db:
+            for code in set(codes):
+                row = self._by_id(db, code)
+                if row is not None:
+                    result[code] = tuple(row[field] for field in
+                                         ('type_code', 'level_raw', 'atk_raw', 'def_raw'))
+        return result
+
     def search(self, keyword: str, *, fuzzy=False):
         key = normalize(keyword)
         if not key:

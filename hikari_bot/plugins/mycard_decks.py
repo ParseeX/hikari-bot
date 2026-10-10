@@ -29,7 +29,7 @@ async def query_player(event: MessageEvent, args: Message = CommandArg()):
         await deck_query.finish('用法：卡组查询 MyCard用户名')
     try:
         version = await asyncio.to_thread(library().latest, player)
-        text = player_text(player, version)
+        text = await asyncio.to_thread(player_text, player, version)
     except sqlite3.Error:
         await deck_query.finish('卡组库暂不可用')
     except ValueError:

@@ -8,6 +8,7 @@ import aiohttp
 
 from .presentation import deck_url
 from .replay import Deck
+from .sorting import sort_sections
 
 
 class Leaderboard:
@@ -47,12 +48,15 @@ def player_text(player, version, rank=None):
     updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
     deck = version.deck
     # 只换 Side 的长期观测可能累计超过 15 张；分链接保留全部证据，不截断数据。
-    sides = [deck.side[i:i + 15] for i in range(0, len(deck.side), 15)] or [()]
+    ordered_side, = sort_sections(deck.side)
+    sides = [ordered_side[i:i + 15] for i in range(0, len(ordered_side), 15)] or [()]
     links = [deck_url(Deck(player, deck.main, deck.extra, side)) for side in sides]
     return title + f'（更新：{updated}）\n' + '\n'.join(links)
 
 
 async def top_texts(library, leaderboard):
     players = await leaderboard.players()
-    latest = await asyncio.to_thread(library.latest_many, players)
-    return [player_text(player, latest.get(player), index) for index, player in enumerate(players, 1)]
+    def render():
+        latest = library.latest_many(players)
+        return [player_text(player, latest.get(player), index) for index, player in enumerate(players, 1)]
+    return await asyncio.to_thread(render)

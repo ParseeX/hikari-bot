@@ -7,17 +7,18 @@ from pathlib import Path
 from urllib.parse import quote, urlencode
 
 from .replay import Deck
+from .sorting import sort_sections
 
 
 def deck_url(deck: Deck) -> str:
     """OURYGO v1：8/4/4 位种类数，各卡 2 位数量和 27 位卡号。"""
-    sections = [Counter(deck.main), Counter(deck.extra), Counter(deck.side)]
+    sections = [Counter(section) for section in sort_sections(deck.main, deck.extra, deck.side)]
     counts = [len(section) for section in sections]
     if counts[0] > 255 or counts[1] > 15 or counts[2] > 15:
         raise ValueError("卡组超出分享码容量")
     bits = f"{counts[0]:08b}{counts[1]:04b}{counts[2]:04b}"
     for section in sections:
-        for card, count in sorted(section.items()):
+        for card, count in section.items():
             if not 0 < card < 2**27 or not 1 <= count <= 3:
                 raise ValueError("卡号或数量超出分享码容量")
             bits += f"{count:02b}{card:027b}"

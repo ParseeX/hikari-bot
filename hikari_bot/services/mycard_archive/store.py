@@ -223,10 +223,15 @@ class ArchiveStore:
             raise ValueError("归档不存在或尚未结束")
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         names = ["manifest.json"]
+        # 下载旧归档时用原卡组数据重建排序后的 YDK，原始录像和落盘文件保持不变。
+        decks = list(manifest.get("combined_decks", []))
         names.extend(deck["file"] for deck in manifest.get("combined_decks", []))
         for replay in manifest["replays"]:
             names.append(replay["file"])
             names.extend(deck["file"] for deck in replay["decks"])
+            decks.extend(replay["decks"])
+        ydks = {deck['file']: Deck(deck['player'], tuple(deck['main']), tuple(deck['extra']),
+                                  tuple(deck.get('side', []))).ydk() for deck in decks}
         output = directory / "archive.zip"
         temporary = directory / (uuid4().hex + ".zip.tmp")
         try:
@@ -234,7 +239,10 @@ class ArchiveStore:
                 for name in names:
                     if Path(name).name != name:
                         raise ValueError("归档路径异常")
-                    archive.write(directory / name, name)
+                    if name in ydks:
+                        archive.writestr(name, ydks[name])
+                    else:
+                        archive.write(directory / name, name)
             temporary.replace(output)
         finally:
             temporary.unlink(missing_ok=True)
