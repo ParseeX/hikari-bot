@@ -275,8 +275,8 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
     y_offset += extra_rows * (card_height + padding) + 2 * padding + font_size
     draw_section(img, side_images, "副卡组", margin, y_offset, card_width, card_height, side_rows, padding)
 
-    font = ImageFont.truetype(font_path_sc, 32)
-    watermark = f"卡组生成 · {PUBLIC_DECK_URL.removeprefix('https://')}"
+    font = ImageFont.truetype(font_path_sc, 26)
+    watermark = PUBLIC_DECK_URL.removeprefix('https://')
     draw.text(
         (total_width - margin - 2*padding, total_height - margin - 2*padding),
         watermark, fill=(192,192,192), font=font, anchor="rb",
