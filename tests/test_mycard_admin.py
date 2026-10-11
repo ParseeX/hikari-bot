@@ -49,7 +49,8 @@ def web(root, monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     monkeypatch.setattr(module, 'settings', SimpleNamespace(mycard_archive_dir=root, card_catalog_path=root/'cards.db'))
-    cards = {123: {'id': 123, 'cn_name': '主卡甲'}, 456: {'id': 456, 'cn_name': '主卡乙'}}
+    cards = {123: {'id': 123, 'cn_name': '主卡甲', 'data': {'type': 0x21}},
+             456: {'id': 456, 'cn_name': '主卡乙', 'data': {'type': 2}}}
     monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(
         by_id=lambda code: cards.get(code), search_many=lambda query: [c for c in cards.values() if query in c['cn_name']]))
     app = FastAPI()
@@ -66,6 +67,22 @@ def test_admin_page_is_public_but_all_data_and_mutations_require_login(web):
     for path in ['rules', 'rules/delete', 'logout']:
         assert client.post('/mc/admin/api/' + path, json={}).status_code == 401
     assert client.post('/mc/admin/api/login', json={'password': PASSWORD}, headers={'Origin': 'https://evil.invalid'}).status_code == 403
+
+
+def test_classification_search_only_returns_main_deck_cards(web, monkeypatch):
+    module, client = web
+    # 主卡灵摆、仪式保留；额外灵摆仍要排除，数字卡号查询也不能绕过筛选。
+    types = [0x11, 0x21, 0x81, 0x1000021, 2, 4,
+             0x41, 0x2001, 0x800001, 0x4000001, 0x1000041, 0x1002001, 0x1800001, 0x4001, None]
+    cards = [{'id': i + 1, 'cn_name': f'系列{i}', 'data': {'type': kind}}
+             for i, kind in enumerate(types)]
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(
+        search_many=lambda query: [c for c in cards if str(c['id']) == query] if query.isdigit() else cards))
+    assert client.post('/mc/admin/api/login', json={'password': PASSWORD}).status_code == 200
+    result = client.get('/mc/admin/api/cards', params={'q': '系列'}).json()
+    assert [c['id'] for c in result['cards']] == [1, 2, 3, 4, 5, 6]
+    assert result['card'] == result['cards'][0]
+    assert client.get('/mc/admin/api/cards?q=7').json() == {'cards': [], 'card': None}
 
 
 def test_edit_rules_multilabel_main_only_conflict_and_logout(web, root):

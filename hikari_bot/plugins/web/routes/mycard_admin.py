@@ -103,10 +103,17 @@ def card_info(card):
             card.get('jp_name') or str(card['id'])}
 
 
+def main_deck_card(card):
+    card_type = (card.get('data') or {}).get('type') or 0
+    # 融合、同调、超量、连接及衍生物均不能作为主卡组分类条件。
+    excluded = 0x40 | 0x2000 | 0x800000 | 0x4000000 | 0x4000
+    return bool(card_type & 0x7) and not card_type & excluded
+
+
 @router.get('/mc/admin/api/cards', dependencies=[Depends(admin)])
 def search_card(q: str = Query(min_length=1, max_length=100)):
     try:
-        cards = [card_info(card) for card in catalog().search_many(q.strip())]
+        cards = [card_info(card) for card in catalog().search_many(q.strip()) if main_deck_card(card)]
     except (OSError, sqlite3.Error):
         raise HTTPException(503, '卡片资料暂不可用') from None
     # 保留首项字段，让部署前已打开的旧页面仍能查卡；新页面使用完整列表。
