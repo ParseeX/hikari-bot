@@ -288,18 +288,28 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
     text_height = bbox[3] - bbox[1]
     text_x = total_width / 2 + 50
     text_y = y_offset - font_size - 50 - text_height
-    draw.text((text_x, text_y), deck_name, fill="black", font=font)
+
+    def draw_info(text, size):
+        # 自定义信息限制在额外卡组第二行右侧的空白区域。
+        info_font = ImageFont.truetype(font_path_sc, size)
+        available_width = total_width - margin - padding - text_x
+        text_width = info_font.getlength(text)
+        if text_width > available_width:
+            info_font = ImageFont.truetype(font_path_sc, max(1, int(size * available_width / text_width)))
+        draw.text((text_x, text_y), text, fill="black", font=info_font)
+
+    draw_info(deck_name, 50)
     
     if match or result:
         font = ImageFont.truetype(font_path_sc, 50)
         text_y -= text_height + margin // 2
-        draw.text((text_x, text_y), f"{match} {result}", fill="black", font=font)
+        draw_info(f"{match} {result}".strip(), 50)
 
     font = ImageFont.truetype(font_path_sc, 80)
     bbox = font.getbbox("神人都市")
     text_height = bbox[3] - bbox[1]
     text_y -= text_height + margin
-    draw.text((text_x, text_y), id, fill="black", font=font)
+    draw_info(id, 80)
 
     return img
 

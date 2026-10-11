@@ -123,3 +123,23 @@ def test_batch_bounds_concurrency_and_retains_order_on_failure(monkeypatch):
     for img in images:
         if img is not None:
             img.close()
+
+
+def test_custom_information_stays_within_the_image(monkeypatch):
+    async def load(card_ids, **kwargs):
+        return [Image.new('RGB', (200, 290), 'red') for _ in card_ids]
+    monkeypatch.setattr(ygodeck, 'batch_get_images', load)
+    drawn = []
+    original = ygodeck.ImageDraw.ImageDraw.text
+    def text(self, xy, value, *args, **kwargs):
+        if value in [player, name, event + ' ' + result]:
+            drawn.append((xy, value, kwargs['font'].getlength(value)))
+        return original(self, xy, value, *args, **kwargs)
+    player, name, event, result = '玩家' * 20, '卡组' * 40, '赛事' * 30, '冠军' * 15
+    monkeypatch.setattr(ygodeck.ImageDraw.ImageDraw, 'text', text)
+    image = asyncio.run(ygodeck.generate_deck_image(
+        '#main\n1\n#extra\n2\n!side\n3', player, event, result=result, deck_name=name))
+    assert len(drawn) == 3
+    assert all(xy[0] + width <= image.width - 30 for xy, _, width in drawn)
+    assert all(0 < xy[1] < image.height for xy, _, _ in drawn)
+    image.close()
