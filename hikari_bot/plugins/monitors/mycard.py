@@ -31,6 +31,8 @@ from hikari_bot.services.mycard_archive.runtime import ArchiveRuntime
 from hikari_bot.services.mycard_archive.presentation import read_rules
 from hikari_bot.services.mycard_archive.ranking import RankFilter
 from hikari_bot.services.mycard_archive.spectator import watch
+from hikari_bot.services.mycard_archive.library import DeckLibrary
+from hikari_bot.services.mycard_archive.opponent_watch import OpponentWatch, WatchedAccounts
 
 
 # ── 常量与状态 ───────────────────────────────────────────────────────────────────────
@@ -40,6 +42,15 @@ WS_URL = "wss://tiramisu.moecube.com:8923/?filter=started"
 _ws_task: asyncio.Task | None = None
 room_list: dict = {}
 _archive: ArchiveRuntime | None = None
+_opponent_watch: OpponentWatch | None = None
+_watched_accounts: WatchedAccounts | None = None
+
+
+def watched_accounts() -> WatchedAccounts:
+    global _watched_accounts
+    if _watched_accounts is None:
+        _watched_accounts = WatchedAccounts(settings.mycard_archive_dir / "watched-accounts.json")
+    return _watched_accounts
 
 # ── 通知推送 ─────────────────────────────────────────────────────────────────────────
 
@@ -144,6 +155,11 @@ async def handle_delete_event(bot: Bot, room_id):
 
 
 async def process_mycard_event(bot: Bot, payload: dict):
+    if _opponent_watch:
+        try:
+            _opponent_watch.process(payload)
+        except Exception as exc:
+            logger.error(f"[mycard_watch] 开局事件处理失败：{type(exc).__name__}")
     if _archive:
         try:
             await _archive.process(payload)
@@ -213,7 +229,7 @@ def ws_status_check() -> bool:
 driver = get_driver()
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
-    global _ws_task, _archive
+    global _ws_task, _archive, _opponent_watch
     if _ws_task and not _ws_task.done():
         _ws_task.cancel()
         try:
@@ -226,6 +242,23 @@ async def _on_bot_connect(bot: Bot):
     
     async def send_archive_message(recipient: str, text: str):
         await bot.send_private_msg(user_id=int(recipient), message=MessageSegment.text(text))
+
+    async def send_opponent_image(recipient: str, text: str, image: bytes | None):
+        message = Message(MessageSegment.text(text))
+        if image is not None:
+            message += MessageSegment.image(image)
+        await bot.send_private_msg(user_id=int(recipient), message=message)
+
+    if _opponent_watch:
+        _opponent_watch.send = send_opponent_image
+    else:
+        try:
+            _opponent_watch = OpponentWatch(
+                watched_accounts(), DeckLibrary(settings.mycard_archive_dir / "archive.sqlite3"),
+                {uid for uid in settings.superusers if uid.isdigit()}, send_opponent_image,
+            )
+        except (OSError, ValueError) as exc:
+            logger.error(f"[mycard_watch] 关注账号名单加载失败：{type(exc).__name__}")
 
     if settings.mycard_capture_enabled:
         if not settings.superusers or not all(uid.isdigit() for uid in settings.superusers):
@@ -251,7 +284,7 @@ async def _on_bot_connect(bot: Bot):
 
 @driver.on_shutdown
 async def _on_shutdown():
-    global _ws_task, _archive
+    global _ws_task, _archive, _opponent_watch
     if _ws_task and not _ws_task.done():
         _ws_task.cancel()
         try:
@@ -262,6 +295,9 @@ async def _on_shutdown():
             await log_message(f"[mycard_subscriber] Exception occurred while canceling ws task on shutdown: {e}")
         await log_message("[mycard_subscriber] MyCard monitor canceled on shutdown.")
     _ws_task = None
+    if _opponent_watch:
+        await _opponent_watch.close()
+        _opponent_watch = None
     if _archive:
         await _archive.close()
         _archive = None
@@ -269,6 +305,37 @@ async def _on_shutdown():
 
 # ── 管理员命令 ─────────────────────────────────────────────────────────────────────
 # 用法：切换通知
+
+add_account = on_cmd("添加账号", permission=SUPERUSER, priority=5, block=True)
+delete_account = on_cmd("删除账号", permission=SUPERUSER, priority=5, block=True)
+
+
+async def change_account(name: str, *, add: bool) -> str:
+    command = "添加账号" if add else "删除账号"
+    name = name.strip()
+    if not name:
+        return f"用法：{command} MyCard用户名"
+    try:
+        changed = await asyncio.to_thread(watched_accounts().change, name, add=add)
+    except ValueError as exc:
+        return str(exc)
+    except OSError:
+        logger.error("[mycard_watch] 关注账号名单保存失败")
+        return "账号名单暂时无法保存，请稍后重试"
+    if add:
+        return f"已添加账号：{name}" if changed else f"账号已在名单中：{name}"
+    return f"已删除账号：{name}" if changed else f"账号不在名单中：{name}"
+
+
+@add_account.handle()
+async def _add_account(event: PrivateMessageEvent, args: Message = CommandArg()):
+    await add_account.finish(MessageSegment.text(await change_account(args.extract_plain_text(), add=True)))
+
+
+@delete_account.handle()
+async def _delete_account(event: PrivateMessageEvent, args: Message = CommandArg()):
+    await delete_account.finish(MessageSegment.text(await change_account(args.extract_plain_text(), add=False)))
+
 
 notify_switch = on_cmd("切换通知", permission=SUPERUSER)
 
