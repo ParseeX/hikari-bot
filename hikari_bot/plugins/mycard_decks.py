@@ -54,8 +54,10 @@ async def query_top(bot: Bot, event: MessageEvent):
     except Exception as exc:
         logger.warning(f'[mycard_decks] 前排查询失败：{type(exc).__name__}')
         await top_decks.finish('前排卡组查询失败，请稍后重试')
-    # 十名一节点，总共十个节点、一次合并转发；文本转义避免用户名被识别为 CQ 指令。
+    # 上线提示置顶，随后每十名一节点；文本转义避免用户名被识别为 CQ 指令。
     nodes = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname='前排卡组信息',
+                                        content=Message(MessageSegment.text('网页版已上线：https://ygo.xyk.one/mc')))]
+    nodes += [MessageSegment.node_custom(user_id=int(bot.self_id), nickname='前排卡组信息',
                                         content=Message(MessageSegment.text('\n\n'.join(texts[i:i + 10]))))
              for i in range(0, len(texts), 10)]
     # NapCat 默认把所有节点全文复制进外层 ARK 预览，长链接会使群转发卡片过大。

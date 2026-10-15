@@ -276,7 +276,8 @@ def test_command_permissions_and_forward_destination(monkeypatch, tmp_path, grou
     api, data = calls[0]
     assert api == ('send_group_forward_msg' if group else 'send_private_forward_msg')
     assert data['group_id' if group else 'user_id'] == (222 if group else 111)
-    assert len(data['messages']) == 10
+    assert len(data['messages']) == 11
+    assert str(data['messages'][0].data['content']) == '网页版已上线：https://ygo.xyk.one/mc'
     assert all(node.data['content'][0].type == 'text' for node in data['messages'])
 
 
@@ -349,7 +350,7 @@ def test_forward_preview_is_small_while_all_100_decks_remain_inside(monkeypatch)
         assert api == 'send_group_forward_msg'
         body = '\n\n'.join(str(node.data['content']) for node in kwargs['messages'])
         assert all(text in body for text in texts)
-        assert len(kwargs['messages']) == 10
+        assert len(kwargs['messages']) == 11
         # NapCat 没有 news 时会复制所有节点的全文到外层 ARK；覆盖这一真实默认行为。
         news = kwargs.get('news') or [{'text': str(node.data['content'])} for node in kwargs['messages']]
         assert len(json.dumps(news, ensure_ascii=False).encode()) < 1024
