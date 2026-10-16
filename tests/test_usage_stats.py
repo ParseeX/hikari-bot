@@ -15,15 +15,15 @@ def test_daily_aggregation_dedup_and_no_identifiers(tmp_path):
     assert not store.record('卡价查询', 'group', 'private-message-id')
     assert store.record('卡价查询', 'private', 'another-message-id')
     with closing(sqlite3.connect(store.path)) as db:
-        assert dict(db.execute('SELECT scope,sum(count) FROM counts GROUP BY scope')) == {'group': 1, 'private': 1}
+        assert dict(db.execute('SELECT scope,sum(count) FROM counts_beijing GROUP BY scope')) == {'group': 1, 'private': 1}
         start = db.execute("SELECT value FROM metadata WHERE key='started_at'").fetchone()[0]
         dump = '\n'.join(db.iterdump())
         assert 'message-id' not in dump
-        assert [row[1] for row in db.execute('PRAGMA table_info(counts)')] == ['day', 'feature', 'scope', 'count']
+        assert [row[1] for row in db.execute('PRAGMA table_info(counts_beijing)')] == ['day', 'feature', 'scope', 'count']
     store.initialize(['卡价查询'])
     with closing(sqlite3.connect(store.path)) as db:
         assert db.execute("SELECT value FROM metadata WHERE key='started_at'").fetchone()[0] == start
-        assert db.execute('SELECT sum(count) FROM counts').fetchone()[0] == 2
+        assert db.execute('SELECT sum(count) FROM counts_beijing').fetchone()[0] == 2
 
 
 def test_unknown_feature_or_scope_is_rejected(tmp_path):
@@ -73,7 +73,7 @@ def test_matcher_aliases_continuations_permissions_and_failure_isolation(tmp_pat
     # 新的别名调用仍归入原功能。
     asyncio.run(plugin.count_usage(bot, event(PrivateMessageEvent, 'private', '测试别名', 125), matcher_type()))
     with closing(sqlite3.connect(store.path)) as db:
-        assert db.execute('SELECT sum(count) FROM counts').fetchone()[0] == 2
+        assert db.execute('SELECT sum(count) FROM counts_beijing').fetchone()[0] == 2
     monkeypatch.setattr(store, 'record', lambda *args: (_ for _ in ()).throw(OSError('secret content')))
     asyncio.run(plugin.count_usage(bot, event(PrivateMessageEvent, 'private', mid=126), matcher_type()))
     matcher_type.destroy()
@@ -124,8 +124,27 @@ def test_real_dispatch_alias_and_multiturn_count_only_once(tmp_path, monkeypatch
     try:
         asyncio.run(dispatch())
         with closing(sqlite3.connect(store.path)) as db:
-            assert db.execute('SELECT feature,scope,count FROM counts').fetchall() == [('计数集成测试', 'private', 1)]
+            assert db.execute('SELECT feature,scope,count FROM counts_beijing').fetchall() == [('计数集成测试', 'private', 1)]
         assert len(sent) >= 3
     finally:
         test_matcher.destroy()
         denied.destroy()
+
+
+def test_beijing_midnight_and_cutover_preserve_old_totals(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+    import hikari_bot.services.usage_stats as module
+    path = tmp_path / 'usage.sqlite3'
+    with closing(sqlite3.connect(path)) as db, db:
+        db.executescript("CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL); INSERT INTO metadata VALUES ('started_at','2026-01-01T00:00:00+00:00'),('schema_version','1'); CREATE TABLE counts(day TEXT,feature TEXT,scope TEXT,count INTEGER); INSERT INTO counts VALUES ('2026-01-01','卡价查询','group',7);")
+    monkeypatch.setattr(module, 'utcnow', lambda: datetime(2026, 10, 16, 15, 59, 59, tzinfo=timezone.utc))
+    store = UsageStats(path)
+    store.initialize(['卡价查询'])
+    store.record('卡价查询', 'group', 'one')
+    monkeypatch.setattr(module, 'utcnow', lambda: datetime(2026, 10, 16, 16, tzinfo=timezone.utc))
+    store.initialize(['卡价查询'])
+    store.record('卡价查询', 'private', 'two')
+    with closing(sqlite3.connect(path)) as db:
+        assert db.execute('SELECT sum(count) FROM counts').fetchone()[0] == 7
+        assert db.execute('SELECT day,count FROM counts_beijing ORDER BY day').fetchall() == [('2026-10-16', 1), ('2026-10-17', 1)]
+        assert db.execute("SELECT value FROM metadata WHERE key='beijing_started_at'").fetchone()[0] == '2026-10-16T15:59:59+00:00'

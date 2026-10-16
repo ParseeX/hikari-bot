@@ -8,6 +8,11 @@ import secrets
 import sqlite3
 import threading
 import time
+from zoneinfo import ZoneInfo
+
+
+def utcnow():
+    return datetime.now(timezone.utc)
 
 
 class UsageStats:
@@ -30,8 +35,10 @@ class UsageStats:
                     PRIMARY KEY(day,feature,scope), CHECK(scope IN ('group','private')));
             ''')
             db.execute("INSERT OR IGNORE INTO metadata VALUES ('started_at',?)",
-                       (datetime.now(timezone.utc).isoformat(),))
+                       (utcnow().isoformat(),))
             db.execute("INSERT OR IGNORE INTO metadata VALUES ('schema_version','1')")
+            db.execute("CREATE TABLE IF NOT EXISTS counts_beijing (day TEXT NOT NULL, feature TEXT NOT NULL, scope TEXT NOT NULL, count INTEGER NOT NULL CHECK(count>=0), PRIMARY KEY(day,feature,scope), CHECK(scope IN ('group','private')))")
+            db.execute("INSERT OR IGNORE INTO metadata VALUES ('beijing_started_at',?)", (utcnow().isoformat(),))
             db.executemany('INSERT OR IGNORE INTO features VALUES (?)', [(name,) for name in sorted(set(features))])
         self.path.chmod(0o600)
 
@@ -49,8 +56,8 @@ class UsageStats:
             with closing(sqlite3.connect(self.path.resolve().as_uri() + '?mode=rw', uri=True, timeout=2)) as db, db:
                 if not db.execute('SELECT 1 FROM features WHERE name=?', (feature,)).fetchone():
                     raise ValueError('unknown feature')
-                day = datetime.now(timezone.utc).date().isoformat()
-                db.execute('''INSERT INTO counts VALUES (?,?,?,1)
+                day = utcnow().astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()
+                db.execute('''INSERT INTO counts_beijing VALUES (?,?,?,1)
                     ON CONFLICT(day,feature,scope) DO UPDATE SET count=count+1''', (day, feature, scope))
             self.seen[digest] = now
             while len(self.seen) > 10000:
