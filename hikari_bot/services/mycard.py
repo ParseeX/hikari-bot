@@ -8,12 +8,14 @@ mycard.py — MyCard API 访问与本地状态管理服务
 """
 
 from datetime import datetime
+import math
 
 import aiohttp
 import pytz
 from nonebot import logger
 
 from hikari_bot.persistence import get_state_store
+from hikari_bot.services.mycard_history import record_month
 
 
 # ── 常量 ──────────────────────────────────────────────────────────────────────────────
@@ -75,6 +77,11 @@ async def fetch_player_history(username: str, page_num: int = 999999):
     return data.get("data", []) if data else None
 
 
+async def fetch_player_history_page(username: str, limit: int = 1000):
+    """网页后台使用有界竞技历史，保留 total 以核实覆盖完整性。"""
+    return await _api_get("arena/history", {"username": username, "type": 1, "page_num": limit})
+
+
 async def fetch_player_info(username: str):
     """获取玩家基本信息。"""
     return await _api_get("arena/user", {"username": username})
@@ -84,6 +91,20 @@ async def fetch_player_history_rank(username: str, year: int, month: int):
     """获取玩家指定月份的历史排名。"""
     data = await _api_get("arena/historyScore", {"username": username, "season": f"{year}-{month:02}"})
     return data.get("rank") if data else None
+
+
+async def fetch_previous_month_score(username: str, year: int, month: int):
+    """读取官方月度快照的重置前 PT；季度首月无需查询上月分数。"""
+    if month in (1, 4, 7, 10):
+        return None
+    season = f'{year:04d}-{month - 1:02d}'
+    data = await _api_get('arena/historyScore', {'username': username, 'season': season})
+    if not isinstance(data, dict) or data.get('username') != username or data.get('season') != season:
+        raise ValueError('官方上月分数响应缺失或不匹配')
+    score = data.get('pt')
+    if type(score) not in (int, float) or not math.isfinite(score):
+        raise ValueError('官方上月分数无效')
+    return score
 
 
 async def fetch_latest_record(username: str):
@@ -101,9 +122,8 @@ async def is_first_win(username: str) -> bool:
 # ── 数据处理工具 ──────────────────────────────────────────────────────────────────────
 
 def is_specific_month(match: dict, month: int, year: int) -> bool:
-    """判断对战记录是否属于指定月份（上海时区）。"""
-    dt = _to_shanghai(match["end_time"])
-    return dt.year == year and dt.month == month
+    """按北京时间开局月份判断，与网页月度统计保持一致。"""
+    return record_month(match) == f'{year:04d}-{month:02d}'
 
 
 async def mycard_get_records(player_id: str, month: int, year: int):

@@ -26,8 +26,9 @@ def test_update_script_syncs_code_dependencies_and_bot_service():
     assert 'export PATH="$HOME/.local/bin:$PATH"' in script
     assert "HIKARI_BOT_DIR:-$HOME/hikari-bot" in script
     assert "git fetch origin main" in script
-    assert "git reset --hard origin/main" in script
-    assert "git clean -fd" in script
+    assert "git merge --ff-only origin/main" in script
+    assert "git reset --hard" not in script
+    assert "git clean" not in script
     assert "uv sync --no-dev" in script
     assert "sudo systemctl restart bot.service" in script
 

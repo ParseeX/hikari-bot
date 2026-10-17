@@ -3,7 +3,7 @@ from pathlib import Path
 import sqlite3
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, StrictInt
 
@@ -12,7 +12,8 @@ from hikari_bot.services.card_catalog import CardCatalog
 from hikari_bot.services.mycard_archive.admin_auth import (
     AdminAuth, LoginLimited, LoginRejected, SESSION_SECONDS,
 )
-from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, StaleRules
+from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, StaleRules, representative_cards
+from hikari_bot.services.mycard_archive.art import card_art
 
 
 router = APIRouter()
@@ -52,6 +53,12 @@ def rules():
 
 def catalog():
     return CardCatalog(settings.card_catalog_path)
+
+
+async def refresh_series(request: Request):
+    cache = getattr(request.app.state, 'mc_series_cache', None)
+    if cache is not None:
+        cache.request_refresh()
 
 
 @router.get('/mc/admin', include_in_schema=False)
@@ -111,9 +118,10 @@ def main_deck_card(card):
 
 
 @router.get('/mc/admin/api/cards', dependencies=[Depends(admin)])
-def search_card(q: str = Query(min_length=1, max_length=100)):
+def search_card(q: str = Query(min_length=1, max_length=100), purpose: Literal['rule', 'representative'] = 'rule'):
     try:
-        cards = [card_info(card) for card in catalog().search_many(q.strip()) if main_deck_card(card)]
+        cards = [card_info(card) for card in catalog().search_many(q.strip())
+                 if purpose == 'representative' or main_deck_card(card)]
     except (OSError, sqlite3.Error):
         raise HTTPException(503, '卡片资料暂不可用') from None
     # 保留首项字段，让部署前已打开的旧页面仍能查卡；新页面使用完整列表。
@@ -124,15 +132,52 @@ def search_card(q: str = Query(min_length=1, max_length=100)):
 def list_rules():
     try:
         data, revision = rules().read()
+        effective = representative_cards(data, catalog())
         names = {}
         for rule in data['rules']:
             for code in rule['cards']:
                 if code not in names:
                     card = catalog().by_id(code)
                     names[code] = card_info(card)['name'] if card else str(code)
+        for code in effective.values():
+            card = catalog().by_id(code)
+            names[code] = card_info(card)['name'] if card else str(code)
     except (OSError, ValueError, sqlite3.Error):
         raise HTTPException(503, '规则或卡片资料读取失败') from None
-    return {'revision': revision, 'rules': data['rules'], 'names': names}
+    return {'revision': revision, 'rules': data['rules'], 'names': names,
+            'representatives': data.get('representatives', {}), 'effective_representatives': effective}
+
+
+class RepresentativeEdit(BaseModel):
+    revision: str = Field(min_length=64, max_length=64)
+    label: str = Field(min_length=1, max_length=60)
+    card_id: StrictInt | None = Field(default=None, gt=0, lt=2**27)
+
+
+@router.post('/mc/admin/api/representatives', dependencies=[Depends(admin)])
+def save_representative(body: RepresentativeEdit, request: Request, background_tasks: BackgroundTasks):
+    try:
+        if body.card_id is not None and catalog().by_id(body.card_id) is None:
+            raise ValueError('请选择有效卡片')
+        rules().representative(body.revision, body.label, body.card_id)
+    except StaleRules as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    except (OSError, sqlite3.Error):
+        raise HTTPException(503, '保存失败，请稍后重试') from None
+    background_tasks.add_task(refresh_series, request)
+    return {'ok': True}
+
+
+@router.get('/mc/admin/api/art/{code}', dependencies=[Depends(admin)])
+async def preview_art(code: int):
+    if not 0 < code < 2**27:
+        raise HTTPException(404, '卡片不存在')
+    data = await card_art(code)
+    if not data:
+        raise HTTPException(404, '图片暂不可用')
+    return Response(data, media_type='image/jpeg', headers=HEADERS)
 
 
 class RuleEdit(BaseModel):
@@ -144,7 +189,7 @@ class RuleEdit(BaseModel):
 
 
 @router.post('/mc/admin/api/rules', dependencies=[Depends(admin)])
-def save_rule(body: RuleEdit):
+def save_rule(body: RuleEdit, request: Request, background_tasks: BackgroundTasks):
     label = body.label.strip()
     if not label or any(ord(c) < 32 for c in label):
         raise HTTPException(400, '分类名称无效')
@@ -160,6 +205,7 @@ def save_rule(body: RuleEdit):
         raise HTTPException(400, str(exc)) from None
     except (OSError, sqlite3.Error):
         raise HTTPException(503, '保存失败，请稍后重试') from None
+    background_tasks.add_task(refresh_series, request)
     return {'ok': True}
 
 
@@ -169,7 +215,7 @@ class RuleDelete(BaseModel):
 
 
 @router.post('/mc/admin/api/rules/delete', dependencies=[Depends(admin)])
-def delete_rule(body: RuleDelete):
+def delete_rule(body: RuleDelete, request: Request, background_tasks: BackgroundTasks):
     try:
         rules().change(body.revision, index=body.index)
     except StaleRules as exc:
@@ -178,4 +224,5 @@ def delete_rule(body: RuleDelete):
         raise HTTPException(400, str(exc)) from None
     except OSError:
         raise HTTPException(503, '保存失败，请稍后重试') from None
+    background_tasks.add_task(refresh_series, request)
     return {'ok': True}

@@ -5,6 +5,7 @@ let editing = null;
 let selected = [];
 let searchResults = [];
 let busy = false;
+let representative = null;
 function status(message, error = false) {
   $('status').textContent = message;
   $('status').className = error ? 'error' : '';
@@ -85,7 +86,7 @@ function renderRules() {
   $('rules').replaceChildren(...rows);
 }
 async function load() {
-  snapshot = await api('rules'); renderRules();
+  snapshot = await api('rules'); renderRules(); renderCategories();
   $('login-panel').hidden = true; $('workspace').hidden = false; $('logout').hidden = false;
 }
 $('login-form').addEventListener('submit', event => {
@@ -130,4 +131,89 @@ $('rule-form').addEventListener('submit', event => {
 $('cancel').addEventListener('click', reset);
 $('refresh').addEventListener('click', () => action(async () => { reset(); await load(); status('已刷新'); }));
 $('filter').addEventListener('input', renderRules);
+function renderCategories() {
+  const previous = $('representative-label').value;
+  const labels = [...new Set(snapshot.rules.map(rule => rule.label.trim()))];
+  $('representative-label').replaceChildren(...labels.map(label => {
+    const option = document.createElement('option'); option.value = label; option.textContent = label; return option;
+  }));
+  if (labels.includes(previous)) $('representative-label').value = previous;
+  chooseCategory();
+}
+function renderRepresentative() {
+  const box = $('representative-current'); box.replaceChildren();
+  const text = document.createElement('p');
+  text.textContent = representative ? ({manual: '已指定：', default: '默认：', pending: '待保存：'}[representative.source] || '') + representative.name : '暂无有效代表卡';
+  box.append(representative ? representativeArt(representative, false) : emptyArt('暂无代表卡'));
+  box.append(text);
+  document.querySelectorAll('.representative-option').forEach(option => {
+    const picked = representative?.id === Number(option.dataset.representativeId);
+    option.setAttribute('aria-pressed', String(picked));
+    option.querySelector('.representative-selected').hidden = !picked;
+  });
+}
+function emptyArt(message) {
+  const slot = document.createElement('span'); slot.className = 'mc-art-slot';
+  const fallback = document.createElement('span'); fallback.className = 'mc-art-fallback'; fallback.textContent = message;
+  slot.append(fallback); return slot;
+}
+function representativeArt(card, lazy = true) {
+  const slot = emptyArt(card.name);
+  const fallback = slot.firstChild;
+  const img = document.createElement('img'); img.className = 'mc-art-image'; img.alt = '';
+  img.width = 160; img.height = 160; img.loading = lazy ? 'lazy' : 'eager';
+  img.addEventListener('error', () => slot.replaceChildren(fallback), {once: true});
+  img.src = '/mc/admin/api/art/' + card.id + '?v=square2'; slot.replaceChildren(img);
+  return slot;
+}
+function representativeOption(card) {
+  const option = button('', () => { representative = {...card, source: 'pending'}; renderRepresentative(); }, 'representative-option');
+  option.dataset.representativeId = card.id;
+  option.setAttribute('aria-label', '选择 ' + card.name);
+  option.setAttribute('aria-pressed', String(representative?.id === card.id));
+  const art = representativeArt(card);
+  const selected = document.createElement('span'); selected.className = 'representative-selected';
+  selected.textContent = '已选择'; selected.hidden = representative?.id !== card.id;
+  // 状态标记位于图槽外层，图片失败时不会被占位内容清除。
+  const picture = document.createElement('span'); picture.className = 'representative-picture'; picture.append(art, selected);
+  const name = document.createElement('span'); name.className = 'representative-name'; name.textContent = card.name;
+  option.append(picture, name); return option;
+}
+function renderCategoryCandidates(label) {
+  // 同名分类可以包含多条规则；Set 保留规则及 cards 数组的首次出现顺序。
+  const ids = [...new Set(snapshot.rules.filter(rule => rule.label.trim() === label).flatMap(rule => rule.cards))];
+  $('representative-count').textContent = `分类内卡片 · ${ids.length} 张`;
+  $('representative-gallery').replaceChildren(...ids.map(id => representativeOption({id, name: snapshot.names[id] || String(id)})));
+}
+function chooseCategory() {
+  const label = $('representative-label').value;
+  const code = snapshot.effective_representatives?.[label];
+  representative = code ? {id: code, name: snapshot.names[code] || String(code),
+    source: Object.hasOwn(snapshot.representatives || {}, label) ? 'manual' : 'default'} : null;
+  $('representative-results').replaceChildren(); $('representative-query').value = '';
+  renderCategoryCandidates(label); renderRepresentative();
+}
+$('representative-label').addEventListener('change', chooseCategory);
+$('representative-search').addEventListener('click', () => action(async () => {
+  const query = $('representative-query').value.trim();
+  if (!query) throw new Error('请输入卡名或卡号');
+  const {cards} = await api('cards?purpose=representative&q=' + encodeURIComponent(query));
+  $('representative-results').replaceChildren(...cards.map(representativeOption));
+  if (!cards.length) throw new Error('没有找到匹配卡片');
+  status('');
+}));
+$('representative-query').addEventListener('keydown', event => {
+  if (event.key === 'Enter') { event.preventDefault(); $('representative-search').click(); }
+});
+async function saveRepresentative(clear = false) {
+  const label = $('representative-label').value;
+  if (!label) throw new Error('请先添加分类映射');
+  if (!clear && !representative) throw new Error('请先选择代表卡片');
+  await api('representatives', {revision: snapshot.revision, label, card_id: clear ? null : representative.id});
+  await load(); status(clear ? '已恢复默认代表卡' : '代表卡已保存');
+}
+$('representative-form').addEventListener('submit', event => {
+  event.preventDefault(); action(() => saveRepresentative());
+});
+$('representative-clear').addEventListener('click', () => action(() => saveRepresentative(true)));
 load().catch(error => { if (error.status !== 401) status(error.message, true); });

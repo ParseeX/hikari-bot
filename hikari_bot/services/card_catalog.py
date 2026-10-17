@@ -75,6 +75,11 @@ class CardCatalog:
         with self.connect() as db:
             return self._info(db, self._by_id(db, value))
 
+    def cards_by_id(self, codes):
+        """批量读取卡片名称和统一身份，使用同一个只读快照。"""
+        with self.connect() as db:
+            return {code: self._info(db, self._by_id(db, code)) for code in set(codes)}
+
     def canonical_codes(self, codes):
         """仅按主库显式身份关系归一化异画、临时编号；未知卡号保持原值。"""
         result = {}

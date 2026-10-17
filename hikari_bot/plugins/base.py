@@ -116,11 +116,9 @@ reload = on_cmd("重载插件", aliases={"重载", "reload"}, permission=SUPERUS
 @reload.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
-        # 强制丢弃本地所有修改并拉取远程最新
+        # 保留线上修改；无法快进或存在覆盖冲突时由 Git 拒绝更新。
         cmds = [
-            ["git", "reset", "--hard"],
-            ["git", "clean", "-fd"],
-            ["git", "pull"]
+            ["git", "pull", "--ff-only"]
         ]
         git_output = ""
         for cmd in cmds:

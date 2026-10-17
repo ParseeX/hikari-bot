@@ -27,18 +27,7 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.services import mycard as mycard_service
 
 
-def _is_zero_delta_match(record: dict, user_id: str) -> bool:
-    """判断是否为无效对局（查询玩家自身分数变化为 0）。"""
-    try:
-        if record.get("usernamea") == user_id:
-            delta = float(record["pta"]) - float(record["pta_ex"])
-        elif record.get("usernameb") == user_id:
-            delta = float(record["ptb"]) - float(record["ptb_ex"])
-        else:
-            return False
-        return abs(delta) < 1e-9
-    except (KeyError, TypeError, ValueError):
-        return False
+from hikari_bot.services.mycard_history import is_zero_delta_match as _is_zero_delta_match, record_month, month_trend
 
 
 # ── 历史战绩查询 ───────────────────────────────────────────────────────────────────
@@ -55,7 +44,7 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
 
     if not res:
         return
-    
+
     year = int(res.group(1)) if res.group(1) else None
     month = int(res.group(2)) if res.group(2) else None
     user_id = res.group(3)
@@ -79,10 +68,11 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
             user_id = mycard_service.get_mycard_user().get(str(event.user_id))
             if not user_id:
                 await mycard_query.finish("请先绑定或提供 MyCard 用户名！")
-    
-    
-    current_month = datetime.now().month
-    current_year = datetime.now().year
+
+
+    now_shanghai = datetime.now(pytz.timezone("Asia/Shanghai"))
+    current_month = now_shanghai.month
+    current_year = now_shanghai.year
 
     if not month:
         year = current_year
@@ -94,7 +84,7 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
             year = current_year - 1
     elif year < 2000:
         year = year + 2000
-    
+
     if year > current_year or (year == current_year and month > current_month):
         return
 
@@ -110,11 +100,11 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
 {str(year-2000)+'年' if year!=current_year else ''}{month}月胜率：{(0 if len(valid_records)==0 else len(wins)*100.0/len(valid_records)):.2f}%"""
 
     if len(valid_records) > 0:
-        pt_ex = [record['pta_ex'] if record['usernamea'] == user_id else record['ptb_ex'] for record in valid_records]
-        pt = [record['pta'] if record['usernamea'] == user_id else record['ptb'] for record in valid_records]
-
-        pt.append(pt_ex[-1])
-        pt.reverse()
+        try:
+            previous_score = await mycard_service.fetch_previous_month_score(user_id, year, month)
+            pt = [point['score'] for point in month_trend(valid_records, user_id, year, month, previous_score)]
+        except ValueError:
+            await mycard_query.finish('月初分数暂时无法获取，请稍后重试')
 
         tz_shanghai = pytz.timezone("Asia/Shanghai")
         now_shanghai = datetime.now(tz_shanghai)
@@ -147,7 +137,7 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
                 result_message = result_message + f"\n当前排名：{rank}"
 
         plt.figure(figsize=(8, 6))
-        
+
         # 绘制折线
         plt.plot(pt, marker='.', linestyle='--', color='b', linewidth=0.5)
 
@@ -270,7 +260,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
         if seg.type == "at"
         and seg.data.get("qq") not in ("all", str(bot.self_id))
     ]
-    
+
     if at_targets:
         # 如果有@某人，查询被@的人的绑定信息
         qq = at_targets[0]
@@ -287,7 +277,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
         for qq, username in user_list.items():
             if username == mycard_username:
                 found_qq_list.append(qq)
-        
+
         if found_qq_list:
             qq_list_text = "、".join(found_qq_list)
             await mycard_whois.finish(f"以下qq绑定了 Mycard 用户名 {mycard_username}：{qq_list_text}")
@@ -329,15 +319,10 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     # 按月份分组记录
     monthly_data = {}
     for record in valid_records:
-        start_time_utc = datetime.strptime(record["start_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        utc_zone = pytz.utc
-        start_time_utc = utc_zone.localize(start_time_utc)
-        start_time_bj = start_time_utc.astimezone(pytz.timezone("Asia/Shanghai"))
-        
-        month_key = f"{start_time_bj.year}-{start_time_bj.month:02d}"
+        month_key = record_month(record)
         if month_key not in monthly_data:
             monthly_data[month_key] = {'total': 0, 'wins': 0}
-        
+
         monthly_data[month_key]['total'] += 1
         if record['winner'] == user_id:
             monthly_data[month_key]['wins'] += 1
@@ -346,12 +331,12 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     sorted_months = sorted(monthly_data.keys())
     win_rates = []
     month_labels = []
-    
+
     for month_key in sorted_months:
         total_games = monthly_data[month_key]['total']
         wins = monthly_data[month_key]['wins']
         win_rate = (wins * 100.0 / total_games) if total_games > 0 else 0.0
-        
+
         win_rates.append(win_rate)
         # 格式化月份标签
         year, month = month_key.split('-')
@@ -369,29 +354,29 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     # 生成胜率曲线图
     if len(win_rates) > 0:
         plt.figure(figsize=(12, 6))
-        
+
         # 绘制胜率曲线
         plt.plot(range(len(win_rates)), win_rates, marker='o', linestyle='-', color='b', linewidth=2, markersize=6)
-        
+
         # 设置图表
         plt.ylim(0, 100)  # 胜率范围0-100%
         #plt.ylabel("胜率 (%)", fontsize=12)
         #plt.xlabel("月份", fontsize=12)
         #plt.title(f"{user_id} 月度胜率统计", fontsize=14, fontweight='bold')
         plt.grid(True, alpha=0.3)
-        
+
         # 设置x轴标签
         plt.xticks(range(len(month_labels)), month_labels, rotation=45, ha='right')
-        
+
         # 在数据点上显示胜率值
         for i, rate in enumerate(win_rates):
             plt.text(i, rate + 2, f"{rate:.1f}%", ha='center', va='bottom', fontsize=9)
-        
+
         # 添加平均线
         avg_rate = sum(win_rates) / len(win_rates)
         plt.axhline(y=avg_rate, color='r', linestyle='--', alpha=0.7, label=f'avg: {avg_rate:.1f}%')
         plt.legend()
-        
+
         plt.tight_layout()
 
         # 保存图表到内存中的二进制流
@@ -403,10 +388,10 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
 
         await mycard_winrate.finish(Message([
-            MessageSegment("text", {"text": result_message}), 
+            MessageSegment("text", {"text": result_message}),
             MessageSegment("image", {"file": f"base64://{image_base64}"})
         ]))
-    
+
     await mycard_winrate.finish(result_message)
 
 

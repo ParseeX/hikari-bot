@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>卡组分类 · MyCard 管理</title>
   <link rel="stylesheet" href="/mc/admin/style.css">
+  <link rel="stylesheet" href="/mc-art.css?v=2">
   <script src="/mc/admin/app.js" defer></script>
 </head>
 <body>
@@ -29,6 +30,19 @@
         </form>
       </section>
       <section class="panel list-panel">
+        <h2>分类代表卡</h2>
+        <form id="representative-form">
+          <label for="representative-label">分类</label><select id="representative-label"></select>
+          <div id="representative-current" aria-live="polite"></div>
+          <p id="representative-count"></p>
+          <div id="representative-gallery" class="representative-grid" aria-label="分类候选卡图"></div>
+          <label for="representative-query">查找其他代表卡片</label>
+          <div class="search"><input id="representative-query" placeholder="输入卡名或卡号" maxlength="100"><button type="button" id="representative-search" class="secondary">查找卡片</button></div>
+          <div id="representative-results" class="representative-grid" aria-live="polite"></div>
+          <button type="submit">保存代表卡</button>
+          <button type="button" id="representative-clear" class="quiet">恢复默认</button>
+        </form>
+        <hr>
         <div class="section-title"><h2>分类映射 <span id="count" class="count">0</span></h2><button id="refresh" class="quiet">刷新</button></div>
         <label class="sr-only" for="filter">筛选映射</label><input id="filter" type="search" placeholder="按分类名称、卡名或卡号筛选">
         <div id="rules"></div>
