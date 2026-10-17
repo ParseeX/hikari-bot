@@ -53,6 +53,8 @@ class Worker:
         self.identity = None
         self.last_failure = 0.0
         self.lock = threading.Lock()
+        self.health = {'ok': None, 'checked_at': 0, 'version': None, 'price_checked_at': 0}
+        self.health_version_id = int(os.getenv('JHS_HEALTH_VERSION_ID', '119467'))
         bridge = (Path(frida_tools.__file__).parent / 'bridges/java.js').read_text(encoding='utf-8')
         self.java = 'var Java=(function(){' + bridge + ';return bridge;})();\n'
         # 异常退出后，先清理由本服务记录且启动时钟仍一致的旧探针进程。
@@ -223,11 +225,43 @@ class Worker:
             finally:
                 self.lock.release()
 
+    def update_health(self, session_ready):
+        """复用会话检查；每小时及升级后只查一个版本，不写入卡价数据库。"""
+        if session_ready is None or not self.lock.acquire(blocking=False):
+            return
+        previous = self.health
+        status = {**previous, 'ok': False, 'checked_at': time.time(), 'reason': 'session'}
+        try:
+            status['version'] = self.phone.wechat_version()
+            if not session_ready:
+                return
+            status['reason'] = 'price'
+            due = (status['version'] != previous.get('version')
+                   or not previous.get('ok')
+                   or time.time() - previous.get('price_checked_at', 0) >= 3600)
+            if due:
+                result = self.prices([self.health_version_id])
+                rows = result.get('prices', [])
+                if (len(rows) != 1 or rows[0].get('id') != self.health_version_id
+                        or rows[0].get('error')
+                        or not all(k in rows[0] for k in ('min_price', 'market_price'))):
+                    raise RuntimeError('price probe failed')
+                # 无在售价格也是有效响应；不把无货当作服务故障。
+                status['price_checked_at'] = time.time()
+            status.update(ok=True, reason='ready')
+        except Exception as error:
+            logging.warning('health check failed reason=%s error=%s', status['reason'], type(error).__name__)
+        finally:
+            self.health = status
+            self.pause_background()
+            self.lock.release()
+
     def maintain_session(self, stop_event):
         delay = SESSION_CHECK_INTERVAL
         logging.info('background session checks enabled interval_seconds=%d', delay)
         while not stop_event.wait(delay):
             result = self.check_session()
+            self.update_health(result)
             if result is True:
                 delay = SESSION_CHECK_INTERVAL
             elif result is False:
@@ -387,6 +421,15 @@ def create_server(worker, token, port):
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
+        def do_GET(self):
+            if not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + token):
+                self.respond(401, {'error': 'unauthorized'})
+            elif self.path == '/v1/health':
+                # 读取快照，不争用手机锁，也不触发查价或恢复。
+                self.respond(200, dict(worker.health))
+            else:
+                self.respond(404, {'error': 'not_found'})
+
         def do_POST(self):
             if not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + token):
                 self.respond(401, {'error': 'unauthorized'})
@@ -491,6 +534,7 @@ def main():
         try:
             logging.info('bridge preparing phone context')
             worker.warmup()
+            worker.update_health(worker.check_session())
             maintenance.start()
             logging.info('bridge accepting requests on loopback')
             server.serve_forever()

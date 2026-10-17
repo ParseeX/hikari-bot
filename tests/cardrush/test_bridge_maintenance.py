@@ -35,6 +35,7 @@ def worker(module):
     result.recover = Mock()
     result.pause_background = Mock()
     result.query = Mock()
+    result.update_health = Mock()
     return result
 
 

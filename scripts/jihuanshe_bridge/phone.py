@@ -42,6 +42,21 @@ class Phone:
         if self.adb('get-state', check=False) != 'device':
             raise RuntimeError('phone offline')
 
+    def wechat_version(self):
+        """只保留包版本信息，避免把完整 dumpsys 内容写进状态或通知。"""
+        text = self.adb('shell', 'dumpsys', 'package', 'com.tencent.mm')
+        fields = {}
+        for key, pattern in (
+            ('name', r'versionName=([0-9][0-9A-Za-z._-]{0,63})'),
+            ('code', r'versionCode=(\d+)'),
+            ('updated', r'lastUpdateTime=([0-9 :+-]{10,40})'),
+        ):
+            match = re.search(pattern, text)
+            if not match:
+                raise RuntimeError('WeChat package version unavailable')
+            fields[key] = match.group(1).strip()
+        return fields
+
     def start_server(self):
         self.connect()
         if hashlib.sha256(self.binary.read_bytes()).hexdigest() != SERVER_SHA256:
