@@ -42,6 +42,12 @@ Playwright 的 Chromium 浏览器不包含在 Python 锁文件中，因此每个
 - Windows 安装包含 `libcairo-2.dll` 的 Cairo/GTK 运行库，并将 DLL 目录加入
   `PATH` 或 `CAIROCFFI_DLL_DIRECTORIES`。
 
+## 中译中
+
+发送 `中译中 要翻译的话`，先将中文翻译成日语，再翻译回简体中文，只回复最终中文。
+复用现有翻译插件的接口、代理和机器人选择配置；群聊遵循 Bot 白名单。
+原有 `翻译`、`中译日`、`日译中` 等命令继续可用。
+
 ## 生产环境配置
 
 ### MyCard 前 500 玩家对局录像与卡组归档
