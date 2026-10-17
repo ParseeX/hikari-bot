@@ -58,9 +58,9 @@ rpc.exports={
 
 rpc.exports.lifecycle=action=>new Promise((resolve,reject)=>Java.perform(()=>{try{
  if(!runtime)throw new Error('no context');
- const factory=Java.ClassFactory.get(runtime.getClass().getClassLoader());
- const field=factory.use('hl.a').class.getDeclaredField('b');field.setAccessible(true);
- const loop=Java.cast(field.get(runtime.a0()),factory.use('hl.f3'));
- if(action==='resume')loop.resume();else if(action==='pause')loop.pause();else throw new Error('bad action');
+ if(action!=='resume'&&action!=='pause')throw new Error('bad action');
+ // 直接使用运行对象的生命周期方法，避免微信更新后混淆类名和字段失效。
+ if(typeof runtime[action]!=='function')throw new Error('lifecycle method unavailable');
+ runtime[action]();
  resolve(true);
 }catch(e){reject(e);}}));
