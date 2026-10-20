@@ -1,8 +1,8 @@
 """手动卡组独立保存，不生成或改写对局记录。"""
 import base64
-from collections import Counter
 import hashlib
 import json
+import re
 from pathlib import Path
 from threading import RLock
 import time
@@ -20,43 +20,73 @@ class StaleManualDecks(ValueError):
 
 
 def parse_link(player, link):
-    """只解码链接内的 OURYGO v1 卡组数据，不访问链接目标。"""
+    """只解码链接内的 OURYGO v0/v1 卡组数据，不访问链接目标。"""
     if not isinstance(link, str) or len(link) > 8192:
         raise ValueError('卡组链接过长')
     try:
         url = urlsplit(link.strip())
-        query = parse_qs(url.query, strict_parsing=True)
+        query = parse_qs(url.query, strict_parsing=True, keep_blank_values=True)
         if (url.scheme not in ('http', 'https', 'ygo') or not url.netloc
-                or query.get('ygotype') != ['deck'] or query.get('v', ['1']) != ['1']
-                or len(query.get('d', [])) != 1):
+                or query.get('ygotype') != ['deck']):
             raise ValueError()
-        encoded = query['d'][0]
-        payload = base64.b64decode(encoded + '=' * (-len(encoded) % 4), altchars=b'-_', validate=True)
-        if len(payload) < 2:
+        version = query.get('v', ['1'])
+        if version == ['0']:
+            sections = _parse_v0(query)
+        elif version == ['1']:
+            sections = _parse_v1(query)
+        else:
             raise ValueError()
-        bits = ''.join(f'{byte:08b}' for byte in payload)
-        counts = [int(bits[:8], 2), int(bits[8:12], 2), int(bits[12:16], 2)]
-        needed = 16 + sum(counts) * 29
-        if len(bits) != (needed + 7) // 8 * 8 or '1' in bits[needed:]:
-            raise ValueError()
-        sections, offset = [], 16
-        for count in counts:
-            cards = []
-            for _ in range(count):
-                quantity = int(bits[offset:offset + 2], 2)
-                code = int(bits[offset + 2:offset + 29], 2)
-                if not quantity or not code:
-                    raise ValueError()
-                cards.extend([code] * quantity)
-                offset += 29
-            sections.append(tuple(sorted(cards)))
         if not 40 <= len(sections[0]) <= 60 or any(len(s) > 15 for s in sections[1:]):
-            raise ValueError()
-        if any(n > 3 for n in Counter(sum(sections, ())).values()):
             raise ValueError()
         return Deck(player, *sections)
     except (ValueError, TypeError):
-        raise ValueError('卡组链接无效，请使用含 ygotype=deck 和 d 参数的分享链接（主卡组 40–60 张，额外和副卡组各不超过 15 张）') from None
+        raise ValueError('卡组链接无效，请使用 OURYGO v=0 或 v=1 分享链接（主卡组 40–60 张，额外和副卡组各不超过 15 张）') from None
+
+
+def _parse_v0(query):
+    sections = []
+    for name, limit in (('main', 60), ('extra', 15), ('side', 15)):
+        values = query.get(name, [] if name == 'main' else [''])
+        if len(values) != 1:
+            raise ValueError()
+        cards = []
+        for item in values[0].split('_') if values[0] else []:
+            match = re.fullmatch(r'([0-9]{1,9})(?:\*([0-9]{1,2}))?', item)
+            if not match:
+                raise ValueError()
+            code, quantity = int(match[1]), int(match[2] or 1)
+            # 展开前限制数量，避免畸形链接造成超大分配。
+            if not 0 < code < 2**27 or not 1 <= quantity <= limit - len(cards):
+                raise ValueError()
+            cards.extend([code] * quantity)
+        sections.append(tuple(sorted(cards)))
+    return sections
+
+
+def _parse_v1(query):
+    if len(query.get('d', [])) != 1:
+        raise ValueError()
+    encoded = query['d'][0]
+    payload = base64.b64decode(encoded + '=' * (-len(encoded) % 4), altchars=b'-_', validate=True)
+    if len(payload) < 2:
+        raise ValueError()
+    bits = ''.join(f'{byte:08b}' for byte in payload)
+    counts = [int(bits[:8], 2), int(bits[8:12], 2), int(bits[12:16], 2)]
+    needed = 16 + sum(counts) * 29
+    if len(bits) != (needed + 7) // 8 * 8 or '1' in bits[needed:]:
+        raise ValueError()
+    sections, offset = [], 16
+    for count in counts:
+        cards = []
+        for _ in range(count):
+            quantity = int(bits[offset:offset + 2], 2)
+            code = int(bits[offset + 2:offset + 29], 2)
+            if not quantity or not code:
+                raise ValueError()
+            cards.extend([code] * quantity)
+            offset += 29
+        sections.append(tuple(sorted(cards)))
+    return sections
 
 
 class ManualDecks:

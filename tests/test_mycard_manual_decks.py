@@ -11,6 +11,52 @@ from hikari_bot.services.mycard_archive.presentation import deck_url
 from hikari_bot.services.mycard_archive.replay import Deck
 
 
+LEGACY_LINK = ('http://deck.ourygo.top/ydk/show.html?ygotype=deck&v=0&'
+               'main=33396948_7902349_70903634_8124921_44519536_70368879*35&'
+               'extra=&side=&name=%E8%80%81%E8%89%BE')
+
+
+def test_legacy_link_with_35_copies_survives_save_and_export(manual):
+    deck = parse_link('我的账号', LEGACY_LINK)
+    assert len(deck.main) == 40
+    assert deck.main.count(70368879) == 35
+    assert deck.extra == deck.side == ()
+    entry = save(manual, link=LEGACY_LINK)
+    assert entry['main'].count(70368879) == 35
+    exported = deck_url(deck)
+    assert 'v=0' in exported
+    assert parse_link('我的账号', exported) == deck
+
+
+def test_v1_allows_more_than_three_copies_across_sections():
+    deck = Deck('test', tuple(range(1, 41)), (), (1, 1, 1))
+    link = deck_url(deck)
+    assert 'v=1' in link
+    assert parse_link('test', link) == deck
+
+
+@pytest.mark.parametrize('fragment', [
+    '70368879*0', '70368879*-1', '70368879*61', '70368879*999999999999999999999',
+    '70368879*1.5', '0*35', '134217728*35', 'abc*35', '70368879**35',
+    '_70368879*35', '70368879*35_', '',
+])
+def test_legacy_invalid_counts_and_codes(fragment):
+    with pytest.raises(ValueError):
+        parse_link('test', LEGACY_LINK.replace('70368879*35', fragment))
+
+
+@pytest.mark.parametrize('change', [
+    lambda link: link + '&main=1*40',
+    lambda link: link + '&v=0',
+    lambda link: link.replace('extra=', 'extra=1*16'),
+    lambda link: link.replace('side=', 'side=1*16'),
+    lambda link: link.replace('&main=', '&missing='),
+])
+def test_legacy_invalid_sections(change):
+    with pytest.raises(ValueError):
+        parse_link('test', change(LEGACY_LINK))
+
+
 def share(offset=0):
     return deck_url(Deck('分享者', tuple(range(1 + offset, 41 + offset)), (101,), (102,)))
 
@@ -34,8 +80,7 @@ def test_link_roundtrip_and_invalid_payloads():
     for bad in ['https://example.com/', 'file://host/?ygotype=deck&d=AAA',
                 'https://example.com/?ygotype=deck&d=@@@', share() + '&d=AAA',
                 share().replace('v=1', 'v=2'), share().replace('ygotype=deck', 'ygotype=other'),
-                deck_url(Deck('x', (1, 2), ())),
-                deck_url(Deck('x', tuple(range(1, 41)), (), (1, 1, 1)))]:
+                deck_url(Deck('x', (1, 2), ()))]:
         with pytest.raises(ValueError):
             parse_link('x', bad)
 

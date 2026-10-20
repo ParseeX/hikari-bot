@@ -17,7 +17,8 @@ from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, StaleRules
 PASSWORD = 'test-only-password'
 
 
-def test_manual_deck_admin_auth_edit_and_refresh(web, root, monkeypatch):
+@pytest.mark.parametrize('legacy', [False, True])
+def test_manual_deck_admin_auth_edit_and_refresh(web, root, monkeypatch, legacy):
     from hikari_bot.services.mycard_archive.presentation import deck_url
     module, client = web
     endpoint = '/mc/admin/api/manual-decks'
@@ -30,6 +31,9 @@ def test_manual_deck_admin_auth_edit_and_refresh(web, root, monkeypatch):
     initial = client.get(endpoint).json()
     assert initial['decks'] == []
     link = deck_url(Deck('分享者', tuple(range(1, 41)), (101,), (102,)))
+    if legacy:
+        link = ('http://deck.ourygo.top/ydk/show.html?ygotype=deck&v=0&'
+                'main=33396948_7902349_70903634_8124921_44519536_70368879*35&extra=&side=&name=test')
     body = {'revision': initial['revision'], 'player': '我的账号', 'link': link}
     assert client.post(endpoint, json=body, headers={'Origin': 'https://evil.invalid'}).status_code == 403
     assert client.post(endpoint, json={**body, 'link': 'https://invalid.test/'}).status_code == 400
@@ -38,7 +42,10 @@ def test_manual_deck_admin_auth_edit_and_refresh(web, root, monkeypatch):
     assert client.post(endpoint, json=body).status_code == 409
     saved = client.get(endpoint).json()
     row = saved['decks'][0]
-    assert (row['main_count'], row['extra_count'], row['side_count']) == (40, 1, 1)
+    assert (row['main_count'], row['extra_count'], row['side_count']) == ((40, 0, 0) if legacy else (40, 1, 1))
+    if legacy:
+        from hikari_bot.services.mycard_archive.manual_decks import parse_link
+        assert parse_link('我的账号', row['link']).main.count(70368879) == 35
     assert client.post(endpoint, json={'revision': saved['revision'], 'id': row['id'],
                                      'player': '修改后的用户名', 'link': None}).status_code == 200
     renamed = client.get(endpoint).json()['decks'][0]

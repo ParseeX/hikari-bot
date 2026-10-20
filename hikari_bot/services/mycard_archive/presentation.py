@@ -15,11 +15,20 @@ from .sorting import sort_sections
 
 
 def deck_url(deck: Deck) -> str:
-    """OURYGO v1：8/4/4 位种类数，各卡 2 位数量和 27 位卡号。"""
+    """通常使用 v1；单个分区内同卡超过 3 张时使用可完整表示数量的 v0。"""
     sections = [Counter(section) for section in sort_sections(deck.main, deck.extra, deck.side)]
     counts = [len(section) for section in sections]
     if counts[0] > 255 or counts[1] > 15 or counts[2] > 15:
         raise ValueError("卡组超出分享码容量")
+    if any(not 0 < card < 2**27 for section in sections for card in section):
+        raise ValueError("卡号超出分享码容量")
+    if any(count > 3 for section in sections for count in section.values()):
+        query = {'ygotype': 'deck', 'v': '0'}
+        for key, section in zip(('main', 'extra', 'side'), sections):
+            query[key] = '_'.join(str(card) if count == 1 else f'{card}*{count}'
+                                  for card, count in section.items())
+        query['name'] = deck.player
+        return 'http://deck.ourygo.top/ydk/show.html?' + urlencode(query, quote_via=quote, safe='*')
     bits = f"{counts[0]:08b}{counts[1]:04b}{counts[2]:04b}"
     for section in sections:
         for card, count in section.items():
