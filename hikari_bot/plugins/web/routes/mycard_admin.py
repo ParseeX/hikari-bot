@@ -1,5 +1,6 @@
 """MyCard 管理后台：独立密码登录和主卡组分类映射。"""
 from pathlib import Path
+import asyncio
 import sqlite3
 from typing import Literal
 
@@ -14,6 +15,9 @@ from hikari_bot.services.mycard_archive.admin_auth import (
 )
 from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, StaleRules, representative_cards
 from hikari_bot.services.mycard_archive.art import card_art
+from hikari_bot.services.mycard_archive.manual_decks import ManualDecks, StaleManualDecks
+from hikari_bot.services.mycard_archive.presentation import deck_url
+from hikari_bot.services.mycard_archive.replay import Deck
 
 
 router = APIRouter()
@@ -59,6 +63,47 @@ async def refresh_series(request: Request):
     cache = getattr(request.app.state, 'mc_series_cache', None)
     if cache is not None:
         cache.request_refresh()
+
+
+def manual_decks():
+    return ManualDecks(settings.mycard_archive_dir / 'manual-decks.json')
+
+
+@router.get('/mc/admin/api/manual-decks', dependencies=[Depends(admin)])
+def list_manual_decks():
+    try:
+        entries, revision = manual_decks().read()
+        return {'revision': revision, 'decks': [
+            {'id': entry['id'], 'player': entry['player'], 'updated_at': entry['updated_at'],
+             'main_count': len(entry['main']), 'extra_count': len(entry['extra']),
+             'side_count': len(entry['side']),
+             'link': deck_url(Deck(entry['player'], tuple(entry['main']),
+                                   tuple(entry['extra']), tuple(entry['side'])))}
+            for entry in entries]}
+    except (OSError, ValueError, sqlite3.Error):
+        raise HTTPException(503, '手动卡组读取失败') from None
+
+
+class ManualDeckEdit(BaseModel):
+    revision: str = Field(min_length=64, max_length=64)
+    id: str | None = Field(default=None, min_length=32, max_length=32)
+    player: str = Field(min_length=1, max_length=100)
+    link: str | None = Field(default=None, min_length=1, max_length=8192)
+
+
+@router.post('/mc/admin/api/manual-decks', dependencies=[Depends(admin)])
+async def save_manual_deck(body: ManualDeckEdit, request: Request):
+    try:
+        await asyncio.to_thread(manual_decks().save, body.revision, entry_id=body.id,
+                                player=body.player, link=body.link, catalog=catalog())
+    except StaleManualDecks as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    except (OSError, sqlite3.Error):
+        raise HTTPException(503, '保存失败，请稍后重试') from None
+    await refresh_series(request)
+    return {'ok': True}
 
 
 @router.get('/mc/admin', include_in_schema=False)

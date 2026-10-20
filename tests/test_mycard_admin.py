@@ -17,6 +17,37 @@ from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, StaleRules
 PASSWORD = 'test-only-password'
 
 
+def test_manual_deck_admin_auth_edit_and_refresh(web, root, monkeypatch):
+    from hikari_bot.services.mycard_archive.presentation import deck_url
+    module, client = web
+    endpoint = '/mc/admin/api/manual-decks'
+    assert client.get(endpoint).status_code == 401
+    assert client.post(endpoint, json={}).status_code == 401
+    assert client.post('/mc/admin/api/login', json={'password': PASSWORD}).status_code == 200
+    refreshes = []
+    client.app.state.mc_series_cache = SimpleNamespace(request_refresh=lambda: refreshes.append(True))
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
+    initial = client.get(endpoint).json()
+    assert initial['decks'] == []
+    link = deck_url(Deck('分享者', tuple(range(1, 41)), (101,), (102,)))
+    body = {'revision': initial['revision'], 'player': '我的账号', 'link': link}
+    assert client.post(endpoint, json=body, headers={'Origin': 'https://evil.invalid'}).status_code == 403
+    assert client.post(endpoint, json={**body, 'link': 'https://invalid.test/'}).status_code == 400
+    assert client.post(endpoint, json=body).status_code == 200
+    assert refreshes == [True]
+    assert client.post(endpoint, json=body).status_code == 409
+    saved = client.get(endpoint).json()
+    row = saved['decks'][0]
+    assert (row['main_count'], row['extra_count'], row['side_count']) == (40, 1, 1)
+    assert client.post(endpoint, json={'revision': saved['revision'], 'id': row['id'],
+                                     'player': '修改后的用户名', 'link': None}).status_code == 200
+    renamed = client.get(endpoint).json()['decks'][0]
+    assert renamed['player'] == '修改后的用户名'
+    assert renamed['updated_at'] == row['updated_at']
+    assert len(refreshes) == 2
+    assert not (root / 'archive.sqlite3').exists()
+
+
 @pytest.fixture
 def root(tmp_path):
     (tmp_path / 'admin-password.json').write_text(json.dumps(password_record(PASSWORD)))

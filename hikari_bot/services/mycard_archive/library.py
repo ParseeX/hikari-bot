@@ -98,6 +98,10 @@ class DeckLibrary:
                     for code in json.loads(section):
                         if isinstance(code, int) and code > 0:
                             cards[code] = None
+        from .manual_decks import ManualDecks
+        for entry in ManualDecks(self.path.with_name('manual-decks.json')).read()[0]:
+            for section in ('main', 'extra', 'side'):
+                cards.update(dict.fromkeys(entry[section]))
         return list(cards)
 
     def latest(self, player):
@@ -113,4 +117,16 @@ class DeckLibrary:
         grouped = defaultdict(list)
         for row in rows:
             grouped[row['player']].append(row)
-        return {player: self._versions(observations)[-1] for player, observations in grouped.items()}
+        result = {player: self._versions(observations)[-1] for player, observations in grouped.items()}
+        from .manual_decks import ManualDecks
+        for entry in ManualDecks(self.path.with_name('manual-decks.json')).read()[0]:
+            player = entry['player']
+            if player not in players:
+                continue
+            # 按实际观测时间比较，延迟归档的旧对局不会覆盖新上传的卡组。
+            observations = grouped.get(player)
+            if observations and observations[-1]['observed_at'] > entry['updated_at']:
+                continue
+            deck = Deck(player, tuple(entry['main']), tuple(entry['extra']), tuple(entry['side']))
+            result[player] = DeckVersion(deck, entry['updated_at'], entry['updated_at'], 0)
+        return result
