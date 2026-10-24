@@ -1,12 +1,12 @@
-"""网站的 MyCard 随机短码跳转，只读访问映射和归档库。"""
+"""MyCard 公开统计、玩家卡组页与随机短码，只读访问映射和归档库。"""
 import asyncio
 from collections import Counter
-from html import escape
+from urllib.parse import quote
 import json
 import sqlite3
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, JSONResponse, Response
+from fastapi.responses import PlainTextResponse, RedirectResponse, JSONResponse, Response
 
 from hikari_bot.core.config import settings
 from hikari_bot.services.card_catalog import CardCatalog
@@ -21,6 +21,8 @@ from hikari_bot.services.mycard_archive.replay import Deck
 from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, representative_cards
 from hikari_bot.services.mycard_archive.art import card_art
 from hikari_bot.services.mycard_archive.short_links import ShortLinks
+from hikari_bot.services.mycard_archive.profile import profile_payload, profile_ydk
+from hikari_bot.services.mycard_archive.full_image import full_card_image
 
 
 router = APIRouter()
@@ -166,6 +168,62 @@ def latest_links(player):
     return deck_links(version.deck) if version else []
 
 
+def load_profile(name, code):
+    root = settings.mycard_archive_dir
+    snapshot = front_stats.snapshot()
+    if code:
+        player = ShortLinks(root / 'short-links.sqlite3').player(code)
+    else:
+        # 姓名入口只公开已在榜单展示的玩家；其他玩家沿用既有随机短链接。
+        player = name if name in snapshot['players'] else None
+    if player is None:
+        return None
+    version = DeckLibrary(root / 'archive.sqlite3').latest(player)
+    rules, _ = RuleAdmin(root / 'deck-rules.json').read()
+    title = deck_title(version.deck, rules['rules']) if version else ''
+    return profile_payload(player, version, snapshot['stats'].get(player, {}), catalog(), title)
+
+
+@router.get('/mc/api/player')
+async def player_profile(name: str = Query(default='', max_length=128),
+                         code: str = Query(default='', max_length=12),
+                         format: str = Query(default='json', pattern='^(json|ydk)$')):
+    if bool(name) == bool(code):
+        raise HTTPException(400, '请选择一个玩家', headers=HEADERS)
+    try:
+        data = await asyncio.to_thread(load_profile, name, code)
+    except (OSError, sqlite3.Error, ValueError):
+        raise HTTPException(503, '玩家资料暂不可用，请稍后重试', headers=HEADERS) from None
+    if data is None:
+        raise HTTPException(404, '玩家链接不存在或已不在当前榜单', headers=HEADERS)
+    if format == 'ydk':
+        if data['deck'] is None:
+            raise HTTPException(404, '暂未收录该玩家的卡组', headers=HEADERS)
+        filename = quote(data['player'], safe='') + '.ydk'
+        return Response(profile_ydk(data['deck']), media_type='application/octet-stream',
+                        headers={**HEADERS, 'X-Content-Type-Options': 'nosniff',
+                                 'Content-Disposition': f"attachment; filename=deck.ydk; filename*=UTF-8''{filename}"})
+    return JSONResponse(data, headers=HEADERS)
+
+
+@router.get('/mc/api/card-image/{code}')
+async def profile_image(code: int):
+    if not 0 < code < 2**31:
+        raise HTTPException(404, '卡片不存在')
+    try:
+        info = await asyncio.to_thread(catalog().by_id, code)
+    except (OSError, sqlite3.Error):
+        raise HTTPException(503, '卡片资料暂不可用', headers=HEADERS) from None
+    if not info:
+        raise HTTPException(404, '卡片不存在', headers=HEADERS)
+    image, language = await full_card_image(code, info)
+    if not image:
+        raise HTTPException(404, '图片暂不可用', headers={'Cache-Control': 'public, max-age=60'})
+    return Response(image, media_type='image/jpeg', headers={
+        'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff',
+        'X-Card-Image-Language': language})
+
+
 @router.api_route('/mc/{code:path}', methods=['GET', 'HEAD'])
 async def player_deck(code: str):
     try:
@@ -173,18 +231,6 @@ async def player_deck(code: str):
         player = await asyncio.to_thread(mapping.player, code)
         if player is None:
             return PlainTextResponse('链接不存在', status_code=404, headers=HEADERS)
-        links = await asyncio.to_thread(latest_links, player)
     except (sqlite3.Error, ValueError):
         return PlainTextResponse('卡组暂时无法查询，请稍后重试', status_code=503, headers=HEADERS)
-    if not links:
-        return PlainTextResponse('暂未收录该玩家的卡组', status_code=404, headers=HEADERS)
-    if len(links) == 1:
-        # 卡组会更新，不允许浏览器永久记住旧的跳转目标。
-        return RedirectResponse(links[0], status_code=302, headers=HEADERS)
-    # 与 Bot 保持一致：极少数累计 Side 超限的卡组保留全部链接，避免静默丢卡。
-    items = ''.join(f'<li><a href="{escape(url, quote=True)}">卡组链接 {i}</a></li>'
-                    for i, url in enumerate(links, 1))
-    return HTMLResponse('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
-                        '<meta name="viewport" content="width=device-width,initial-scale=1">'
-                        f'<title>{escape(player)}的卡组</title><h1>{escape(player)}</h1>'
-                        f'<ul>{items}</ul></html>', headers=HEADERS)
+    return RedirectResponse('/mc/player/?code=' + quote(code, safe=''), status_code=302, headers=HEADERS)

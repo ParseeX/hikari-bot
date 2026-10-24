@@ -33,7 +33,7 @@ def web(monkeypatch, tmp_path):
         yield module, client, ShortLinks(tmp_path / 'short-links.sqlite3'), tmp_path
 
 
-def test_short_link_reads_latest_side_and_changed_deck_without_ranking(web):
+def test_short_link_opens_internal_profile_without_ranking(web):
     module, client, mapping, root = web
     store = ArchiveStore(root, set())
     record(store, 'first', 100, side=(3,))
@@ -45,11 +45,10 @@ def test_short_link_reads_latest_side_and_changed_deck_without_ranking(web):
     record(store, 'second', 200, side=(4,))
     second = client.get(link)
     assert second.status_code == 302
-    assert decode_ourygo(second.headers['location'])[2] == {3: 1, 4: 1}
+    assert second.headers['location'] == '/mc/player/?code=' + link.rsplit('/', 1)[-1]
     record(store, 'new_deck', 300, main=(99,), side=(5,))
     third = client.get(link)
-    assert decode_ourygo(third.headers['location'])[0] == {99: 1}
-    assert decode_ourygo(third.headers['location'])[2] == {5: 1}
+    assert third.headers['location'] == second.headers['location']
     head = client.head(link)
     assert head.status_code == 302 and not head.content
     assert head.headers['location'] == third.headers['location']
@@ -77,30 +76,63 @@ def test_known_mapping_still_rejects_raw_username_and_unknown_token(web):
     assert client.get('/mc/NoSuchCode123').status_code == 404
 
 
-def test_valid_code_without_archived_deck_is_404(web):
+def test_valid_code_without_archived_deck_opens_profile_empty_state(web):
     module, client, mapping, root = web
     ArchiveStore(root, set())
-    assert client.get(mapping.url('尚未收录')).status_code == 404
+    assert client.get(mapping.url('尚未收录')).status_code == 302
 
 
 def test_database_failure_does_not_expose_internal_details(web, monkeypatch):
     module, client, mapping, root = web
 
-    def failed_lookup(name):
+    def failed_lookup(self, code):
         raise sqlite3.OperationalError('internal path must not be shown')
 
-    monkeypatch.setattr(module, 'latest_links', failed_lookup)
-    response = client.get(mapping.url('甲'))
+    link = mapping.url('甲')
+    monkeypatch.setattr(ShortLinks, 'player', failed_lookup)
+    response = client.get(link)
     assert response.status_code == 503
     assert 'internal path' not in response.text
 
 
-def test_multiple_links_are_preserved_and_html_escaped(web, monkeypatch):
+def test_short_link_does_not_interpolate_player_in_html(web, monkeypatch):
     module, client, mapping, root = web
     monkeypatch.setattr(module, 'latest_links', lambda player: [
         'http://deck.ourygo.top/?d=one&name="test"', 'http://deck.ourygo.top/?d=two'])
     response = client.get(mapping.url('<script>alert(1)</script>'))
-    assert response.status_code == 200
-    assert response.text.count('<a href=') == 2
+    assert response.status_code == 302
+    assert response.headers['location'].startswith('/mc/player/?code=')
     assert '<script>' not in response.text
-    assert '&amp;name=&quot;test&quot;' in response.text
+
+
+def test_profile_returns_latest_deck_and_whitelisted_stats(web, monkeypatch):
+    module, client, mapping, root = web
+    store = ArchiveStore(root, set())
+    record(store, 'first', 100, side=(3,))
+    record(store, 'second', 200, side=(4,))
+    class Catalog:
+        def deck_sort_data(self, codes): return {}
+        def cards_by_id(self, codes): return {}
+    monkeypatch.setattr(module, 'catalog', lambda: Catalog())
+    monkeypatch.setattr(module, 'deck_title', lambda *args: '测试卡组')
+    monkeypatch.setattr(module.RuleAdmin, 'read', lambda self: ({'rules': []}, 'revision'))
+    monkeypatch.setattr(module.front_stats, 'snapshot', lambda: {
+        'players': ['甲'], 'stats': {'甲': {'rank': 1, 'score': 1234, '_history': ['private'], 'qq': 'private'}}})
+    response = client.get('/mc/api/player', params={'name': '甲'})
+    assert response.status_code == 200
+    data = response.json()
+    assert data['deck']['side'] == [3, 4]
+    assert data['stats']['rank'] == 1 and 'qq' not in data['stats'] and '_history' not in data['stats']
+    assert 'catalog_id' not in str(data)
+    record(store, 'changed', 300, main=(99,), side=(5,))
+    assert client.get('/mc/api/player', params={'name': '甲'}).json()['deck']['main'] == [99]
+    ydk = client.get('/mc/api/player', params={'name': '甲', 'format': 'ydk'})
+    assert ydk.status_code == 200 and '#main\n99\n#extra' in ydk.text and '!side\n5\n' in ydk.text
+    assert "filename*=UTF-8''" in ydk.headers['content-disposition']
+    assert client.get('/mc/api/player', params={'name': '非榜单玩家'}).status_code == 404
+    code = mapping.url('甲').rsplit('/', 1)[-1]
+    monkeypatch.setattr(module.front_stats, 'snapshot', lambda: {'players': [], 'stats': {}})
+    assert client.get('/mc/api/player', params={'code': code}).json()['deck']['main'] == [99]
+    assert client.get('/mc/api/player', params={'code': code, 'name': '甲'}).status_code == 400
+    assert client.get('/mc/api/player').status_code == 400
+    assert client.get('/mc/api/player', params={'code': 'x' * 12}).status_code == 404
