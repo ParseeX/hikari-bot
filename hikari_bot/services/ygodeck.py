@@ -12,7 +12,7 @@ import cairosvg
 import fitz
 from PIL import Image, ImageDraw, ImageFont
 
-from hikari_bot.core.constants import DATA_DIR, PDF_DIR, PUBLIC_DECK_URL, RESOURCES_DIR
+from hikari_bot.core.constants import DATA_DIR, PDF_DIR, RESOURCES_DIR
 from hikari_bot.core.logger import log_message
 from hikari_bot.services.ygocard import get_card_info_by_id, get_ygopic
 
@@ -275,12 +275,6 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
     y_offset += extra_rows * (card_height + padding) + 2 * padding + font_size
     draw_section(img, side_images, "副卡组", margin, y_offset, card_width, card_height, side_rows, padding)
 
-    font = ImageFont.truetype(font_path_sc, 26)
-    watermark = PUBLIC_DECK_URL.removeprefix('https://')
-    draw.text(
-        (total_width - margin - 2*padding, total_height - margin - 2*padding),
-        watermark, fill=(192,192,192), font=font, anchor="rb",
-    )
 
     font = ImageFont.truetype(font_path_sc, 50)
     bbox = font.getbbox("神人都市")

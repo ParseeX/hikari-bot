@@ -23,7 +23,9 @@ def test_query_image_passes_sorted_sections_and_only_id_and_classification(tmp_p
         return Image.new('RGB',(10,10),'white')
     monkeypatch.setattr(ygodeck,'generate_deck_image',render)
     data = asyncio.run(player_image('水桥',version,path))
-    assert data.startswith(b'\x89PNG')
+    assert data.startswith(b'\xff\xd8')
+    with Image.open(io.BytesIO(data)) as output:
+        assert output.size == (6, 6)
     ydk, player, match, result, name = calls[0]
     assert (player,match,result,name) == ('水桥','','','60黑魔导黯蜜')
     sections = ygodeck.parse_ydk(ydk)

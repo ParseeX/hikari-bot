@@ -15,7 +15,7 @@ class SafeUpdateTests(unittest.TestCase):
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def test_preserves_files_and_stops_on_conflict(self):
-        tree = ast.parse((ROOT / 'hikari_bot/plugins/base.py').read_text())
+        tree = ast.parse((ROOT / 'hikari_bot/plugins/base.py').read_text(encoding='utf-8'))
         handlers = [n for n in tree.body if isinstance(n, ast.AsyncFunctionDef)
                     and any(isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute)
                             and isinstance(d.func.value, ast.Name) and d.func.value.id == 'reload'

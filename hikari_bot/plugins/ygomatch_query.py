@@ -1,3 +1,5 @@
+from hikari_bot.services.deck_message_image import encode_deck_message_base64
+from hikari_bot.services.deck_png import save_deck_png
 """
 ygomatch_query.py — 游戏王线上赛事查询与签到插件
 
@@ -373,10 +375,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if not deck_img:
         await confirm_deck.finish("卡组图像生成失败！")
 
-    buffer = io.BytesIO()
-    deck_img.save(buffer, format="PNG")
-    buffer.seek(0)
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    image_base64 = await encode_deck_message_base64(deck_img)
 
     await confirm_deck.finish(Message([MessageSegment("image", {"file": f"base64://{image_base64}"})]))
 
@@ -401,7 +400,7 @@ async def _(bot: Bot, event: MessageEvent):
         if deck_img:
             output_directory = os.path.join(DECK_DIR, "pics")
             os.makedirs(output_directory, exist_ok=True)
-            deck_img.save(os.path.join(output_directory, f"{xcx_name}.png"))
+            await save_deck_png(deck_img, os.path.join(output_directory, f"{xcx_name}.png"))
 
 
 
@@ -578,9 +577,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if not deck_img:
         await deck_pic.finish("卡组图像生成失败！")
 
-    buffer = io.BytesIO()
-    deck_img.save(buffer, format="PNG")
-    buffer.seek(0)
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    image_base64 = await encode_deck_message_base64(deck_img)
 
     await deck_pic.finish(Message([MessageSegment("image", {"file": f"base64://{image_base64}"})]))

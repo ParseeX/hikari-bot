@@ -1,6 +1,5 @@
 """卡组查询文本和当前竞技场前 100 名快照。"""
 import asyncio
-import io
 from datetime import datetime
 import time
 from zoneinfo import ZoneInfo
@@ -9,6 +8,7 @@ import aiohttp
 
 from .short_links import ShortLinks
 from .presentation import classify, read_rules
+from hikari_bot.services.deck_message_image import encode_deck_message_image
 
 
 class ClassificationRulesError(ValueError):
@@ -72,15 +72,7 @@ async def player_image(player, version, rules_path):
     if img is None:
         raise ValueError('卡组图片生成失败')
 
-    def encode():
-        try:
-            buffer = io.BytesIO()
-            img.save(buffer, format='PNG')
-            return buffer.getvalue()
-        finally:
-            img.close()
-
-    return await asyncio.to_thread(encode)
+    return await encode_deck_message_image(img)
 
 
 def player_text(player, version, rank=None, *, links, rules=None):

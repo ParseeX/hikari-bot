@@ -34,4 +34,5 @@ def on_cmd(cmd: str, **kwargs):
     space_rule = _space_sep(*all_names)
     if "rule" in kwargs:
         space_rule = space_rule & kwargs.pop("rule")
+    kwargs["state"] = {**kwargs.get("state", {}), "_usage_feature": cmd}
     return on_command(cmd, aliases=aliases, rule=space_rule, **kwargs)

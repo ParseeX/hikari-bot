@@ -9,7 +9,7 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent
 from nonebot.adapters.onebot.v11.bot import _check_at_me
 
 from hikari_bot.core import feature_flags
-from hikari_bot.plugins import local_llm_chat
+from hikari_bot.plugins import _local_llm_chat as local_llm_chat
 from hikari_bot.services import local_llm
 
 
@@ -159,7 +159,7 @@ def test_local_llm_uses_default_prompt_for_image_only_message(monkeypatch):
 
 
 def test_local_llm_plugin_requires_admin_group_at_mention():
-    source = (ROOT / "hikari_bot/plugins/local_llm_chat.py").read_text(encoding="utf-8")
+    source = (ROOT / "hikari_bot/plugins/_local_llm_chat.py").read_text(encoding="utf-8")
 
     assert "isinstance(event, GroupMessageEvent)" in source
     assert "get_local_llm_public_enabled()" in source
@@ -170,7 +170,7 @@ def test_local_llm_plugin_requires_admin_group_at_mention():
 
 
 def test_local_llm_runs_before_global_deck_collector():
-    local_llm_source = (ROOT / "hikari_bot/plugins/local_llm_chat.py").read_text(
+    local_llm_source = (ROOT / "hikari_bot/plugins/_local_llm_chat.py").read_text(
         encoding="utf-8"
     )
     match_source = (ROOT / "hikari_bot/plugins/ygomatch_query.py").read_text(

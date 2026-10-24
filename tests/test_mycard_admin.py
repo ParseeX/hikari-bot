@@ -185,3 +185,46 @@ def test_atomic_rule_changes_preserve_old_rules_and_reject_stale_input(root):
     with pytest.raises(ValueError):
         manager.change(revision, rule={'label':'坏规则','cards':[]})
     assert manager.path.read_bytes() == saved
+
+
+def test_representative_persistence_conflicts_clear_and_shared_label(web, root):
+    module, client = web
+    client.post('/mc/admin/api/login', json={'password': PASSWORD})
+    manager = RuleAdmin(root/'deck-rules.json')
+    for code in (123, 456):
+        _, rev = manager.read()
+        manager.change(rev, rule={'label': '混合', 'cards': [code]})
+    state = client.get('/mc/admin/api/rules').json()
+    assert state['effective_representatives'] == {'混合': 123}
+    assert state['representatives'] == {}
+    body = {'revision': state['revision'], 'label': '混合', 'card_id': 456}
+    assert client.post('/mc/admin/api/representatives', json=body,
+                       headers={'Origin': 'https://evil.invalid'}).status_code == 403
+    assert client.post('/mc/admin/api/representatives', json={**body, 'card_id': 999}).status_code == 400
+    assert client.post('/mc/admin/api/representatives', json={**body, 'card_id': True}).status_code == 422
+    assert client.post('/mc/admin/api/representatives', json=body).status_code == 200
+    assert client.post('/mc/admin/api/representatives', json=body).status_code == 409
+    assert RuleAdmin(manager.path).read()[0]['representatives'] == {'混合': 456}
+    state = client.get('/mc/admin/api/rules').json()
+    assert state['representatives'] == {'混合': 456} and state['names']['456'] == '主卡乙'
+    assert state['effective_representatives'] == {'混合': 456}
+    manager.change(state['revision'], index=0)
+    data, rev = manager.read()
+    assert data['representatives'] == {'混合': 456}
+    assert client.post('/mc/admin/api/representatives', json={**body, 'revision': rev, 'card_id': 123}).status_code == 200
+    data, rev = manager.read()
+    assert data['representatives'] == {'混合': 123}
+    assert client.post('/mc/admin/api/representatives', json={**body, 'revision': rev, 'card_id': None}).status_code == 200
+    assert manager.read()[0]['representatives'] == {}
+    assert client.get('/mc/admin/api/rules').json()['effective_representatives'] == {'混合': 456}
+    assert json.loads(manager.path.with_suffix('.json.bak').read_text('utf-8'))['representatives'] == {'混合': 123}
+
+
+
+def test_representative_search_includes_extra_deck(web, monkeypatch):
+    module, client = web
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(search_many=lambda q: [
+        {'id': 888, 'cn_name': '额外代表卡', 'data': {'type': 0x41}}]))
+    client.post('/mc/admin/api/login', json={'password': PASSWORD})
+    assert client.get('/mc/admin/api/cards?q=额外').json()['cards'] == []
+    assert client.get('/mc/admin/api/cards?q=额外&purpose=representative').json()['cards'][0]['id'] == 888

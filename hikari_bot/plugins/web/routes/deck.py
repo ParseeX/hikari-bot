@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from hikari_bot.core.config import settings
+from hikari_bot.services.deck_png import encode_deck_png
 from hikari_bot.services.mycard_archive.queries import deck_title, query_rules
 from hikari_bot.services.mycard_archive.replay import Deck
 from hikari_bot.services.ygodeck import (
@@ -70,10 +71,7 @@ async def generate(
             )
             if image is None:
                 return JSONResponse({"success": False, "message": "生成图片失败：额外卡组或副卡组超过15张。"})
-            with image:
-                image_buffer = io.BytesIO()
-                await asyncio.to_thread(image.save, image_buffer, format="PNG")
-                image_buffer.seek(0)
+            image_buffer = io.BytesIO(await encode_deck_png(image))
             # 保持现有卡表统计口径，图片请求不计入 PDF 使用次数。
             return StreamingResponse(
                 content=image_buffer,
