@@ -228,3 +228,27 @@ def test_representative_search_includes_extra_deck(web, monkeypatch):
     client.post('/mc/admin/api/login', json={'password': PASSWORD})
     assert client.get('/mc/admin/api/cards?q=额外').json()['cards'] == []
     assert client.get('/mc/admin/api/cards?q=额外&purpose=representative').json()['cards'][0]['id'] == 888
+
+
+def test_private_player_history_preserves_manual_changes(web, monkeypatch):
+    from hikari_bot.services.mycard_archive.presentation import deck_url
+    module, client = web
+    endpoint = '/mc/admin/api/player-decks'
+    assert client.get(endpoint).status_code == 401
+    assert client.get(endpoint + '?player=甲').status_code == 401
+    client.post('/mc/admin/api/login', json={'password': PASSWORD})
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
+    manual = '/mc/admin/api/manual-decks'
+    for main in [tuple(range(1, 41)), tuple(reversed(range(1, 41))), tuple(range(2, 42)), tuple(range(1, 41))]:
+        state = client.get(manual).json()
+        body = {'revision': state['revision'], 'player': '甲',
+                'link': deck_url(Deck('甲', main, (), ()))}
+        if state['decks']:
+            body['id'] = state['decks'][0]['id']
+        assert client.post(manual, json=body).status_code == 200
+    result = client.get(endpoint + '?player=甲').json()
+    assert len(result['versions']) == 3
+    assert result['versions'][0]['main'] == list(range(1, 41))
+    assert result['versions'][1]['main'] == list(range(2, 42))
+    assert result['versions'][2]['main'] == list(range(1, 41))
+    assert client.get(endpoint).json()['players'] == ['甲']

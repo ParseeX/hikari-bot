@@ -125,6 +125,11 @@ class ManualDecks:
                 updated = {'id': entry_id or uuid4().hex, 'player': player,
                            'main': list(deck.main), 'extra': list(deck.extra), 'side': list(deck.side),
                            'updated_at': time.time()}
+            if previous is not None:
+                history = list(previous.get('history', []))
+                if any(sorted(previous[key]) != sorted(updated[key]) for key in ('main', 'extra', 'side')):
+                    history.append({key: previous[key] for key in ('player', 'main', 'extra', 'side', 'updated_at')})
+                updated['history'] = history
             if previous is None:
                 entries.append(updated)
             else:

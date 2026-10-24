@@ -84,6 +84,46 @@ def list_manual_decks():
         raise HTTPException(503, '手动卡组读取失败') from None
 
 
+@router.get('/mc/admin/api/player-decks', dependencies=[Depends(admin)])
+def player_decks(player: str = Query('', max_length=100)):
+    from hikari_bot.services.mycard_archive.library import DeckLibrary
+    library = DeckLibrary(settings.mycard_archive_dir / 'archive.sqlite3')
+    try:
+        entries, _ = manual_decks().read()
+        if not player.strip():
+            players = {saved['player'] for entry in entries for saved in [*entry.get('history', []), entry]}
+            if library.path.exists():
+                with library.connect() as db:
+                    players.update(row[0] for row in db.execute('SELECT DISTINCT player FROM deck_observations'))
+            return {'players': sorted(players)}
+        observations = []
+        if library.path.exists():
+            with library.connect() as db:
+                observations = [dict(row) for row in db.execute(
+                    'SELECT * FROM deck_observations WHERE player=? ORDER BY observed_at,match_id', (player,))]
+        import json
+        for entry in entries:
+            for saved in [*entry.get('history', []), entry]:
+                if saved['player'] == player:
+                    observations.append({'player': player, 'observed_at': saved['updated_at'],
+                                         'updated_at': saved['updated_at'],
+                                         **{key: json.dumps(saved[key]) for key in ('main', 'extra', 'side')}})
+        observations.sort(key=lambda row: (row['observed_at'], row.get('match_id', '')))
+        versions = library._versions(observations)
+        merged = []
+        for version in versions:
+            if merged and all(sorted(getattr(merged[-1].deck, key)) == sorted(getattr(version.deck, key))
+                              for key in ('main', 'extra', 'side')):
+                continue
+            merged.append(version)
+        return {'player': player, 'versions': [
+            {'updated_at': version.updated_at, 'first_seen': version.first_seen,
+             **{key: list(getattr(version.deck, key)) for key in ('main', 'extra', 'side')}}
+            for version in reversed(merged)]}
+    except (OSError, ValueError, sqlite3.Error):
+        raise HTTPException(503, '玩家卡组读取失败') from None
+
+
 class ManualDeckEdit(BaseModel):
     revision: str = Field(min_length=64, max_length=64)
     id: str | None = Field(default=None, min_length=32, max_length=32)
