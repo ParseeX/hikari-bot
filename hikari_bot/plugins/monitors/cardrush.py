@@ -410,4 +410,5 @@ async def _startup_price_check(bot: Bot):
     await log_message("[cardrush_monitor] CardRush monitor started.")
     result = await check_connection(service.client)
     await log_message(result)
-    await message_superusers(result)
+    if "Failed" in result:
+        await message_superusers(result)

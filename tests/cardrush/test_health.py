@@ -46,7 +46,11 @@ def test_connection_uses_actual_client_configuration(monkeypatch, outcome, expec
                                      headers=client.headers, proxies=client.proxies, timeout=7))]
 
 
-def test_startup_runs_once_and_manual_check_remains_available():
+@pytest.mark.parametrize("result,should_notify", [
+    ("Cardrush 连接测试成功：已读取卡价数据", False),
+    ("Cardrush 连接测试 Failed：请求超时", True),
+])
+def test_startup_runs_once_and_manual_check_remains_available(result, should_notify):
     # 隔离加载真实处理函数，避免导入插件时启动无关定时任务和数据库。
     tree = ast.parse(Path("hikari_bot/plugins/monitors/cardrush.py").read_text(encoding="utf-8"))
     functions = [node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
@@ -54,7 +58,7 @@ def test_startup_runs_once_and_manual_check_remains_available():
     for node in functions:
         node.decorator_list = []
     client = object()
-    check = AsyncMock(return_value="Cardrush 连接测试 Failed")
+    check = AsyncMock(return_value=result)
     notify = AsyncMock()
     finish = AsyncMock()
     namespace = dict(Bot=object, _startup_checked=False, service=SimpleNamespace(client=client),
@@ -66,7 +70,10 @@ def test_startup_runs_once_and_manual_check_remains_available():
         await asyncio.gather(namespace["_startup_price_check"](object()),
                              namespace["_startup_price_check"](object()))
         check.assert_awaited_once_with(client)
-        notify.assert_awaited_once()
+        if should_notify:
+            notify.assert_awaited_once_with(result)
+        else:
+            notify.assert_not_awaited()
         await namespace["_manual_connection_check"]()
         assert check.await_count == 2
         finish.assert_awaited_once_with(check.return_value)
