@@ -18,17 +18,32 @@ async def until(predicate):
             await asyncio.sleep(0.001)
 
 
-def test_weights_ignore_partial_side_count_and_count_only_top500(tmp_path):
-    runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', set(), ignore)
-    versions = {name: SimpleNamespace(deck=SimpleNamespace(side=tuple([1]*count)))
-                for name, count in [('zero',0), ('seven',7), ('other-seven',7), ('fifteen',15)]}
-    runtime.store.library.latest_many = lambda names: {n: versions[n] for n in names if n in versions}
-    groups = [['zero','fifteen'], ['seven','other-seven'], ['unknown','fifteen'],
-              ['unknown','other-unknown'], ['unknown'], ['zero']]
-    states = [RoomTask(str(i), names+['outside'], valid_players=names) for i,names in enumerate(groups)]
-    keys = asyncio.run(runtime.priorities(states))
-    assert keys == [(-0.5,0),(-1,0),(-1,0),(-2,0),(-1,0),(-0.5,0)]
-    assert sorted(range(len(keys)), key=keys.__getitem__) == [3,1,2,4,0,5]
+@pytest.mark.parametrize('rank,multiplier', [(1,2),(100,2),(101,1),(500,1),(501,1)])
+@pytest.mark.parametrize('side,age,score', [(None,0,2),(0,172801,2),(14,172800,1),
+                                          (14,172799,1),(15,172801,1),(15,172800,0)])
+def test_priority_score_matrix(tmp_path, monkeypatch, rank, multiplier, side, age, score):
+    async def run():
+        async def fetch(name): return rank
+        runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', set(), ignore,
+                                 rank_filter=RankFilter(fetch_rank=fetch))
+        monkeypatch.setattr('hikari_bot.services.mycard_archive.runtime.time.time', lambda: 1000000)
+        runtime.store.library.latest_many = lambda names: {} if side is None else {
+            name: SimpleNamespace(deck=SimpleNamespace(side=[1]*side), updated_at=1000000-age)
+            for name in names}
+        states = [RoomTask('pair', ['a','b'], first_seen=123)]
+        assert await runtime.priorities(states) == [(-2*score*multiplier,123)]
+    asyncio.run(run())
+
+
+def test_rank_failure_retains_known_rank_and_defaults_other_players(tmp_path):
+    async def run():
+        async def fetch(name): raise ValueError('unavailable')
+        runtime = ArchiveRuntime(tmp_path,tmp_path/'creds',set(),ignore,
+                                 rank_filter=RankFilter(fetch_rank=fetch))
+        runtime.player_ranks['known'] = 100
+        state = RoomTask('pair',['known','unknown'])
+        assert await runtime.priorities([state]) == [(-6,0)]
+    asyncio.run(run())
 
 
 def test_rank_checks_both_players_and_500_boundary():
@@ -53,7 +68,7 @@ def test_queue_reorders_at_release_using_latest_decks_and_keeps_fifo_ties(tmp_pa
         runtime=ArchiveRuntime(tmp_path,tmp_path/'creds',set(),ignore,concurrency=1)
         sides={'a':0,'b':7,'c':7}
         def latest(names):
-            return {n:SimpleNamespace(deck=SimpleNamespace(side=[1]*sides[n])) for n in names}
+            return {n:SimpleNamespace(deck=SimpleNamespace(side=[1]*sides[n]), updated_at=__import__('time').time()) for n in names}
         runtime.store.library.latest_many=latest
         await runtime.semaphore.acquire()
         order=[]

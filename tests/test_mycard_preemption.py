@@ -14,10 +14,10 @@ def test_equal_weights_sort_by_first_seen_instead_of_partial_side_count(tmp_path
     async def run():
         runtime=ArchiveRuntime(tmp_path,tmp_path/'creds',set(),ignore,concurrency=1)
         runtime.store.library.latest_many=lambda names: {
-            name:SimpleNamespace(deck=SimpleNamespace(side=[1]*(14 if name=='old' else 1))) for name in names}
+            name:SimpleNamespace(deck=SimpleNamespace(side=[1]*(14 if name=='old' else 1)), updated_at=__import__('time').time()) for name in names}
         states=[RoomTask('new',['new'],valid_players=['new'],first_seen=200),
                 RoomTask('old',['old'],valid_players=['old'],first_seen=100)]
-        assert await runtime.priorities(states)==[(-0.5,200),(-0.5,100)]
+        assert await runtime.priorities(states)==[(-1,200),(-1,100)]
         await runtime.semaphore.acquire()
         order=[]
         async def enter(state):

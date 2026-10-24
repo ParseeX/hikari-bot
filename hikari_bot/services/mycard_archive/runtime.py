@@ -1,5 +1,6 @@
 """房间生命周期与私聊投递；重连去重、限速入场、持久化失败重试。"""
 import asyncio
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -31,6 +32,7 @@ class ArchiveRuntime:
         self.send_message = send_message
         self.watch_room = watch_room
         self.rank_filter = rank_filter
+        self.player_ranks = {}
         self.rooms: dict[str, RoomTask] = {}
         self.slots = PrioritySlots(concurrency, self.priorities, lambda state: state.interrupted.set())
         self.semaphore = self.slots.semaphore
@@ -84,15 +86,7 @@ class ArchiveRuntime:
 
     async def select(self, room_id, state, unavailable):
         try:
-            if self.rank_filter:
-                try:
-                    state.valid_players = await self.rank_filter.valid_players(state.players)
-                except Exception:
-                    # 现在允许所有房间填补空位；未确认名次时先按零权重，排序时继续刷新。
-                    state.valid_players = []
-                    self.last_error = '排名暂不可用，未确认玩家暂按零权重排队'
-            else:
-                state.valid_players = list(dict.fromkeys(state.players))
+            state.valid_players = list(dict.fromkeys(state.players))
             if unavailable:
                 await asyncio.to_thread(self.store.issue, state.match_id, "房间禁止观战或玩家数量不受支持")
                 await self.finish_unavailable(room_id, state)
@@ -129,20 +123,29 @@ class ArchiveRuntime:
         return True
 
     async def priorities(self, states):
+        players = {player for state in states if state for player in state.players}
         if self.rank_filter:
-            real = [state for state in states if state]
-            results = await asyncio.gather(*(self.rank_filter.valid_players(state.players) for state in real),
+            names = sorted(players)
+            results = await asyncio.gather(*(self.rank_filter.rank(player) for player in names),
                                            return_exceptions=True)
-            for state, valid in zip(real, results):
-                if not isinstance(valid, BaseException):
-                    state.valid_players = valid
-        players = {player for state in states if state for player in state.valid_players}
+            for player, rank in zip(names, results):
+                # 查询失败保留此前名次；尚未确认时按普通玩家评分。
+                if type(rank) is int and rank > 0:
+                    self.player_ranks[player] = rank
         latest = await asyncio.to_thread(self.store.library.latest_many, list(players))
+        now = time.time()
         keys = []
         for state in states:
-            valid = state.valid_players if state else []
-            weight = sum(1 if player not in latest else (0.5 if len(latest[player].deck.side) < 15 else 0)
-                         for player in valid)
+            weight = 0
+            for player in dict.fromkeys(state.players if state else []):
+                version = latest.get(player)
+                if version is None:
+                    score = 2
+                else:
+                    stale = now - version.updated_at > 48 * 60 * 60
+                    score = int(len(version.deck.side) < 15) + int(stale)
+                rank = self.player_ranks.get(player)
+                weight += score * (2 if rank is not None and rank <= 100 else 1)
             keys.append((-weight, state.first_seen if state else 0))
         return keys
 
