@@ -110,16 +110,10 @@ def player_decks(player: str = Query('', max_length=100)):
                                          **{key: json.dumps(saved[key]) for key in ('main', 'extra', 'side')}})
         observations.sort(key=lambda row: (row['observed_at'], row.get('match_id', '')))
         versions = library._versions(observations)
-        merged = []
-        for version in versions:
-            if merged and all(sorted(getattr(merged[-1].deck, key)) == sorted(getattr(version.deck, key))
-                              for key in ('main', 'extra', 'side')):
-                continue
-            merged.append(version)
         return {'player': player, 'versions': [
             {'updated_at': version.updated_at, 'first_seen': version.first_seen,
              **{key: list(getattr(version.deck, key)) for key in ('main', 'extra', 'side')}}
-            for version in reversed(merged)]}
+            for version in reversed(versions)]}
     except (OSError, ValueError, sqlite3.Error):
         raise HTTPException(503, '玩家卡组读取失败') from None
 

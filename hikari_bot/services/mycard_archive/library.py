@@ -66,22 +66,25 @@ class DeckLibrary:
 
     @staticmethod
     def _versions(rows):
-        versions = []
+        # 字典保持最近使用顺序；主卡张数相同才视为同一个版本。
+        versions = {}
         for row in rows:
             deck = Deck(row['player'], tuple(sorted(json.loads(row['main']))),
                         tuple(sorted(json.loads(row['extra']))), tuple(sorted(json.loads(row['side']))))
-            previous = versions[-1] if versions else None
-            if previous and (previous.deck.main, previous.deck.extra) == (deck.main, deck.extra):
+            previous = versions.pop(deck.main, None)
+            observations = row['observations'] if 'observations' in row.keys() else 1
+            if previous:
                 side = tuple(sorted((Counter(previous.deck.side) | Counter(deck.side)).elements()))
-                if len(side) <= 15:
-                    versions[-1] = DeckVersion(Deck(deck.player, deck.main, deck.extra, side),
-                                               previous.first_seen, max(previous.updated_at, row['updated_at']),
-                                               previous.observations + 1)
-                    continue
-                # 合并超过 15 张说明 Side 已调整，仅用本场观测开始新版本。
-            # 核心变化或 Side 超限均另存连续版本，保留旧版本而不继承旧 Side。
-            versions.append(DeckVersion(deck, row['observed_at'], row['updated_at'], 1))
-        return versions
+                # 合并超限说明副卡组已调整，改用本次观测，不再新增版本。
+                if len(side) > 15:
+                    side = deck.side
+                deck = Deck(deck.player, deck.main, deck.extra, side)
+                version = DeckVersion(deck, previous.first_seen, row['updated_at'],
+                                      previous.observations + observations)
+            else:
+                version = DeckVersion(deck, row['observed_at'], row['updated_at'], observations)
+            versions[deck.main] = version
+        return list(versions.values())
 
     def history(self, player):
         with self.connect() as db:
@@ -117,16 +120,16 @@ class DeckLibrary:
         grouped = defaultdict(list)
         for row in rows:
             grouped[row['player']].append(row)
-        result = {player: self._versions(observations)[-1] for player, observations in grouped.items()}
         from .manual_decks import ManualDecks
         for entry in ManualDecks(self.path.with_name('manual-decks.json')).read()[0]:
             player = entry['player']
             if player not in players:
                 continue
-            # 按实际观测时间比较，延迟归档的旧对局不会覆盖新上传的卡组。
-            observations = grouped.get(player)
-            if observations and observations[-1]['observed_at'] > entry['updated_at']:
-                continue
-            deck = Deck(player, tuple(entry['main']), tuple(entry['extra']), tuple(entry['side']))
-            result[player] = DeckVersion(deck, entry['updated_at'], entry['updated_at'], 0)
-        return result
+            for saved in [*entry.get('history', []), entry]:
+                if saved['player'] == player:
+                    grouped[player].append({'player': player, 'observed_at': saved['updated_at'],
+                                            'updated_at': saved['updated_at'], 'observations': 0,
+                                            **{key: json.dumps(saved[key]) for key in ('main', 'extra', 'side')}})
+        # 按实际使用时间排序，延迟归档的旧对局不会覆盖较新的手动上传。
+        return {player: self._versions(sorted(observations, key=lambda row: row['observed_at']))[-1]
+                for player, observations in grouped.items()}

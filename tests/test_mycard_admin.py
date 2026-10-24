@@ -247,8 +247,7 @@ def test_private_player_history_preserves_manual_changes(web, monkeypatch):
             body['id'] = state['decks'][0]['id']
         assert client.post(manual, json=body).status_code == 200
     result = client.get(endpoint + '?player=甲').json()
-    assert len(result['versions']) == 3
+    assert len(result['versions']) == 2
     assert result['versions'][0]['main'] == list(range(1, 41))
     assert result['versions'][1]['main'] == list(range(2, 42))
-    assert result['versions'][2]['main'] == list(range(1, 41))
     assert client.get(endpoint).json()['players'] == ['甲']

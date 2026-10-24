@@ -43,15 +43,29 @@ def test_matching_core_merges_side_counts_without_losing_snapshots(tmp_path):
     assert store.library.latest('unknown') is None
 
 
-@pytest.mark.parametrize('main,extra', [((1, 2), (10,)), ((1, 1, 2), (11,)), ((7,), (12,))])
-def test_any_core_change_starts_fresh_side_and_old_versions_are_kept(tmp_path, main, extra):
+@pytest.mark.parametrize('main,extra', [((1, 2), (10,)), ((7,), (12,))])
+def test_returning_main_promotes_history_and_keeps_side(tmp_path, main, extra):
     store = ArchiveStore(tmp_path, set())
     record(store, 'old', 100, side=(3,))
     record(store, 'new', 200, main=main, extra=extra, side=(4,))
-    record(store, 'return', 300)
+    record(store, 'return', 300, main=(2, 1, 1), extra=(11,), side=(5,))
     history = store.library.history('甲')
-    assert [v.deck.side for v in history] == [(3,), (4,), ()]
-    assert [v.first_seen for v in history] == [100, 200, 300]
+    assert [v.deck.main for v in history] == [tuple(sorted(main)), (1, 1, 2)]
+    assert [v.deck.side for v in history] == [(4,), (3, 5)]
+    assert [v.first_seen for v in history] == [200, 100]
+    assert history[-1].deck.extra == (11,)
+    assert history[-1].observations == 2
+    assert store.library.latest('甲') == history[-1]
+
+
+def test_same_main_updates_extra_without_new_version(tmp_path):
+    store = ArchiveStore(tmp_path, set())
+    record(store, 'old', 100, extra=(10,), side=(3,))
+    record(store, 'new', 200, extra=(11,), side=(4,))
+    history = store.library.history('甲')
+    assert len(history) == 1
+    assert history[0].deck.extra == (11,)
+    assert history[0].deck.side == (3,4)
 
 
 def test_late_older_match_does_not_replace_latest_core(tmp_path):
@@ -110,9 +124,9 @@ def test_side_overflow_starts_new_version_and_link_uses_only_new_observation(tmp
     assert seen == Counter(version.deck.side)
     assert seen == Counter((200, 201))
     history = store.library.history('甲')
-    assert [v.deck.side for v in history] == [tuple(range(100, 115)), (200, 201)]
-    assert [v.first_seen for v in history] == [100, 200]
-    assert [v.observations for v in history] == [1, 1]
+    assert [v.deck.side for v in history] == [(200, 201)]
+    assert [v.first_seen for v in history] == [100]
+    assert [v.observations for v in history] == [2]
 
 
 @pytest.mark.parametrize('old,new,split', [
@@ -127,10 +141,10 @@ def test_side_limit_counts_copies_and_preserves_exact_15(tmp_path, old, new, spl
     record(store, 'old', 100, side=old)
     record(store, 'new', 200, side=new)
     history = store.library.history('甲')
-    assert len(history) == (2 if split else 1)
+    assert len(history) == 1
     expected = Counter(new) if split else Counter(old) | Counter(new)
     assert Counter(history[-1].deck.side) == expected
-    assert history[-1].observations == (1 if split else 2)
+    assert history[-1].observations == 2
 
 
 def test_side_reset_continues_from_new_evidence_and_replays_history_read_only(tmp_path):
@@ -143,8 +157,8 @@ def test_side_reset_continues_from_new_evidence_and_replays_history_read_only(tm
         before = [tuple(row) for row in db.execute('SELECT * FROM deck_observations ORDER BY match_id,player')]
     library = DeckLibrary(tmp_path / 'archive.sqlite3')
     history = library.history('甲')
-    assert [v.deck.side for v in history] == [tuple(range(100, 115)), (200, 201, 202)]
-    assert history[-1].first_seen == 200 and history[-1].observations == 2
+    assert [v.deck.side for v in history] == [(200, 201, 202)]
+    assert history[-1].first_seen == 100 and history[-1].observations == 3
     assert library.latest_many(['甲'])['甲'] == history[-1]
     with library.connect() as db:
         after = [tuple(row) for row in db.execute('SELECT * FROM deck_observations ORDER BY match_id,player')]
