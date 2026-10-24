@@ -55,12 +55,12 @@ def test_short_link_opens_internal_profile_without_ranking(web):
     assert ShortLinks(mapping.path).url('甲') == link
 
 
-@pytest.mark.parametrize('language,policy', [('en', 'no-cache'), ('zh', 'public, max-age=3600')])
+@pytest.mark.parametrize('language,policy', [('en', 'public, max-age=31536000'), ('zh', 'public, max-age=31536000')])
 def test_card_image_refresh_token_and_language_cache_policy(web, monkeypatch, language, policy):
     module, client, _, _ = web
     monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
     calls = []
-    async def image(code, info, refresh):
+    async def image(code, info, refresh, size):
         calls.append((code, refresh))
         return b'image', language
     monkeypatch.setattr(module, 'full_card_image', image)
@@ -78,14 +78,14 @@ def test_stable_image_url_caches_fallback_and_etag_avoids_retransmission(web, mo
     async def image(*args): return b'english-image', 'en'
     monkeypatch.setattr(module, 'full_card_image', image)
     first = client.get('/mc/api/card-image/42')
-    assert first.headers['cache-control'] == 'public, max-age=3600'
+    assert first.headers['cache-control'] == 'public, max-age=31536000'
     second = client.get('/mc/api/card-image/42', headers={'If-None-Match':first.headers['etag']})
     assert second.status_code == 304 and second.content == b''
     # 图源临时回退时，不能把英文写进中文版本地址的浏览器缓存。
     mismatch = client.get('/mc/api/card-image/42?v=' + 'a' * 64)
     assert mismatch.headers['cache-control'] == 'no-store'
     matching = client.get('/mc/api/card-image/42?v=' + first.headers['etag'].strip('"'))
-    assert matching.headers['cache-control'] == 'public, max-age=3600'
+    assert matching.headers['cache-control'] == 'public, max-age=31536000'
 
 
 @pytest.mark.parametrize('image', [None, b'chinese-image'])
@@ -95,11 +95,12 @@ def test_refresh_returns_only_language_and_content_version(web, monkeypatch, ima
     monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
     async def check(*args): return image
     monkeypatch.setattr(module, 'check_chinese_image', check)
+    monkeypatch.setattr(module, 'next_chinese_check', lambda code: None)
     response = client.get('/mc/api/card-image/42/refresh')
     assert response.status_code == 200
     assert response.headers['cache-control'] == 'no-store'
     assert response.json() == {'language':'zh' if image else 'en',
-                               'version':hashlib.sha256(image).hexdigest() if image else None}
+                               'version':hashlib.sha256(image).hexdigest() if image else None, 'next_check':None}
     assert len(response.content) < 150
 
 

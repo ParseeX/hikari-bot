@@ -246,6 +246,10 @@ def test_plugin_registers_background_lifecycle_without_waiting_for_downloads(mon
     async def close():
         calls.append('stop')
     module.cache = SimpleNamespace(start=lambda: calls.append('start'), close=close)
+    async def recovery_start(): calls.append('recovery-start')
+    async def recovery_stop(): calls.append('recovery-stop')
+    module.start_image_recovery = recovery_start
+    module.stop_image_recovery = recovery_stop
     asyncio.run(hooks['start']())
     asyncio.run(hooks['stop']())
-    assert calls == ['start','stop']
+    assert calls == ['start','recovery-start','stop','recovery-stop']
