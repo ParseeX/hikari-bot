@@ -83,14 +83,18 @@ def test_only_new_watched_matches_send_opponent_image_with_reconnect_dedup(tmp_p
         watcher.process({"event": "create", "data": room()})
         watcher.process({"event": "update", "data": room("ignored")})
         await watcher._queue.join()
+        await watcher._image_queue.join()
         assert calls == ["对手"]
         assert images[0][0] == "对手"
         assert images[0][2] == tmp_path / "deck-rules.json"
-        assert messages == [("1", "关注玩家 vs 对手\n对手：最新已收录卡组", b"image")]
+        assert len(messages) == 2
+        assert messages[0][2] is None and "https://ygo.xyk.one/mc/" in messages[0][1]
+        assert messages[1] == ("1", "关注玩家 vs 对手\n对手：最新已收录卡组", b"image")
         # 同一组玩家再次开局也应通知，不能按用户名永久去重。
         watcher.process({"event": "create", "data": room("next")})
         await watcher._queue.join()
-        assert len(messages) == 2
+        await watcher._image_queue.join()
+        assert len(messages) == 4
         await watcher.close()
     asyncio.run(run())
 
@@ -101,6 +105,7 @@ def test_missing_deck_is_text_only_and_both_watched_players_get_opponents(tmp_pa
         watcher.accounts.change("对手", add=True)
         watcher.process({"event": "create", "data": room()})
         await watcher._queue.join()
+        await watcher._image_queue.join()
         assert calls == ["对手", "关注玩家"]
         assert images == []
         assert messages == [("1", "关注玩家 vs 对手\n对手：暂无卡组", None),
@@ -125,7 +130,8 @@ def test_remove_during_render_cancels_delivery_and_shutdown_cancels_worker(tmp_p
         watcher.accounts.change("关注玩家", add=False)
         release.set()
         await watcher._queue.join()
-        assert messages == []
+        await watcher._image_queue.join()
+        assert len(messages) == 1 and messages[0][2] is None
         watcher.accounts.change("关注玩家", add=True)
         release.clear()
         started.clear()
@@ -134,7 +140,8 @@ def test_remove_during_render_cancels_delivery_and_shutdown_cancels_worker(tmp_p
         await started.wait()
         await watcher.close()
         await watcher._queue.join()
-        assert watcher._worker.done() and messages == []
+        await watcher._image_queue.join()
+        assert watcher._worker.done() and all(m[2] is None for m in messages)
     asyncio.run(run())
 
 
@@ -152,8 +159,9 @@ def test_lookup_failure_and_one_recipient_failure_do_not_stop_later_messages(tmp
         watcher.process({"event": "create", "data": room()})
         watcher.process({"event": "create", "data": room("next")})
         await watcher._queue.join()
+        await watcher._image_queue.join()
         assert len(messages) == 2
-        assert all(m == ("2", "关注玩家 vs 对手\n对手：卡组图片暂时无法生成", None) for m in messages)
+        assert all(m == ("2", "关注玩家 vs 对手\n对手：卡组暂时无法读取", None) for m in messages)
         await watcher.close()
     asyncio.run(run())
 
@@ -171,6 +179,32 @@ def test_event_processing_does_not_wait_for_render_and_bounds_pending_jobs(tmp_p
 
 class Finished(Exception):
     pass
+
+
+def test_link_precedes_render_and_slow_image_does_not_block_next_link(tmp_path, monkeypatch):
+    async def run():
+        watcher, _, _, messages = setup_watch(tmp_path, monkeypatch)
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def image(*args):
+            assert messages and messages[0][2] is None
+            started.set()
+            await release.wait()
+            return b"image"
+
+        monkeypatch.setattr(module, "player_image", image)
+        watcher.process({"event": "create", "data": room()})
+        await asyncio.wait_for(started.wait(), 1)
+        watcher.process({"event": "create", "data": room("next")})
+        await asyncio.wait_for(watcher._queue.join(), 1)
+        assert len(messages) == 2
+        assert all(data is None and "https://ygo.xyk.one/mc/" in text for _, text, data in messages)
+        release.set()
+        await asyncio.wait_for(watcher._image_queue.join(), 1)
+        assert len(messages) == 4
+        await watcher.close()
+
+    asyncio.run(run())
 
 
 def load_plugin(monkeypatch, tmp_path):
