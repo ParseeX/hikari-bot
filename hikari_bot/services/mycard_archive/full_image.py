@@ -169,3 +169,17 @@ async def full_card_image(code, info, refresh=''):
             schedule_recovery(code, info)
         return result
     return await single_flight(_image_tasks, code, load)
+
+
+async def check_chinese_image(code, info):
+    """只检查中文恢复，不因浏览器已缓存英文而重新下载英文。"""
+    cached = _cache.get(code)
+    if cached and cached[1][1] == 'zh':
+        _cache.move_to_end(code)
+        return cached[1][0]
+    image = await retry_chinese(code, info)
+    if image:
+        remember(code, (image, 'zh'), '')
+    elif cached and cached[1][1] == 'en':
+        schedule_recovery(code, info)
+    return image

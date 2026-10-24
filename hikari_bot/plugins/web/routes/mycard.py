@@ -3,9 +3,10 @@ import asyncio
 from collections import Counter
 from urllib.parse import quote
 import json
+import hashlib
 import sqlite3
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, JSONResponse, Response
 
 from hikari_bot.core.config import settings
@@ -22,7 +23,7 @@ from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, representat
 from hikari_bot.services.mycard_archive.art import card_art
 from hikari_bot.services.mycard_archive.short_links import ShortLinks
 from hikari_bot.services.mycard_archive.profile import profile_payload, profile_ydk
-from hikari_bot.services.mycard_archive.full_image import full_card_image
+from hikari_bot.services.mycard_archive.full_image import full_card_image, check_chinese_image
 
 
 router = APIRouter()
@@ -207,7 +208,9 @@ async def player_profile(name: str = Query(default='', max_length=128),
 
 
 @router.get('/mc/api/card-image/{code}')
-async def profile_image(code: int, refresh: str = Query('', max_length=64, pattern=r'^[A-Za-z0-9_-]*$')):
+async def profile_image(code: int, request: Request,
+                        refresh: str = Query('', max_length=64, pattern=r'^[A-Za-z0-9_-]*$'),
+                        v: str = Query('', max_length=64, pattern=r'^([a-f0-9]{64})?$')):
     if not 0 < code < 2**31:
         raise HTTPException(404, '卡片不存在')
     try:
@@ -219,10 +222,30 @@ async def profile_image(code: int, refresh: str = Query('', max_length=64, patte
     image, language = await full_card_image(code, info, refresh)
     if not image:
         raise HTTPException(404, '图片暂不可用', headers={'Cache-Control': 'public, max-age=60'})
-    return Response(image, media_type='image/jpeg', headers={
-        'Cache-Control': 'public, max-age=3600' if language == 'zh' else 'no-cache',
+    version = hashlib.sha256(image).hexdigest()
+    headers = {
+        'Cache-Control': ('no-store' if v and v != version else
+                          'no-cache' if refresh and language == 'en' else 'public, max-age=3600'),
         'X-Content-Type-Options': 'nosniff',
-        'X-Card-Image-Language': language})
+        'X-Card-Image-Language': language, 'ETag': '"' + version + '"'}
+    if headers['ETag'] in request.headers.get('if-none-match', '').split(', '):
+        return Response(status_code=304, headers=headers)
+    return Response(image, media_type='image/jpeg', headers=headers)
+
+
+@router.get('/mc/api/card-image/{code}/refresh')
+async def refresh_profile_image(code: int):
+    if not 0 < code < 2**31:
+        raise HTTPException(404, '卡片不存在', headers=HEADERS)
+    try:
+        info = await asyncio.to_thread(catalog().by_id, code)
+    except (OSError, sqlite3.Error):
+        raise HTTPException(503, '卡片资料暂不可用', headers=HEADERS) from None
+    if not info:
+        raise HTTPException(404, '卡片不存在', headers=HEADERS)
+    image = await check_chinese_image(code, info)
+    return JSONResponse({'language': 'zh' if image else 'en',
+                         'version': hashlib.sha256(image).hexdigest() if image else None}, headers=HEADERS)
 
 
 @router.api_route('/mc/{code:path}', methods=['GET', 'HEAD'])

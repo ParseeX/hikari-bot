@@ -72,6 +72,37 @@ def test_card_image_refresh_token_and_language_cache_policy(web, monkeypatch, la
     assert client.get('/mc/api/card-image/42?refresh=' + 'x' * 65).status_code == 422
 
 
+def test_stable_image_url_caches_fallback_and_etag_avoids_retransmission(web, monkeypatch):
+    module, client, _, _ = web
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
+    async def image(*args): return b'english-image', 'en'
+    monkeypatch.setattr(module, 'full_card_image', image)
+    first = client.get('/mc/api/card-image/42')
+    assert first.headers['cache-control'] == 'public, max-age=3600'
+    second = client.get('/mc/api/card-image/42', headers={'If-None-Match':first.headers['etag']})
+    assert second.status_code == 304 and second.content == b''
+    # 图源临时回退时，不能把英文写进中文版本地址的浏览器缓存。
+    mismatch = client.get('/mc/api/card-image/42?v=' + 'a' * 64)
+    assert mismatch.headers['cache-control'] == 'no-store'
+    matching = client.get('/mc/api/card-image/42?v=' + first.headers['etag'].strip('"'))
+    assert matching.headers['cache-control'] == 'public, max-age=3600'
+
+
+@pytest.mark.parametrize('image', [None, b'chinese-image'])
+def test_refresh_returns_only_language_and_content_version(web, monkeypatch, image):
+    import hashlib
+    module, client, _, _ = web
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
+    async def check(*args): return image
+    monkeypatch.setattr(module, 'check_chinese_image', check)
+    response = client.get('/mc/api/card-image/42/refresh')
+    assert response.status_code == 200
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.json() == {'language':'zh' if image else 'en',
+                               'version':hashlib.sha256(image).hexdigest() if image else None}
+    assert len(response.content) < 150
+
+
 @pytest.mark.parametrize('code', ['甲', 'AbCdEfGh1234', '', 'x' * 101, '中文 空格/#?', '\x01bad'])
 def test_unknown_code_and_old_username_never_read_archive_or_create_mapping(web, monkeypatch, code):
     module, client, mapping, root = web

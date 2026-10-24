@@ -134,3 +134,26 @@ def test_confirmed_canonical_chinese_precedes_english():
         return b'chinese' if url == CHINESE + '24.jpg' else None
     assert asyncio.run(fetch_card_image(42, {'id': 24}, download=download)) == (b'chinese', 'zh')
     assert calls == [CHINESE + '42.jpg', CHINESE + '24.jpg']
+
+
+def test_check_only_chinese_does_not_download_english_when_server_cache_is_empty(images, monkeypatch):
+    calls = []
+    async def chinese(code, info): calls.append(code); return None
+    async def forbidden(*args): pytest.fail('检查中文不能重新下载英文图片')
+    monkeypatch.setattr(images, 'fetch_chinese_image', chinese)
+    monkeypatch.setattr(images, 'fetch_card_image', forbidden)
+    assert asyncio.run(images.check_chinese_image(42, {})) is None
+    assert calls == [42]
+
+
+def test_chinese_check_reuses_recovered_cache_and_keeps_existing_fallback(images, monkeypatch):
+    async def missing(code, info): return None
+    monkeypatch.setattr(images, 'fetch_chinese_image', missing)
+    monkeypatch.setattr(images, 'schedule_recovery', lambda *args: None)
+    async def run():
+        images.remember(42, (b'english', 'en'), '')
+        assert await images.check_chinese_image(42, {}) is None
+        assert images._cache[42][1] == (b'english', 'en')
+        images.remember(42, (b'chinese', 'zh'), '')
+        assert await images.check_chinese_image(42, {}) == b'chinese'
+    asyncio.run(run())
