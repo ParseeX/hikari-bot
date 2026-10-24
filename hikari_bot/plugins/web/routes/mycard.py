@@ -207,7 +207,7 @@ async def player_profile(name: str = Query(default='', max_length=128),
 
 
 @router.get('/mc/api/card-image/{code}')
-async def profile_image(code: int):
+async def profile_image(code: int, refresh: str = Query('', max_length=64, pattern=r'^[A-Za-z0-9_-]*$')):
     if not 0 < code < 2**31:
         raise HTTPException(404, '卡片不存在')
     try:
@@ -216,11 +216,12 @@ async def profile_image(code: int):
         raise HTTPException(503, '卡片资料暂不可用', headers=HEADERS) from None
     if not info:
         raise HTTPException(404, '卡片不存在', headers=HEADERS)
-    image, language = await full_card_image(code, info)
+    image, language = await full_card_image(code, info, refresh)
     if not image:
         raise HTTPException(404, '图片暂不可用', headers={'Cache-Control': 'public, max-age=60'})
     return Response(image, media_type='image/jpeg', headers={
-        'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'public, max-age=3600' if language == 'zh' else 'no-cache',
+        'X-Content-Type-Options': 'nosniff',
         'X-Card-Image-Language': language})
 
 

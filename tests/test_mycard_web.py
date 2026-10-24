@@ -55,6 +55,23 @@ def test_short_link_opens_internal_profile_without_ranking(web):
     assert ShortLinks(mapping.path).url('甲') == link
 
 
+@pytest.mark.parametrize('language,policy', [('en', 'no-cache'), ('zh', 'public, max-age=3600')])
+def test_card_image_refresh_token_and_language_cache_policy(web, monkeypatch, language, policy):
+    module, client, _, _ = web
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
+    calls = []
+    async def image(code, info, refresh):
+        calls.append((code, refresh))
+        return b'image', language
+    monkeypatch.setattr(module, 'full_card_image', image)
+    response = client.get('/mc/api/card-image/42?refresh=page-2')
+    assert response.status_code == 200 and response.content == b'image'
+    assert response.headers['cache-control'] == policy
+    assert response.headers['x-card-image-language'] == language
+    assert calls == [(42, 'page-2')]
+    assert client.get('/mc/api/card-image/42?refresh=' + 'x' * 65).status_code == 422
+
+
 @pytest.mark.parametrize('code', ['甲', 'AbCdEfGh1234', '', 'x' * 101, '中文 空格/#?', '\x01bad'])
 def test_unknown_code_and_old_username_never_read_archive_or_create_mapping(web, monkeypatch, code):
     module, client, mapping, root = web
