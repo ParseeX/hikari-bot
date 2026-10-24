@@ -86,6 +86,11 @@ class CardImageCache:
                 # 排队期间查询可能已经下载过；不重复发起请求。
                 if not await asyncio.to_thread(self.cached, code):
                     await self.download(code)
+                    # 中文源仍缺图时下载入口会复用有效备用图；记录本次检查，
+                    # 保留图片内容，下一天再检查中文源，避免按旧时间反复报失败。
+                    fallback = self.directory / 'fallback' / f'{code}.jpg'
+                    if await asyncio.to_thread(self.valid_file, fallback):
+                        await asyncio.to_thread(fallback.touch)
                     if not await asyncio.to_thread(self.cached, code):
                         raise ValueError('卡图待刷新')
                     self.downloaded += 1

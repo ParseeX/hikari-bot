@@ -174,6 +174,41 @@ def test_download_queued_card_is_skipped_if_query_already_cached_it(tmp_path):
     assert calls == []
 
 
+def test_aged_valid_fallback_finishes_refresh_without_retry_loop(tmp_path):
+    archive = library(tmp_path)
+    record(archive, [1])
+    directory = tmp_path/'pics'
+    directory.mkdir()
+    save(directory/'fallback', 1)
+    path = directory/'fallback'/'1.jpg'
+    original = path.read_bytes()
+    old = time.time() - 90000
+    os.utime(path, (old, old))
+    calls = []
+
+    async def download(code):
+        # 中文源仍缺图，实际下载入口返回磁盘中的有效备用图。
+        calls.append(code)
+        return original
+
+    cache = CardImageCache(archive, directory=directory, download=download, download_interval=0)
+
+    async def run():
+        await cache.scan_once()
+        cache.start()
+        try:
+            await asyncio.wait_for(cache.queue.join(), 3)
+            assert not cache.retries
+            assert cache.cached(1)
+            assert await cache.scan_once() == (1, 1, 0)
+            assert path.read_bytes() == original
+        finally:
+            await cache.close()
+
+    asyncio.run(run())
+    assert calls == [1]
+
+
 def test_shutdown_cancels_downloads_without_marking_success(tmp_path):
     archive = library(tmp_path)
     record(archive, [1,2,3])
