@@ -224,13 +224,15 @@ def list_rules():
     except (OSError, ValueError, sqlite3.Error):
         raise HTTPException(503, '规则或卡片资料读取失败') from None
     return {'revision': revision, 'rules': data['rules'], 'names': names,
-            'representatives': data.get('representatives', {}), 'effective_representatives': effective}
+            'representatives': data.get('representatives', {}), 'effective_representatives': effective,
+            'art_subjects': data.get('art_subjects', {})}
 
 
 class RepresentativeEdit(BaseModel):
     revision: str = Field(min_length=64, max_length=64)
     label: str = Field(min_length=1, max_length=60)
     card_id: StrictInt | None = Field(default=None, gt=0, lt=2**27)
+    subject: dict | None = None
 
 
 @router.post('/mc/admin/api/representatives', dependencies=[Depends(admin)])
@@ -238,7 +240,9 @@ def save_representative(body: RepresentativeEdit, request: Request, background_t
     try:
         if body.card_id is not None and catalog().by_id(body.card_id) is None:
             raise ValueError('请选择有效卡片')
-        rules().representative(body.revision, body.label, body.card_id)
+        # 未携带主体字段的旧页面保持已有设置；显式 null 才清除当前图片的框。
+        options = {'subject': body.subject} if 'subject' in body.model_fields_set else {}
+        rules().representative(body.revision, body.label, body.card_id, **options)
     except StaleRules as exc:
         raise HTTPException(409, str(exc)) from None
     except ValueError as exc:

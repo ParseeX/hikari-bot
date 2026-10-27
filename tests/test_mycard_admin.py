@@ -221,6 +221,37 @@ def test_representative_persistence_conflicts_clear_and_shared_label(web, root):
 
 
 
+def test_subject_box_roundtrip_shared_image_legacy_client_and_validation(web, root):
+    module, client = web
+    client.post('/mc/admin/api/login', json={'password': PASSWORD})
+    manager = RuleAdmin(root/'deck-rules.json')
+    _, revision = manager.read()
+    manager.change(revision, rule={'label': '主体测试', 'cards': [123]})
+    subject = {'x': .2, 'y': .1, 'width': .6, 'height': .7}
+    def save(**changes):
+        state = client.get('/mc/admin/api/rules').json()
+        return client.post('/mc/admin/api/representatives', json={
+            'revision': state['revision'], 'label': '主体测试', 'card_id': 123, **changes})
+    assert save(subject=subject).status_code == 200
+    assert client.get('/mc/admin/api/rules').json()['art_subjects'] == {'123': subject}
+    assert save().status_code == 200  # 旧页面不会清除主体设置。
+    assert save(card_id=456).status_code == 200
+    assert save(card_id=123).status_code == 200
+    assert manager.read()[0]['art_subjects'] == {'123': subject}
+    before = manager.path.read_bytes()
+    for invalid in [[], {}, {**subject, 'x': True}, {**subject, 'width': -1},
+                    {**subject, 'width': 1}, {**subject, 'extra': 1}]:
+        assert save(subject=invalid).status_code in (400, 422)
+        assert manager.path.read_bytes() == before
+    state = client.get('/mc/admin/api/rules').json()
+    assert save(subject=None).status_code == 200
+    assert manager.read()[0]['art_subjects'] == {}
+    stale = {'revision': state['revision'], 'label': '主体测试', 'card_id': 123, 'subject': subject}
+    assert client.post('/mc/admin/api/representatives', json=stale).status_code == 409
+    client.post('/mc/admin/api/logout')
+    assert client.post('/mc/admin/api/representatives', json=stale).status_code == 401
+
+
 def test_representative_search_includes_extra_deck(web, monkeypatch):
     module, client = web
     monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(search_many=lambda q: [

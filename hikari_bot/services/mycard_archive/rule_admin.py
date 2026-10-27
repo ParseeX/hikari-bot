@@ -1,6 +1,7 @@
 """分类规则的原子编辑与并发覆盖保护。"""
 import hashlib
 import json
+import math
 from pathlib import Path
 from threading import RLock
 
@@ -9,6 +10,20 @@ from .store import atomic_write
 
 
 _lock = RLock()
+_UNSET = object()
+
+
+def validate_art_subject(box):
+    """主体框使用方形代表图的相对坐标，禁止越界及非有限数值。"""
+    if not isinstance(box, dict) or set(box) != {'x', 'y', 'width', 'height'}:
+        raise ValueError('主体范围格式无效')
+    if any(type(value) not in (int, float) or not 0 <= value <= 1 or not math.isfinite(value)
+           for value in box.values()):
+        raise ValueError('主体范围格式无效')
+    x, y, width, height = (box[key] for key in ('x', 'y', 'width', 'height'))
+    if width < .01 or height < .01 or x + width > 1 + 1e-9 or y + height > 1 + 1e-9:
+        raise ValueError('主体范围超出图片')
+    return box
 
 
 def representative_cards(data, catalog):
@@ -50,9 +65,17 @@ class RuleAdmin:
             for label, code in representatives.items()
         ):
             raise ValueError('分类代表卡格式无效')
+        subjects = data.get('art_subjects', {})
+        if not isinstance(subjects, dict):
+            raise ValueError('主体范围格式无效')
+        for code, box in subjects.items():
+            if (not isinstance(code, str) or not code.isascii() or not code.isdigit()
+                    or str(int(code)) != code or not 0 < int(code) < 2**27):
+                raise ValueError('主体卡片无效')
+            validate_art_subject(box)
         return data, hashlib.sha256(raw).hexdigest()
 
-    def representative(self, revision, label, card_id):
+    def representative(self, revision, label, card_id, *, subject=_UNSET):
         with _lock:
             data, current = self.read()
             if revision != current:
@@ -66,6 +89,11 @@ class RuleAdmin:
                 raise ValueError('请选择有效卡片')
             else:
                 mapping[label] = card_id
+                if subject is not _UNSET:
+                    if subject is None:
+                        data.setdefault('art_subjects', {}).pop(str(card_id), None)
+                    else:
+                        data.setdefault('art_subjects', {})[str(card_id)] = validate_art_subject(subject)
             self._write(data)
 
     def _write(self, data):

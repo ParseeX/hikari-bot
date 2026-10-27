@@ -120,6 +120,16 @@ async def deck_stats():
     return Response(content, media_type='application/json', headers=HEADERS)
 
 
+@router.get('/mc/api/art-subjects')
+async def art_subjects():
+    # 独立读取轻量图片设置，保存后无需等待前百统计快照重算。
+    try:
+        data, _ = await asyncio.to_thread(RuleAdmin(settings.mycard_archive_dir / 'deck-rules.json').read)
+    except (OSError, ValueError):
+        raise HTTPException(503, '图片主体设置暂不可用') from None
+    return JSONResponse({'subjects': data.get('art_subjects', {})}, headers=HEADERS)
+
+
 @router.get('/mc/api/card-stats')
 async def card_stats():
     content = series_stats.read_cards()
