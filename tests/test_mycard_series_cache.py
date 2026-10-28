@@ -138,6 +138,9 @@ def test_pages_preserve_source_order_and_publish_with_series(tmp_path):
         cache = SeriesStats(tmp_path/'cache.json', lambda: state)
         await cache.refresh()
         assert 'player_order' not in json.loads(cache.read())
+        assert json.loads(cache.read())['ranking_order'] == state['player_order']
+        restored = SeriesStats(cache.path, lambda: state)
+        assert json.loads(restored.read())['ranking_order'][:10] == state['player_order'][:10]
         assert json.loads(cache.read())['players'][0]['player'] == '0'
         assert json.loads(cache.read_page(1))['players'][0]['player'] == '99'
         assert json.loads(cache.read_page(10))['players'][-1]['player'] == '0'

@@ -47,6 +47,8 @@ class SeriesStats:
         if len(by_player) != 100 or len(order) != 100 or set(order) != set(by_player):
             raise ValueError('分页玩家列表无效')
         public = {key: value for key, value in payload.items() if key not in ('player_order', 'card_stats', 'match_stats')}
+        # 比较图从同一份官方榜单截取前 50 / 10，不能按异步查得的个人名次重新取样。
+        public['ranking_order'] = list(order)
         content = self._encode(public)
         expired = deepcopy(public)
         for row in expired['players']:
