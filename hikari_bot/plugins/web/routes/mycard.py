@@ -125,9 +125,12 @@ async def art_subjects():
     # 独立读取轻量图片设置，保存后无需等待前百统计快照重算。
     try:
         data, _ = await asyncio.to_thread(RuleAdmin(settings.mycard_archive_dir / 'deck-rules.json').read)
-    except (OSError, ValueError):
+        label = data.get('pie_center_series')
+        code = (await asyncio.to_thread(effective_representatives, data)).get(label) if label else None
+    except (OSError, ValueError, sqlite3.Error):
         raise HTTPException(503, '图片主体设置暂不可用') from None
-    return JSONResponse({'subjects': data.get('art_subjects', {})}, headers=HEADERS)
+    center = {'label': label, 'image': f'/mc/api/art/{code}'} if code else None
+    return JSONResponse({'subjects': data.get('art_subjects', {}), 'center_art': center}, headers=HEADERS)
 
 
 @router.get('/mc/api/card-stats')

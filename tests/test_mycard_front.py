@@ -61,16 +61,32 @@ def test_art_subjects_are_public_read_only_and_immediate(web):
     module, client, root = web
     path = root/'deck-rules.json'
     before = path.read_bytes()
-    assert client.get('/mc/api/art-subjects').json() == {'subjects': {}}
+    assert client.get('/mc/api/art-subjects').json() == {'subjects': {}, 'center_art': None}
     assert path.read_bytes() == before
     data = json.loads(before)
     data['art_subjects'] = {'123': {'x': .2, 'y': .1, 'width': .6, 'height': .7}}
     path.write_text(json.dumps(data), encoding='utf-8')
     saved = path.read_bytes()
     response = client.get('/mc/api/art-subjects')
-    assert response.json() == {'subjects': data['art_subjects']}
+    assert response.json() == {'subjects': data['art_subjects'], 'center_art': None}
     assert response.headers['cache-control'] == 'no-store'
     assert path.read_bytes() == saved
+
+
+def test_pie_center_resolves_current_representative_without_stats_refresh(web):
+    module, client, root = web
+    path = root/'deck-rules.json'
+    data = json.loads(path.read_bytes())
+    data['pie_center_series'] = '甲分类'
+    path.write_text(json.dumps(data), encoding='utf-8')
+    assert client.get('/mc/api/art-subjects').json()['center_art'] == {'label': '甲分类', 'image': '/mc/api/art/123'}
+    data['representatives']['甲分类'] = 456
+    path.write_text(json.dumps(data), encoding='utf-8')
+    assert client.get('/mc/api/art-subjects').json()['center_art']['image'] == '/mc/api/art/456'
+    data['pie_center_series'] = '已删除的系列'
+    path.write_text(json.dumps(data), encoding='utf-8')
+    assert client.get('/mc/api/art-subjects').json()['center_art'] is None
+    assert client.post('/mc/api/art-subjects', json={'pie_center_series': '乙分类'}).status_code == 405
 
 
 def test_pages_multiple_labels_and_exact_latest_deck(web):

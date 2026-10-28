@@ -225,7 +225,29 @@ def list_rules():
         raise HTTPException(503, '规则或卡片资料读取失败') from None
     return {'revision': revision, 'rules': data['rules'], 'names': names,
             'representatives': data.get('representatives', {}), 'effective_representatives': effective,
-            'art_subjects': data.get('art_subjects', {})}
+            'art_subjects': data.get('art_subjects', {}), 'pie_center_series': data.get('pie_center_series')}
+
+
+class PieCenterEdit(BaseModel):
+    revision: str = Field(min_length=64, max_length=64)
+    label: str | None = Field(min_length=1, max_length=60)
+
+
+@router.post('/mc/admin/api/pie-center', dependencies=[Depends(admin)])
+def save_pie_center(body: PieCenterEdit):
+    try:
+        manager = rules()
+        data, _ = manager.read()
+        if body.label is not None and body.label not in representative_cards(data, catalog()):
+            raise ValueError('请选择有代表卡的系列')
+        manager.pie_center(body.revision, body.label)
+    except StaleRules as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    except (OSError, sqlite3.Error):
+        raise HTTPException(503, '保存失败，请稍后重试') from None
+    return {'ok': True}
 
 
 class RepresentativeEdit(BaseModel):

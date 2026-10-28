@@ -17,6 +17,38 @@ from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, StaleRules
 PASSWORD = 'test-only-password'
 
 
+def test_pie_center_auth_save_conflict_clear_and_rule_removal(web, root):
+    module, client = web
+    endpoint = '/mc/admin/api/pie-center'
+    assert client.post(endpoint, json={}).status_code == 401
+    client.post('/mc/admin/api/login', json={'password': PASSWORD})
+    manager = RuleAdmin(root/'deck-rules.json')
+    _, revision = manager.read()
+    manager.change(revision, rule={'label': '测试系列', 'cards': [123]})
+    state = client.get('/mc/admin/api/rules').json()
+    assert state['pie_center_series'] is None
+    body = {'revision': state['revision'], 'label': '测试系列'}
+    assert client.post(endpoint, json=body, headers={'Origin': 'https://evil.invalid'}).status_code == 403
+    assert client.post(endpoint, json={**body, 'label': '不存在'}).status_code == 400
+    assert client.post(endpoint, json={**body, 'label': True}).status_code == 422
+    assert client.post(endpoint, json=body).status_code == 200
+    assert client.post(endpoint, json=body).status_code == 409
+    assert RuleAdmin(manager.path).read()[0]['pie_center_series'] == '测试系列'
+    state = client.get('/mc/admin/api/rules').json()
+    assert state['pie_center_series'] == '测试系列'
+    assert client.post(endpoint, json={'revision': state['revision'], 'label': None}).status_code == 200
+    assert 'pie_center_series' not in manager.read()[0]
+    _, revision = manager.read()
+    manager.pie_center(revision, '测试系列')
+    _, revision = manager.read()
+    manager.representative(revision, '测试系列', 456)
+    data, revision = manager.read()
+    assert data['pie_center_series'] == '测试系列'
+    manager.change(revision, index=0)
+    assert 'pie_center_series' not in manager.read()[0]
+    assert json.loads(manager.path.with_suffix('.json.bak').read_text('utf-8'))['pie_center_series'] == '测试系列'
+
+
 @pytest.mark.parametrize('legacy', [False, True])
 def test_manual_deck_admin_auth_edit_and_refresh(web, root, monkeypatch, legacy):
     from hikari_bot.services.mycard_archive.presentation import deck_url
