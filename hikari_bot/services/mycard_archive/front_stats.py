@@ -115,7 +115,9 @@ class FrontStats:
                             if data['rank'] is None or data['score'] is None:
                                 raise ValueError('当前排名或分数缺失')
                             row.update(rank=data['rank'], score=data['score'], stats_updated_at=self.clock())
-                        except (aiohttp.ClientError, OSError, TimeoutError, ValueError, TypeError, KeyError):
+                        except Exception as exc:
+                            logger.warning('[mc_front_cache] 玩家 {!r} 资料失败：{}: {}',
+                                           player, type(exc).__name__, str(exc))
                             failed.add('info')
                     if 'history' in fields:
                         try:
@@ -127,15 +129,18 @@ class FrontStats:
                                 previous = await asyncio.wait_for(self.previous_fetch(player, year, month), self.timeout)
                             summary = history_summary(payload, player, sampled_at, previous)
                             if not summary['history_complete']:
-                                raise ValueError('本月历史覆盖不足')
+                                raise ValueError(f"本月历史覆盖不足：返回 {len(payload['data'])} 条，总数 {payload.get('total')}")
                             row.update(summary, history_updated_at=self.clock())
                             row['_matches'] = compact_history(payload['data'], players, summary['month'])
-                        except (aiohttp.ClientError, OSError, TimeoutError, ValueError, TypeError, KeyError):
+                        except Exception as exc:
+                            logger.warning('[mc_front_cache] 玩家 {!r} 战绩失败：{}: {}',
+                                           player, type(exc).__name__, str(exc))
                             failed.add('history')
                     await asyncio.sleep(self.request_pause)
                 return player, row, failed
 
-            while pending:
+            # 每轮最多三次；持续失败的玩家留到下个整刻，不能永久占住旧榜单。
+            for attempt in range(3):
                 current_month = month_key(self.clock())
                 if current_month != round_month:
                     # 重试跨月后重新采集全榜历史，不把上月成功状态带入本月。
@@ -152,14 +157,19 @@ class FrontStats:
                 self._validate(state)
                 await asyncio.to_thread(self._save, state)
                 self.state = state
-                if pending:
-                    logger.warning('[mc_front_cache] 已保存成功项，剩余 {} 项，退避后重试', state['pending_count'])
-                    # 等待不占请求并发槽；整轮锁仍持有，定时轮次不会重叠。
-                    await self._backoff(delay)
-                    delay = min(self.retry_max, delay * 2)
-            logger.info('[mc_front_cache] 刷新完成：{} 人，失败 0 项', len(players))
-            if self.on_refreshed:
-                self.on_refreshed()
+                # 先发布已成功的字段，网站更新不能等待最后一个失败项目。
+                if self.on_refreshed:
+                    self.on_refreshed()
+                if not pending:
+                    break
+                if attempt == 2:
+                    logger.warning('[mc_front_cache] 本轮剩余 {} 项，下个整刻随新榜单重试', state['pending_count'])
+                    break
+                logger.warning('[mc_front_cache] 已保存成功项，剩余 {} 项，退避后重试', state['pending_count'])
+                # 等待不占请求并发槽；整轮锁仍持有，定时轮次不会重叠。
+                await self._backoff(delay)
+                delay = min(self.retry_max, delay * 2)
+            logger.info('[mc_front_cache] 刷新完成：{} 人，待重试 {} 项', len(players), state['pending_count'])
             return True
 
     async def _backoff(self, delay):

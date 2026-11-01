@@ -78,8 +78,25 @@ async def fetch_player_history(username: str, page_num: int = 999999):
 
 
 async def fetch_player_history_page(username: str, limit: int = 1000):
-    """网页后台使用有界竞技历史，保留 total 以核实覆盖完整性。"""
-    return await _api_get("arena/history", {"username": username, "type": 1, "page_num": limit})
+    """补齐有界竞技历史窗口，兼容官方计数包含重复行、返回列表合并重复的情况。"""
+    requested = limit
+    for _ in range(3):
+        payload = await _api_get('arena/history', {'username': username, 'type': 1, 'page_num': requested})
+        if not isinstance(payload, dict) or not isinstance(payload.get('data'), list):
+            raise ValueError('竞技历史响应无效')
+        records, total = payload['data'], payload.get('total')
+        if type(total) is not int or total < len(records) or len(records) > requested:
+            raise ValueError('竞技历史总数无效')
+        if len(records) >= min(total, limit):
+            return {**payload, 'data': records[:limit]}
+        if not records:
+            raise ValueError('竞技历史列表为空但总数非零')
+        if requested >= total:
+            # 已查询全部原始行；total 含重复场次，完整性以合并后的有效记录数为准。
+            return {**payload, 'source_total': total, 'total': len(records), 'data': records[:limit]}
+        # 重查扩大的前缀，避免分页边界重复或新增比赛造成遗漏；最多三次、两倍窗口。
+        requested = min(total, limit * 2, requested + min(total, limit) - len(records))
+    raise ValueError(f'竞技历史窗口不足：需要 {min(total, limit)} 条，实际 {len(records)} 条')
 
 
 async def fetch_player_info(username: str):

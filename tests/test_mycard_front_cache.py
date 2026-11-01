@@ -74,7 +74,7 @@ def test_cache_persists_limits_concurrency_no_overlap_and_retains_old(tmp_path):
         assert restored.snapshot()==cache.snapshot()
         completed = []
         cache.on_refreshed = lambda: completed.append(cache.snapshot()['pending_count'])
-        # 失败字段反复重试，成功字段不重取；中间快照仍可供页面读取。
+        # 失败字段有界重试，成功字段不重取；每批保存后立即通知页面更新。
         attempts = {'info': 0, 'history': 0}
         waits = []
         async def retry_info(player):
@@ -89,14 +89,14 @@ def test_cache_persists_limits_concurrency_no_overlap_and_retains_old(tmp_path):
             return {'total': 1, 'data': [match(player, after=1220)]}
         async def backoff(delay):
             waits.append(delay)
-            assert completed == []
+            assert completed[-1] == cache.snapshot()['pending_count']
             assert await cache.refresh() is False
             assert cache.snapshot()['stats']['0']['score'] == 1300
             assert json.loads(path.read_text())['pending_count'] > 0
         cache.fetch, cache.history_fetch = retry_info, retry_history
         cache._backoff = backoff
         await cache.refresh()
-        assert completed == [0]
+        assert completed == [2, 1, 0]
         assert attempts == {'info': 3, 'history': 2}
         assert waits == [5, 10]
         assert cache.snapshot()['pending_count'] == 0
