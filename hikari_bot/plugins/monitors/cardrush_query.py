@@ -14,6 +14,7 @@ from hikari_bot.features.card_prices.service import (
 )
 from hikari_bot.features.cardrush.parsing import parse_price_query
 from hikari_bot.services.ygocard import get_card_info
+from hikari_bot.services.card_catalog import AmbiguousCardName
 from hikari_bot.features.card_prices.version_catalog import shared_version_catalog
 
 
@@ -38,6 +39,8 @@ def register_price_query(matcher, cardrush, *, japanese: bool = False):
                              if info and info.get(k))
             versions = await comparison.versions(name_jp, rarity, prefix, names_cn,
                                                  catalog_id=(info or {}).get('catalog_id'))
+        except AmbiguousCardName as error:
+            await matcher.finish(str(error))
         except (JhsUnavailable, asyncio.TimeoutError):
             await matcher.finish("暂时无法获取集换社罕贵列表，请稍后重试。")
         except Exception as error:

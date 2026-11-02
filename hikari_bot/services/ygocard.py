@@ -204,8 +204,8 @@ async def get_card_info_by_id(id: str):
     return await asyncio.to_thread(catalog.by_id, id)
 
 
-async def get_card_info(keyword: str, *, fuzzy=False):
-    """通过主库的所有语言卡名及别名搜索。"""
+async def get_card_info(keyword: str, *, fuzzy=True):
+    """通过主库卡名及别名搜索，普通查卡默认容忍标点和少量错字。"""
     return await asyncio.to_thread(catalog.search, keyword, fuzzy=fuzzy)
 
 

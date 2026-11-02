@@ -26,6 +26,7 @@ from nonebot_plugin_apscheduler import scheduler
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import log_message
 from hikari_bot.services import ygocard as card_service
+from hikari_bot.services.card_catalog import AmbiguousCardName
 from hikari_bot.services.ygodeck import generate_card_list_image
 
 
@@ -61,7 +62,11 @@ ygo_card_pic = on_cmd("卡图查询", aliases={"游戏王卡图", "卡图"}, pri
 @ygo_card_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        images = await card_service.get_card_images(input)
+        try:
+            images = await card_service.get_card_images(input)
+        except AmbiguousCardName as error:
+            await ygo_card_pic.finish(str(error))
+            return
         if not images:
             await ygo_card_pic.finish("未找到对应卡片！")
             return
@@ -84,7 +89,11 @@ ygo_card_id = on_cmd("卡密查询", aliases={"游戏王卡密", "卡密"}, prio
 @ygo_card_id.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        card_info = await card_service.get_card_info(input)
+        try:
+            card_info = await card_service.get_card_info(input)
+        except AmbiguousCardName as error:
+            await ygo_card_id.finish(str(error))
+            return
         
         if not card_info:
             await ygo_card_id.finish("查询失败！")
@@ -97,7 +106,11 @@ ygo_card_effect = on_cmd("效果查询", aliases={"游戏王效果", "效果"}, 
 @ygo_card_effect.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        card_info = await card_service.get_card_info(input)
+        try:
+            card_info = await card_service.get_card_info(input)
+        except AmbiguousCardName as error:
+            await ygo_card_effect.finish(str(error))
+            return
 
         if not card_info:
             await ygo_card_effect.finish("未找到对应卡片！")
@@ -155,7 +168,11 @@ ygo_metaltronus_calc = on_cmd("共界计算", priority=5)
 @ygo_metaltronus_calc.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
-        card_info = await card_service.get_card_info(input)
+        try:
+            card_info = await card_service.get_card_info(input)
+        except AmbiguousCardName as error:
+            await ygo_metaltronus_calc.finish(str(error))
+            return
 
         if not card_info:
             await ygo_metaltronus_calc.finish("未找到对应卡片！")

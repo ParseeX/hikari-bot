@@ -1,14 +1,46 @@
 """Bot 的卡片资料入口；每次查询打开只读连接，及时看到主库更新。"""
 from contextlib import contextmanager
-from difflib import SequenceMatcher
 from pathlib import Path
 import random
+import re
 import sqlite3
 import unicodedata
 
 
 def normalize(value: str) -> str:
     return ''.join(unicodedata.normalize('NFKC', value).split()).casefold()
+
+
+class AmbiguousCardName(ValueError):
+    """容错查询无法确定唯一卡片，由命令入口展示候选。"""
+
+    def __init__(self, cards):
+        self.cards = tuple(cards)
+        lines = ['找到多个接近的卡名，请使用卡密重新查询：']
+        for card in self.cards[:5]:
+            name = card.get('cn_name') or card.get('jp_name') or card.get('en_name') or '未命名卡片'
+            code = card.get('passcode') or str(card['id'])
+            lines.append(f'{name}：{code}')
+        if len(self.cards) > 5:
+            lines.append('还有其他接近结果，请补充更完整的卡名。')
+        super().__init__('\n'.join(lines))
+
+
+def _edit_distance(left, right, limit):
+    """计算有界编辑距离；相邻两字颠倒也算一次输入错误。"""
+    previous = list(range(len(right) + 1))
+    before_previous = None
+    for i, char in enumerate(left, 1):
+        current = [i]
+        for j, other in enumerate(right, 1):
+            cost = min(current[-1] + 1, previous[j] + 1, previous[j - 1] + (char != other))
+            if i > 1 and j > 1 and char == right[j - 2] and left[i - 2] == other:
+                cost = min(cost, before_previous[j - 2] + 1)
+            current.append(cost)
+        if min(current) > limit:
+            return limit + 1
+        before_previous, previous = previous, current
+    return previous[-1]
 
 
 class CardCatalog:
@@ -136,35 +168,51 @@ class CardCatalog:
 
     @staticmethod
     def _closest_name(db, key):
-        """补充标点差异、漏字和少量错字；始终返回一张已确定身份的卡。"""
+        """忽略标点后按编辑次数容错；相近结果先提示，避免猜错卡片。"""
         query = ''.join(c for c in key if c.isalnum())
         if not query or len(query) > 128:
             return None
-        best, card_id = None, None
+        matches = {}
+        # 三至七字允许一次错误，更长卡名允许两次；两字输入只做包含匹配。
+        limit = 1 if len(query) < 8 else 2
+        numbers = re.findall(r'\d+', query)
         rows = db.execute('SELECT DISTINCT n.card_id,n.normalized,c.konami_cid '
-                          'FROM card_names n JOIN cards c ON c.id=n.card_id')
+                          'FROM card_names n JOIN cards c ON c.id=n.card_id '
+                          'WHERE c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL')
         for row in rows:
             name = ''.join(c for c in row['normalized'] if c.isalnum())
             if not name:
                 continue
-            if query in name:
+            if query == name:
+                score = (3, 1.)
+            elif query in name:
                 score = (2, len(query) / len(name))
             else:
-                # 短输入只做包含匹配，避免一两个字的错字匹配到无关卡片。
-                if len(query) < 3 or min(len(query), len(name)) / max(len(query), len(name)) < .6:
+                if len(query) < 3 or abs(len(query) - len(name)) > limit:
                     continue
-                matcher = SequenceMatcher(None, query, name, autojunk=False)
-                if matcher.quick_ratio() < .75:
+                # 先排除明显无关的名字，避免对全库逐字计算编辑距离。
+                if sum(char in query for char in name) < max(len(query), len(name)) - limit:
                     continue
-                similarity = matcher.ratio()
-                if similarity < .75:
+                # No. 编号等数字具有卡片身份含义，不能当作错字改成另一张卡。
+                if re.findall(r'\d+', name) != numbers:
                     continue
-                score = (1, similarity)
-            # 同分时稳定排序，不依赖 SQL 返回顺序或同一张卡的别名数量。
+                distance = _edit_distance(query, name, limit)
+                if distance > limit:
+                    continue
+                score = (1, 1 - distance / max(len(query), len(name)))
             rank = (*score, -(row['konami_cid'] is None), -(row['konami_cid'] or 0), -row['card_id'])
-            if best is None or rank > best:
-                best, card_id = rank, row['card_id']
-        return db.execute('SELECT * FROM cards WHERE id=?', (card_id,)).fetchone() if card_id else None
+            if row['card_id'] not in matches or rank > matches[row['card_id']]:
+                matches[row['card_id']] = rank
+        if not matches:
+            return None
+        ranked = sorted(matches, key=matches.get, reverse=True)
+        best = matches[ranked[0]]
+        close = [card_id for card_id in ranked
+                 if matches[card_id][0] == best[0] and best[1] - matches[card_id][1] <= .05]
+        cards = [db.execute('SELECT * FROM cards WHERE id=?', (card_id,)).fetchone() for card_id in close]
+        if len(cards) > 1:
+            raise AmbiguousCardName([CardCatalog._info(db, row) for row in cards])
+        return cards[0]
 
     def random_id(self, seed=None, *, include_artworks=False):
         with self.connect() as db:
@@ -180,7 +228,7 @@ class CardCatalog:
 
     def image_ids(self, keyword: str) -> list[int]:
         """原画在前，已登记异画按图片编号升序；异画编号输入也返回整组。"""
-        info = self.search(keyword)
+        info = self.search(keyword, fuzzy=True)
         if not info or not info['id']:
             return []
         with self.connect() as db:
