@@ -293,9 +293,14 @@ def test_representative_search_includes_extra_deck(web, monkeypatch):
     assert client.get('/mc/admin/api/cards?q=额外&purpose=representative').json()['cards'][0]['id'] == 888
 
 
-def test_private_player_history_preserves_manual_changes(web, monkeypatch):
+@pytest.mark.parametrize('classified', [False, True])
+def test_private_player_history_preserves_manual_changes(web, root, monkeypatch, classified):
     from hikari_bot.services.mycard_archive.presentation import deck_url
     module, client = web
+    if classified:
+        (root / 'deck-rules.json').write_text(json.dumps({'version': 1, 'rules': [
+            {'label': '同系列', 'cards': [2]},
+        ]}), encoding='utf-8')
     endpoint = '/mc/admin/api/player-decks'
     assert client.get(endpoint).status_code == 401
     assert client.get(endpoint + '?player=甲').status_code == 401
@@ -310,7 +315,8 @@ def test_private_player_history_preserves_manual_changes(web, monkeypatch):
             body['id'] = state['decks'][0]['id']
         assert client.post(manual, json=body).status_code == 200
     result = client.get(endpoint + '?player=甲').json()
-    assert len(result['versions']) == 2
+    assert len(result['versions']) == (1 if classified else 2)
     assert result['versions'][0]['main'] == list(range(1, 41))
-    assert result['versions'][1]['main'] == list(range(2, 42))
+    if not classified:
+        assert result['versions'][1]['main'] == list(range(2, 42))
     assert client.get(endpoint).json()['players'] == ['甲']

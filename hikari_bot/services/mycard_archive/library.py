@@ -1,4 +1,4 @@
-"""玩家卡组快照与连续版本；原始对局归档保持独立。"""
+"""按系列集合汇总玩家卡组版本；原始对局归档保持独立。"""
 from collections import Counter, defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -6,7 +6,10 @@ import json
 from pathlib import Path
 import sqlite3
 
-from .presentation import consolidated_decks
+from hikari_bot.core.config import settings
+from hikari_bot.services.card_catalog import CardCatalog
+
+from .presentation import classify, consolidated_decks, read_rules
 from .replay import Deck
 
 
@@ -16,6 +19,19 @@ class DeckVersion:
     first_seen: float
     updated_at: float
     observations: int
+
+
+class _ClassificationCatalog:
+    """单次查询内复用卡号身份，避免每条旧观测重复读取整份规则的卡片。"""
+    def __init__(self):
+        self.catalog = CardCatalog(settings.card_catalog_path)
+        self.identities = {}
+
+    def canonical_codes(self, codes):
+        missing = set(codes) - self.identities.keys()
+        if missing:
+            self.identities.update(self.catalog.canonical_codes(missing))
+        return {code: self.identities[code] for code in codes}
 
 
 class DeckLibrary:
@@ -64,26 +80,41 @@ class DeckLibrary:
         finally:
             db.close()
 
-    @staticmethod
-    def _versions(rows):
-        # 字典保持最近使用顺序；主卡张数相同才视为同一个版本。
+    def _rules(self):
+        try:
+            return read_rules(self.path.with_name('deck-rules.json'))
+        except FileNotFoundError:
+            return []
+
+    def _versions(self, rows, *, rules=None, catalog=None):
+        if rules is None:
+            rules = self._rules()
+        if catalog is None:
+            catalog = _ClassificationCatalog()
+        # 系列按集合比较，命中张数和显示顺序不影响身份；未分类仍按主卡区分。
         versions = {}
+        keys = {}
         for row in rows:
             deck = Deck(row['player'], tuple(sorted(json.loads(row['main']))),
                         tuple(sorted(json.loads(row['extra']))), tuple(sorted(json.loads(row['side']))))
-            previous = versions.pop(deck.main, None)
+            if deck.main not in keys:
+                labels = frozenset(classify(deck, rules, catalog=catalog)['labels'])
+                keys[deck.main] = ('series', labels) if labels else ('main', deck.main)
+            key = keys[deck.main]
+            previous = versions.pop(key, None)
             observations = row['observations'] if 'observations' in row.keys() else 1
             if previous:
-                side = tuple(sorted((Counter(previous.deck.side) | Counter(deck.side)).elements()))
-                # 合并超限说明副卡组已调整，改用本次观测，不再新增版本。
-                if len(side) > 15:
-                    side = deck.side
-                deck = Deck(deck.player, deck.main, deck.extra, side)
+                # 微调后的构筑整体采用新观测，不能把旧主卡的 Side 混入新构筑。
+                if previous.deck.main == deck.main:
+                    side = tuple(sorted((Counter(previous.deck.side) | Counter(deck.side)).elements()))
+                    if len(side) > 15:
+                        side = deck.side
+                    deck = Deck(deck.player, deck.main, deck.extra, side)
                 version = DeckVersion(deck, previous.first_seen, row['updated_at'],
                                       previous.observations + observations)
             else:
                 version = DeckVersion(deck, row['observed_at'], row['updated_at'], observations)
-            versions[deck.main] = version
+            versions[key] = version
         return list(versions.values())
 
     def history(self, player):
@@ -131,5 +162,8 @@ class DeckLibrary:
                                             'updated_at': saved['updated_at'], 'observations': 0,
                                             **{key: json.dumps(saved[key]) for key in ('main', 'extra', 'side')}})
         # 按实际使用时间排序，延迟归档的旧对局不会覆盖较新的手动上传。
-        return {player: self._versions(sorted(observations, key=lambda row: row['observed_at']))[-1]
+        rules = self._rules()
+        catalog = _ClassificationCatalog()
+        return {player: self._versions(sorted(observations, key=lambda row: row['observed_at']),
+                                       rules=rules, catalog=catalog)[-1]
                 for player, observations in grouped.items()}

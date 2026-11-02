@@ -29,6 +29,79 @@ def record(store, room, ts, main=(1, 1, 2), extra=(10,), side=()):
     return mid
 
 
+def test_same_series_replaces_tweaks_and_promotes_returning_series(tmp_path):
+    store = ArchiveStore(tmp_path, set())
+    store.rules_path.write_text(json.dumps({'version': 1, 'rules': [
+        {'label': 'A', 'cards': [1]}, {'label': 'B', 'cards': [2]},
+    ]}), encoding='utf-8')
+    record(store, 'first', 100, main=(1, 1, 2), side=(31,))
+    record(store, 'tweak', 200, main=(1, 2, 2, 9), extra=(11,), side=(32,))
+    # A+B 与 A 不同；再次使用 A+B 时更新已有系列，不再新增。
+    record(store, 'other', 300, main=(1, 8), side=(33,))
+    record(store, 'return', 400, main=(1, 1, 2, 7), extra=(12,), side=(34,))
+    history = store.library.history('甲')
+    assert [v.deck.main for v in history] == [(1, 8), (1, 1, 2, 7)]
+    assert [v.deck.side for v in history] == [(33,), (34,)]
+    assert history[-1].deck.extra == (12,)
+    assert history[-1].first_seen == 100 and history[-1].observations == 3
+    assert store.library.latest('甲') == history[-1]
+    assert store.library.latest_many(['甲', '乙'])['甲'] == history[-1]
+
+
+def test_existing_history_reclassifies_read_only_and_unclassified_stays_separate(tmp_path):
+    store = ArchiveStore(tmp_path, set())
+    # 先保存旧数据，再配置系列；无需迁移即可合并历史微调。
+    record(store, 'new', 300, main=(1, 7), side=(32,))
+    record(store, 'old', 100, main=(1, 8), side=(31,))
+    record(store, 'unknown-a', 400, main=(90,))
+    record(store, 'unknown-b', 500, main=(91,))
+    assert len(store.library.history('甲')) == 4
+    with store.library.connect() as db:
+        before = [tuple(row) for row in db.execute('SELECT * FROM deck_observations ORDER BY match_id,player')]
+    store.rules_path.write_text(json.dumps({'version': 1, 'rules': [
+        {'label': 'A', 'cards': [1]},
+    ]}), encoding='utf-8')
+    history = DeckLibrary(store.library.path).history('甲')
+    assert [v.deck.main for v in history] == [(1, 7), (90,), (91,)]
+    assert history[0].first_seen == 100 and history[0].observations == 2
+    assert history[0].deck.side == (32,)
+    # 规则热更新后重分组，而非沿用上次查询的身份缓存。
+    store.rules_path.write_text(json.dumps({'version': 1, 'rules': [
+        {'label': 'A', 'cards': [1]}, {'label': 'B', 'cards': [8]},
+    ]}), encoding='utf-8')
+    assert len(store.library.history('甲')) == 4
+    with store.library.connect() as db:
+        assert [tuple(row) for row in db.execute('SELECT * FROM deck_observations ORDER BY match_id,player')] == before
+
+
+def test_series_identity_uses_canonical_cards_and_distinct_label_sets(tmp_path, monkeypatch):
+    from hikari_bot.services.mycard_archive.presentation import CardCatalog
+    monkeypatch.setattr(CardCatalog, 'canonical_codes',
+                        lambda self, codes: {code: 1 if code == 101 else code for code in codes})
+    store = ArchiveStore(tmp_path, set())
+    store.rules_path.write_text(json.dumps({'version': 1, 'rules': [
+        {'label': 'AB', 'cards': [1]}, {'label': 'A', 'cards': [2]},
+        {'label': 'B', 'cards': [3]},
+    ]}), encoding='utf-8')
+    record(store, 'one', 100, main=(1,))
+    record(store, 'alias', 200, main=(101, 9))
+    record(store, 'different-labels', 300, main=(2, 3))
+    history = store.library.history('甲')
+    # AB 单系列与 A+B 双系列即使显示名相同，也不能合并。
+    assert [v.deck.main for v in history] == [(9, 101), (2, 3)]
+    assert history[0].observations == 2
+
+
+def test_invalid_series_rules_do_not_silently_change_history_grouping(tmp_path):
+    store = ArchiveStore(tmp_path, set())
+    record(store, 'one', 100)
+    store.rules_path.write_text('{invalid', encoding='utf-8')
+    with pytest.raises(ValueError):
+        store.library.history('甲')
+    with pytest.raises(ValueError):
+        store.library.latest('甲')
+
+
 def test_matching_core_merges_side_counts_without_losing_snapshots(tmp_path):
     store = ArchiveStore(tmp_path, {'1'})
     record(store, 'one', 100, side=(3, 3, 4))
