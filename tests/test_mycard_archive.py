@@ -429,7 +429,7 @@ def test_failed_handshakes_share_cooldown_and_only_one_recovery_probe(tmp_path):
         async def send(*args):
             pass
         runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', {'1'}, send,
-                                 watch_room=watcher, join_interval=0)
+                                 watch_room=watcher, join_interval=0, concurrency=8)
         runtime.join_gate = JoinGate(interval=0, cooldown=0.15)
         async def identity():
             return '观战', 42

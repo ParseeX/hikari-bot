@@ -26,7 +26,7 @@ class RoomTask:
 
 class ArchiveRuntime:
     def __init__(self, root: Path, credentials: Path, recipients, send_message,
-                 *, concurrency=9, join_interval=0.5, watch_room=watch, rank_filter=None):
+                 *, concurrency=1, join_interval=0.5, watch_room=watch, rank_filter=None):
         self.store = ArchiveStore(root, recipients)
         self.credentials = Credentials(credentials)
         self.send_message = send_message

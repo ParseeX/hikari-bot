@@ -158,12 +158,12 @@ def test_preemption_chooses_lowest_weight_then_newest_active_room():
     asyncio.run(run())
 
 
-def test_default_capture_capacity_is_nine(tmp_path):
+def test_default_capture_capacity_is_one(tmp_path):
     async def run():
         runtime=ArchiveRuntime(tmp_path,tmp_path/'creds',set(),ignore)
-        for _ in range(9): await runtime.semaphore.acquire()
-        assert runtime.semaphore.locked() and runtime.concurrency==9
-        for _ in range(9): runtime.semaphore.release()
+        await asyncio.wait_for(runtime.semaphore.acquire(), 1)
+        assert runtime.semaphore.locked() and runtime.concurrency==1
+        runtime.semaphore.release()
         await runtime.close()
     asyncio.run(run())
 
