@@ -112,6 +112,20 @@ def _path(name: str, default: Path) -> Path:
 T = TypeVar("T")
 
 
+def _mycard_credential_files() -> tuple[Path, ...]:
+    raw = os.getenv('MYCARD_CREDENTIALS_FILES', '').strip()
+    if not raw:
+        return ()
+    try:
+        values = json.loads(raw)
+        if not isinstance(values, list) or not values or any(not isinstance(v, str) or not v.strip() for v in values):
+            raise ValueError()
+        paths = [Path(value).expanduser() for value in values]
+        return tuple(dict.fromkeys((p if p.is_absolute() else PROJECT_ROOT / p).resolve() for p in paths))
+    except (ValueError, TypeError):
+        raise ConfigurationError('MYCARD_CREDENTIALS_FILES 必须是非空文件路径 JSON 数组') from None
+
+
 @dataclass(frozen=True)
 class Settings:
     mycard_capture_enabled: bool = field(
@@ -123,6 +137,7 @@ class Settings:
     mycard_credentials_file: Path = field(
         default_factory=lambda: _path("MYCARD_CREDENTIALS_FILE", Path.home() / ".local/share/hikari-mycard/credentials.json")
     )
+    mycard_credentials_files: tuple[Path, ...] = field(default_factory=_mycard_credential_files)
     mycard_capture_concurrency: int = field(
         default_factory=lambda: _positive_int("MYCARD_CAPTURE_CONCURRENCY", 1)
     )

@@ -2,7 +2,9 @@
 import asyncio
 import base64
 import json
+import os
 import struct
+import tempfile
 import time
 from pathlib import Path
 
@@ -24,9 +26,62 @@ class Credentials:
         self._cached = None
         self._expires = 0.0
         self._mtime = 0
+        self._login_retry_at = 0
+        self._login_blocked_mtime = None
+        self._login_source_mtime = None
 
     def invalidate(self):
         self._expires = 0
+
+    async def _auth_token(self, session, token):
+        async with session.get('https://sapi.moecube.com:444/accounts/authUser',
+                               headers={'Authorization': 'Bearer ' + token}, allow_redirects=False) as response:
+            if response.status in (401, 403):
+                return None
+            if response.status != 200:
+                raise CredentialError(f'MyCard 认证暂不可用（HTTP {response.status}）')
+            return await response.json()
+
+    async def _password_login(self, session, data, mtime):
+        account = data.get('account') or data.get('username')
+        password = data.get('password')
+        if not isinstance(account, str) or not account or not isinstance(password, str) or not password:
+            raise CredentialError('MyCard Token 已失效，且未配置账号密码')
+        if self._login_blocked_mtime == mtime:
+            raise CredentialError('MyCard 密码登录需人工处理，请更新凭据文件')
+        if time.monotonic() < self._login_retry_at:
+            raise CredentialError('MyCard 密码登录暂不可用，稍后重试')
+        self._login_retry_at = time.monotonic() + 300
+        async with session.post('https://sapi.moecube.com:444/accounts/signin',
+                                json={'account': account, 'password': password},
+                                allow_redirects=False) as response:
+            if response.status in (400, 401, 403) or 300 <= response.status < 400:
+                self._login_blocked_mtime = mtime
+                raise CredentialError('MyCard 密码登录被拒绝或需要额外验证，请更新凭据文件')
+            if response.status != 200:
+                raise CredentialError(f'MyCard 登录暂不可用（HTTP {response.status}）')
+            result = await response.json()
+        token = result.get('token') if isinstance(result, dict) else None
+        if not isinstance(token, str) or not token:
+            self._login_blocked_mtime = mtime
+            raise CredentialError('MyCard 登录未返回 Token，需要人工处理')
+        return token
+
+    def _save_token(self, data, token, original):
+        # 不覆盖登录期间由用户改过的密码；落盘只替换 Token，文件保持仅本人可读。
+        if self.path.read_text(encoding='utf-8') != original:
+            raise CredentialError('凭据文件已变更，等待重新加载')
+        descriptor, name = tempfile.mkstemp(dir=self.path.parent, prefix='.credentials-', suffix='.tmp')
+        try:
+            with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
+                json.dump({**data, 'token': token}, stream, ensure_ascii=False)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(name, 0o600)
+            os.replace(name, self.path)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
 
     async def get(self) -> tuple[str, int]:
         async with self._lock:
@@ -34,19 +89,49 @@ class Credentials:
                 mtime = self.path.stat().st_mtime_ns
                 if self._cached and mtime == self._mtime and time.monotonic() < self._expires:
                     return self._cached
-                data = json.loads(await asyncio.to_thread(self.path.read_text, encoding="utf-8"))
-                if data.get("token"):
+                original = await asyncio.to_thread(self.path.read_text, encoding="utf-8")
+                data = json.loads(original)
+                password_path = None
+                revision = (mtime, None)
+                if data.get('password_file'):
+                    if data.get('password'):
+                        raise CredentialError('请只配置共享密码文件或独立密码中的一种')
+                    password_path = Path(data['password_file']).expanduser()
+                    if not password_path.is_absolute():
+                        password_path = self.path.parent / password_path
+                    revision = (mtime, password_path.stat().st_mtime_ns)
+                if revision != self._login_source_mtime:
+                    self._login_retry_at = 0
+                    self._login_blocked_mtime = None
+                    self._login_source_mtime = revision
+                renewed = None
+                if data.get("token") or data.get('password') or password_path:
                     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
-                        async with session.get("https://sapi.moecube.com:444/accounts/authUser",
-                                               headers={"Authorization": "Bearer " + data["token"]}) as response:
-                            if response.status != 200:
-                                raise CredentialError(f"MyCard 认证失败（HTTP {response.status}）")
-                            info = await response.json()
+                        info = await self._auth_token(session, data['token']) if data.get('token') else None
+                        if info is None:
+                            login_data = data
+                            if password_path:
+                                shared = json.loads(await asyncio.to_thread(password_path.read_text, encoding='utf-8'))
+                                login_data = {**data, 'password': shared.get('password')}
+                            renewed = await self._password_login(session, login_data, revision)
+                            info = await self._auth_token(session, renewed)
+                            if info is None:
+                                self._login_blocked_mtime = revision
+                                raise CredentialError('MyCard 新登录凭据未通过验证，需要人工处理')
+                    if info.get('active') is False:
+                        raise CredentialError('MyCard 账号邮箱尚未验证')
                     username, secret = info.get("username"), info.get("u16Secret")
+                    if data.get('username') and username != data['username']:
+                        raise CredentialError('MyCard 登录返回的账号与凭据文件不匹配')
                 else:
                     username, secret = data.get("username"), data.get("u16_secret")
                 if not isinstance(username, str) or not username or type(secret) is not int or secret < 0:
                     raise CredentialError("MyCard 凭据缺少用户名或有效观战密钥")
+                if renewed:
+                    await asyncio.to_thread(self._save_token, data, renewed, original)
+                    mtime = self.path.stat().st_mtime_ns
+                    self._login_retry_at = 0
+                    self._login_blocked_mtime = None
                 self._cached = (username, secret)
                 self._expires = time.monotonic() + 600
                 self._mtime = mtime

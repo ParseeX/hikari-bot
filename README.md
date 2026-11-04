@@ -135,8 +135,8 @@ OURYGO 链接直接编码卡组，不上传文件；站点当前使用 HTTP。
 活跃对局没有 30 分钟或其他总时限。默认单场串行采集，其他房间按原有权重排队；
 结束或抢占时先关闭旧观战连接，再进入下一场，入场间隔至少 0.5 秒。
 MyCard 增加了[同账号多房间观战不发放录像的限制](https://github.com/mycard/srvpro/commit/89a0da9167c3abcc56fabe3a8f1add1c64daea52)，
-因此生产配置应保持 `MYCARD_CAPTURE_CONCURRENCY=1`；`MYCARD_JOIN_INTERVAL` 控制入场间隔。
-单场串行会降低采集覆盖速度，不能保证捕获每位玩家的最新卡组。连续 3 次握手失败后，
+因此每个账号始终最多观战一场；`MYCARD_JOIN_INTERVAL` 控制所有账号共用的入场间隔。
+单账号默认 `MYCARD_CAPTURE_CONCURRENCY=1`，不能保证捕获每位玩家的最新卡组。连续 3 次握手失败后，
 所有房间共享 5 分钟冷却；每次恢复仅试一条连接，失败后延长到 10、20、最多 30 分钟，成功则恢复正常入场。
 握手等待上限为 15 秒，仅约束入场阶段，不限制已进入的对局时长。
 `MYCARD_SPECTATOR_HOST` / `MYCARD_SPECTATOR_PORT` 默认是 `tiramisu.moecube.com:8911`。
@@ -148,6 +148,39 @@ MyCard 服务端对同一 IP 最多允许 10 条连接（见 [服务端实现](h
 房间消失后最多额外等待 30 秒接收尾部录像，这不是活跃对局超时。
 禁止观战、观战账号本人参与、排队期间结束或连接失败的房间会标明未取得／不完整。
 本功能不补抓启动前已结束的历史对局，也不能保证服务器向观战者提供每一小局。
+
+多个账号的凭据分别保存在仓库外的 JSON 文件中，每份采用 `{"token":"登录令牌"}`
+或 `{"username":"账号","u16_secret":整数}`。只将实际凭据文件上传至采集服务器，限制为运行用户可读，
+不要将真实凭据写进 Git、日志或聊天。可通过以下环境变量启用两个账号：
+
+```dotenv
+MYCARD_CREDENTIALS_FILES=["/home/xyk/.local/share/hikari-mycard/credentials.json","/home/xyk/.local/share/hikari-mycard/accounts/account-2.json"]
+MYCARD_CAPTURE_CONCURRENCY=2
+```
+
+路径数组覆盖 `MYCARD_CREDENTIALS_FILE`；未填写数组时继续使用原单文件配置。
+总连接数不超过并发配置和凭据文件数中的较小值；账号按认证返回的用户名去重，
+同一账号的重复文件或不同 Token 不会增加其同时观战数。所有账号共用原有房间优先级和入场限速，
+抢占、取消或退出时等待连接关闭及录像写入完成，再释放账号。坏凭据独立退避 30 秒后重试，
+不阻塞其他已认证账号；修改文件后会重新读取。配置文件列表或并发上限变动需重启服务。
+
+多个账号共用密码时，单独保存一份 `password.json`（内容为 `{"password":"密码"}`），
+各账号文件使用 `{"username":"账号","password_file":"password.json","token":"已有令牌"}`。
+密码文件的相对路径以账号文件所在目录为基准；更新共享密码后，登录失败的账号可重新尝试。
+也兼容每个账号独立保存 `password` 的格式，二者不能同时配置。
+优先验证已有 Token；缺少 Token 或官方认证返回 401/403 时，才调用官方 `/accounts/signin`
+重新登录，再验证账号身份和邮箱状态，成功后原子保存新 Token。网络故障不触发密码登录；
+密码登录的临时错误退避 5 分钟，密码被拒绝、额外验证或缺少 Token 则等待用户更新凭据文件。
+密码以明文保存在仓库外的受限文件中，服务器权限为 `0600`；请使用专用采集账号。
+
+本机可用隐藏输入工具验证并录入密码，成功才替换原文件并留下备份：
+
+```powershell
+python scripts/mycard-credentials.py --gui --password-file /path/password.json --file /path/account.json --username 采集账号
+```
+
+多个账号可重复传入成对的 `--file`、`--username`；共享模式只输入一次密码。不使用 `--gui` 时在终端隐藏输入。
+不接受命令行密码参数。完成后将验证过的凭据文件同步到采集服务器，无需在聊天中传递密码。
 重连按录像内容去重，重启恢复已落盘文件；私聊失败持久化重试。
 若 QQ 已收到而进程在写入成功回执前退出，重启后可能重复发送，不能保证严格一次投递。
 停用只需将 `MYCARD_CAPTURE_ENABLED=false` 并重启，归档文件保留；默认不自动删除历史文件。

@@ -429,11 +429,13 @@ def test_failed_handshakes_share_cooldown_and_only_one_recovery_probe(tmp_path):
         async def send(*args):
             pass
         runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', {'1'}, send,
-                                 watch_room=watcher, join_interval=0, concurrency=8)
+                                 watch_room=watcher, join_interval=0, concurrency=8,
+                                 credential_files=[tmp_path/f'creds-{i}' for i in range(8)])
         runtime.join_gate = JoinGate(interval=0, cooldown=0.15)
-        async def identity():
-            return '观战', 42
-        runtime.credentials.get = identity
+        for index, account in enumerate(runtime.accounts.accounts):
+            async def identity(index=index):
+                return f'观战{index}', 42
+            account.credentials.get = identity
         try:
             for index in range(8):
                 await runtime.add({'id': f'M#{index}', 'users': [{'username': '甲'}, {'username': '乙'}]})
