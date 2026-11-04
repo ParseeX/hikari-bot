@@ -11,6 +11,7 @@ import uuid
 
 from .accounts import Account
 from .spectator import Credentials, CredentialError
+from .registration import Registrations
 
 
 active_runtime = None
@@ -76,6 +77,7 @@ class AccountAdmin:
         self.lock = asyncio.Lock()
         self.started_at = time.time()
         self.revision = self._revision()
+        self.registrations = Registrations(root)
 
     def _revision(self):
         raw = self.path.read_bytes() if self.path.exists() else _encoded(self.config)
@@ -121,7 +123,27 @@ class AccountAdmin:
                 'shared_password_ready': bool(shared and Path(shared).is_file()),
                 'started_at': self.started_at, 'updated_at': time.time()}
 
-    async def add(self, revision, username):
+    async def register(self, revision, username, email, server, request_id):
+        username = username.strip()
+        if not username or len(username.encode('utf-16-le')) > 38 or any(ord(c) < 32 for c in username):
+            raise ValueError('请输入有效的 MyCard 用户名（最多 19 个 UTF-16 字符）')
+        async with self.lock:
+            self._check_revision(revision)
+            if any(a['username'].casefold() == username.casefold() for a in self.config['accounts']):
+                raise ValueError('该账号已在采集列表中')
+            shared = self.config.get('shared_password_file')
+            if not shared or not Path(shared).is_file():
+                raise ValueError('服务器尚未配置共享密码')
+        token = await self.registrations.create(username, email, shared, server, request_id)
+        try:
+            snapshot = await self.add(self.revision, username, token=token)
+        except (ValueError, OSError, CredentialError):
+            return {**self.snapshot(), 'registration': {'created': True, 'added': False,
+                    'message': '账号已注册，但暂未加入采集列表。请使用“添加已有账号”重试，无需再次注册。'}}
+        return {**snapshot, 'registration': {'created': True, 'added': True,
+                'message': '注册成功，已加入采集列表。验证邮件由官方发送，请检查邮箱。'}}
+
+    async def add(self, revision, username, *, token=None):
         username = username.strip()
         if not username or len(username.encode('utf-16-le')) > 38 or any(ord(c) < 32 for c in username):
             raise ValueError('请输入有效的 MyCard 用户名（最多 19 个 UTF-16 字符）')
@@ -138,7 +160,10 @@ class AccountAdmin:
             path = directory / (identifier + '.json')
             committed = False
             try:
-                _write(path, {'username': username, 'password_file': shared})
+                data = {'username': username, 'password_file': shared}
+                if token is not None:
+                    data['token'] = token
+                _write(path, data)
                 credentials = Credentials(path)
                 identity = await credentials.get()
                 self._check_revision(revision)

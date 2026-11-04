@@ -88,6 +88,12 @@ class AccountRemove(BaseModel):
     id: str = Field(min_length=32, max_length=32)
 
 
+class AccountRegister(AccountEdit):
+    email: str = Field(min_length=3, max_length=254)
+    server: Literal['primary', 'backup']
+    request_id: str = Field(pattern=r'^[a-f0-9]{32}$')
+
+
 class CollectorSettings(BaseModel):
     revision: str = Field(min_length=64, max_length=64)
     concurrency: StrictInt = Field(ge=1, le=9)
@@ -112,6 +118,12 @@ async def collector_status():
 @router.post('/mc/admin/api/collector/accounts', dependencies=[Depends(admin)])
 async def add_collector_account(body: AccountEdit):
     return await change_collector(collector().add(body.revision, body.username))
+
+
+@router.post('/mc/admin/api/collector/register', dependencies=[Depends(admin)])
+async def register_collector_account(body: AccountRegister):
+    return await change_collector(collector().register(body.revision, body.username, body.email,
+                                                       body.server, body.request_id))
 
 
 @router.post('/mc/admin/api/collector/remove', dependencies=[Depends(admin)])

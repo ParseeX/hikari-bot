@@ -22,12 +22,15 @@ def test_collector_requires_login_origin_valid_settings_and_handles_conflict(web
     endpoint = '/mc/admin/api/collector'
     assert client.get(endpoint).status_code == 401
     assert client.post(endpoint + '/accounts', json={}).status_code == 401
+    assert client.post(endpoint + '/register', json={}).status_code == 401
     client.post('/mc/admin/api/login', json={'password': PASSWORD})
     monkeypatch.setattr(module.account_admin, 'active_runtime', None)
     assert client.get(endpoint).status_code == 503
     class Manager:
         def snapshot(self):
             return {'accounts': [], 'revision': 'a' * 64}
+        async def register(self, revision, username, email, server, request_id):
+            return {'registration': {'created': True, 'added': True}}
         async def configure(self, revision, concurrency):
             if revision != 'a' * 64:
                 raise module.account_admin.StaleAccounts('请刷新')
@@ -40,6 +43,10 @@ def test_collector_requires_login_origin_valid_settings_and_handles_conflict(web
         assert client.post(endpoint + '/settings', json={**body, 'concurrency': invalid}).status_code == 422
     assert client.post(endpoint + '/settings', json={**body, 'revision': 'b' * 64}).status_code == 409
     assert client.post(endpoint + '/settings', json=body).json() == {'concurrency': 2}
+    registration = {'revision': 'a' * 64, 'username': 'new', 'email': 'new@example.com', 'server': 'backup', 'request_id': 'b' * 32}
+    assert client.post(endpoint + '/register', json=registration, headers={'Origin': 'https://evil.invalid'}).status_code == 403
+    assert client.post(endpoint + '/register', json={**registration, 'server': 'arbitrary-host'}).status_code == 422
+    assert client.post(endpoint + '/register', json=registration).json()['registration']['created']
 
 
 def test_pie_center_auth_save_conflict_clear_and_rule_removal(web, root):
