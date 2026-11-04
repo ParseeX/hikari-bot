@@ -10,6 +10,34 @@ from test_mycard_accounts import credential
 from test_mycard_scheduling import ignore, until
 
 
+def test_unverified_account_can_be_added_and_leased(tmp_path, monkeypatch):
+    from test_mycard_credentials import responses
+    async def run():
+        shared = tmp_path / 'password.json'
+        shared.write_text('{"password":"test-secret"}')
+        initial = credential(tmp_path / 'one.json', 'one')
+        initial.write_text(json.dumps({'username': 'one', 'token': 'old', 'password_file': 'password.json'}))
+        runtime = ArchiveRuntime(tmp_path / 'archive', initial, set(), ignore)
+        responses(monkeypatch, [('POST', 200, {'token': 'new-token'}),
+                               ('GET', 200, {'username': 'new', 'u16Secret': 42, 'active': False})])
+        try:
+            admin = runtime.account_admin
+            result = await admin.add(admin.revision, 'new')
+            row = result['accounts'][1]
+            assert row['authenticated'] is True and row['email_verified'] is False
+            assert row['state'] == 'idle' and row['error'] == ''
+            # 新账号的缓存身份可被正常租用；旧账号本次不参与测试。
+            runtime.accounts.accounts[0].enabled = False
+            async with runtime.accounts.lease(asyncio.Event()) as (account, identity):
+                assert identity == ('new', 42)
+                assert account.credentials.email_verified is False
+            data = json.loads(runtime.accounts.accounts[1].credentials.path.read_text())
+            assert data['token'] == 'new-token' and 'password' not in data
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
 def test_add_validate_duplicate_shared_password_and_restart(tmp_path, monkeypatch):
     async def run():
         shared = tmp_path / 'password.json'

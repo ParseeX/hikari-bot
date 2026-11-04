@@ -24,6 +24,7 @@ class Credentials:
         self.path = path
         self._lock = asyncio.Lock()
         self._cached = None
+        self.email_verified = None
         self._expires = 0.0
         self._mtime = 0
         self._login_retry_at = 0
@@ -105,6 +106,7 @@ class Credentials:
                     self._login_blocked_mtime = None
                     self._login_source_mtime = revision
                 renewed = None
+                email_verified = None
                 if data.get("token") or data.get('password') or password_path:
                     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
                         info = await self._auth_token(session, data['token']) if data.get('token') else None
@@ -118,8 +120,9 @@ class Credentials:
                             if info is None:
                                 self._login_blocked_mtime = revision
                                 raise CredentialError('MyCard 新登录凭据未通过验证，需要人工处理')
-                    if info.get('active') is False:
-                        raise CredentialError('MyCard 账号邮箱尚未验证')
+                    # 邮箱状态仅供管理页提示，录像权限由目标服务器决定。
+                    if type(info.get('active')) is bool:
+                        email_verified = info['active']
                     username, secret = info.get("username"), info.get("u16Secret")
                     if data.get('username') and username != data['username']:
                         raise CredentialError('MyCard 登录返回的账号与凭据文件不匹配')
@@ -133,6 +136,7 @@ class Credentials:
                     self._login_retry_at = 0
                     self._login_blocked_mtime = None
                 self._cached = (username, secret)
+                self.email_verified = email_verified
                 self._expires = time.monotonic() + 600
                 self._mtime = mtime
                 return self._cached

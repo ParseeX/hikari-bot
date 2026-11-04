@@ -107,6 +107,7 @@ class AccountAdmin:
                      'idle' if account and account.identity else 'checking')
             rows.append({'id': entry['id'], 'username': entry['username'], 'state': state,
                          'authenticated': bool(account and account.identity),
+                         'email_verified': getattr(account.credentials, 'email_verified', None) if account else None,
                          'checked_at': account.checked_wall if account else 0,
                          'error': account.error if account else '',
                          'players': room.players if room else [],

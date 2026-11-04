@@ -76,7 +76,7 @@ def test_auth_server_error_does_not_trigger_password_login(tmp_path, monkeypatch
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize('info', [{**INFO, 'username': 'other'}, {**INFO, 'active': False}, {**INFO, 'u16Secret': None}])
+@pytest.mark.parametrize('info', [{**INFO, 'username': 'other'}, {**INFO, 'u16Secret': None}])
 def test_invalid_new_identity_does_not_overwrite_credentials(tmp_path, monkeypatch, info):
     path = tmp_path / 'credentials.json'
     source = account(path)
@@ -84,6 +84,16 @@ def test_invalid_new_identity_does_not_overwrite_credentials(tmp_path, monkeypat
     responses(monkeypatch, [('GET', 401, {}), ('POST', 200, {'token': 'new-token'}), ('GET', 200, info)])
     with pytest.raises(CredentialError): asyncio.run(source.get())
     assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize('active', [True, False, None])
+def test_email_state_is_informational_and_does_not_block_token_renewal(tmp_path, monkeypatch, active):
+    source = account(tmp_path / 'credentials.json')
+    responses(monkeypatch, [('GET', 401, {}), ('POST', 200, {'token': 'new-token'}),
+                           ('GET', 200, {**INFO, 'active': active})])
+    assert asyncio.run(source.get()) == ('collector', 42)
+    assert source.email_verified is active
+    assert json.loads(source.path.read_text())['token'] == 'new-token'
 
 
 def test_missing_login_token_requires_manual_action(tmp_path, monkeypatch):
