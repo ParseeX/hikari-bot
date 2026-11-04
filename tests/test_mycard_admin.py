@@ -17,6 +17,31 @@ from hikari_bot.services.mycard_archive.rule_admin import RuleAdmin, StaleRules
 PASSWORD = 'test-only-password'
 
 
+def test_collector_requires_login_origin_valid_settings_and_handles_conflict(web, monkeypatch):
+    module, client = web
+    endpoint = '/mc/admin/api/collector'
+    assert client.get(endpoint).status_code == 401
+    assert client.post(endpoint + '/accounts', json={}).status_code == 401
+    client.post('/mc/admin/api/login', json={'password': PASSWORD})
+    monkeypatch.setattr(module.account_admin, 'active_runtime', None)
+    assert client.get(endpoint).status_code == 503
+    class Manager:
+        def snapshot(self):
+            return {'accounts': [], 'revision': 'a' * 64}
+        async def configure(self, revision, concurrency):
+            if revision != 'a' * 64:
+                raise module.account_admin.StaleAccounts('请刷新')
+            return {'concurrency': concurrency}
+    monkeypatch.setattr(module.account_admin, 'active_runtime', SimpleNamespace(account_admin=Manager()))
+    assert client.get(endpoint).json()['accounts'] == []
+    body = {'revision': 'a' * 64, 'concurrency': 2}
+    assert client.post(endpoint + '/settings', json=body, headers={'Origin': 'https://evil.invalid'}).status_code == 403
+    for invalid in (True, 0, 10, '2'):
+        assert client.post(endpoint + '/settings', json={**body, 'concurrency': invalid}).status_code == 422
+    assert client.post(endpoint + '/settings', json={**body, 'revision': 'b' * 64}).status_code == 409
+    assert client.post(endpoint + '/settings', json=body).json() == {'concurrency': 2}
+
+
 def test_pie_center_auth_save_conflict_clear_and_rule_removal(web, root):
     module, client = web
     endpoint = '/mc/admin/api/pie-center'

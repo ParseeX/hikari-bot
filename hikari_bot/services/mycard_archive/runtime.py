@@ -8,6 +8,7 @@ from nonebot import logger
 
 from .admission import JoinGate
 from .accounts import AccountPool
+from . import account_admin
 from .spectator import CredentialError, Credentials, watch
 from .store import ArchiveStore
 from .scheduling import PrioritySlots
@@ -31,10 +32,12 @@ class ArchiveRuntime:
                  credential_files=None):
         self.store = ArchiveStore(root, recipients)
         paths = list(dict.fromkeys(Path(path).resolve() for path in (credential_files or [credentials])))
+        config = account_admin.load_config(root, paths, concurrency)
+        paths = [Path(entry['path']) for entry in config['accounts']]
         sources = [Credentials(path) for path in paths]
-        self.credentials = sources[0]
+        self.credentials = sources[0] if sources else None
         self.accounts = AccountPool(sources)
-        concurrency = min(concurrency, len(sources))
+        concurrency = min(config['concurrency'], len(sources))
         self.send_message = send_message
         self.watch_room = watch_room
         self.rank_filter = rank_filter
@@ -47,10 +50,20 @@ class ArchiveRuntime:
         self.delivery_task = None
         self.last_error = ""
         self.initialized = False
+        self.account_admin = account_admin.AccountAdmin(self, root, config)
 
     def start(self):
+        account_admin.active_runtime = self
         if self.store.recipients:
             self.delivery_task = asyncio.create_task(self.deliver(), name="mycard-archive-delivery")
+
+    async def set_concurrency(self, limit):
+        self.concurrency = min(limit, len(self.accounts.accounts))
+        self.slots.resize(self.concurrency)
+        while len(self.slots.active) > self.concurrency:
+            self.slots.changed.clear()
+            if len(self.slots.active) > self.concurrency:
+                await self.slots.changed.wait()
 
     async def process(self, payload: dict):
         event, data = payload.get("event"), payload.get("data")
@@ -150,12 +163,14 @@ class ArchiveRuntime:
     def slot(self, ended, state=None):
         return self.slots.slot(ended, state)
 
-    async def watch_with_account(self, room_id, state, identity, account_number):
+    async def watch_with_account(self, room_id, state, identity, account):
         async def save(data):
             # 抢占或关机必须等本次落盘完成，不能在后台仍写文件时释放账号。
             writing = asyncio.create_task(asyncio.to_thread(self.store.save_replay, state.match_id, data))
             try:
                 await asyncio.shield(writing)
+                account.last_replay_at = time.time()
+                account.replay_count += 1
             except asyncio.CancelledError:
                 await writing
                 raise
@@ -169,7 +184,7 @@ class ArchiveRuntime:
             def connected():
                 state.connected = True
                 admitted()
-                logger.info('[mycard_archive] 账号 {} 已进入观战：{}', account_number, state.match_id)
+                logger.info('[mycard_archive] 账号 {} 已进入观战：{}', identity[0], state.match_id)
 
             return await self.watch_room(room_id, identity, state.ended, save, connected=connected)
 
@@ -181,13 +196,17 @@ class ArchiveRuntime:
                     if leased is None:
                         break
                     account, identity = leased
+                    account.room = state
                     if await self.skip_own_match(state, identity):
                         return None
                     try:
                         complete = await self.watch_with_account(
-                            room_id, state, identity, self.accounts.accounts.index(account) + 1)
+                            room_id, state, identity, account)
                     except CredentialError:
                         self.accounts.invalidate(account)
+                        raise
+                    except Exception as exc:
+                        account.error = f'观战连接异常：{type(exc).__name__}'
                         raise
                 if complete or state.ended.is_set():
                     return complete
@@ -298,6 +317,8 @@ class ArchiveRuntime:
                 f"最近异常：{self.last_error or '无'}")
 
     async def close(self):
+        if account_admin.active_runtime is self:
+            account_admin.active_runtime = None
         tasks = [s.task for s in self.rooms.values() if s.task]
         if self.delivery_task:
             tasks.append(self.delivery_task)

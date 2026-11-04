@@ -18,6 +18,8 @@ from hikari_bot.services.mycard_archive.art import card_art
 from hikari_bot.services.mycard_archive.manual_decks import ManualDecks, StaleManualDecks
 from hikari_bot.services.mycard_archive.presentation import deck_url
 from hikari_bot.services.mycard_archive.replay import Deck
+from hikari_bot.services.mycard_archive import account_admin
+from hikari_bot.services.mycard_archive.spectator import CredentialError
 
 
 router = APIRouter()
@@ -67,6 +69,59 @@ async def refresh_series(request: Request):
 
 def manual_decks():
     return ManualDecks(settings.mycard_archive_dir / 'manual-decks.json')
+
+
+def collector():
+    runtime = account_admin.active_runtime
+    if runtime is None:
+        raise HTTPException(503, '采集器未运行，请检查服务状态')
+    return runtime.account_admin
+
+
+class AccountEdit(BaseModel):
+    revision: str = Field(min_length=64, max_length=64)
+    username: str = Field(min_length=1, max_length=100)
+
+
+class AccountRemove(BaseModel):
+    revision: str = Field(min_length=64, max_length=64)
+    id: str = Field(min_length=32, max_length=32)
+
+
+class CollectorSettings(BaseModel):
+    revision: str = Field(min_length=64, max_length=64)
+    concurrency: StrictInt = Field(ge=1, le=9)
+
+
+async def change_collector(operation):
+    try:
+        return await account_admin.finish_change(operation)
+    except account_admin.StaleAccounts as exc:
+        raise HTTPException(409, str(exc)) from None
+    except (ValueError, CredentialError) as exc:
+        raise HTTPException(400, str(exc)) from None
+    except OSError:
+        raise HTTPException(503, '账号配置保存失败，请稍后重试') from None
+
+
+@router.get('/mc/admin/api/collector', dependencies=[Depends(admin)])
+async def collector_status():
+    return collector().snapshot()
+
+
+@router.post('/mc/admin/api/collector/accounts', dependencies=[Depends(admin)])
+async def add_collector_account(body: AccountEdit):
+    return await change_collector(collector().add(body.revision, body.username))
+
+
+@router.post('/mc/admin/api/collector/remove', dependencies=[Depends(admin)])
+async def remove_collector_account(body: AccountRemove):
+    return await change_collector(collector().remove(body.revision, body.id))
+
+
+@router.post('/mc/admin/api/collector/settings', dependencies=[Depends(admin)])
+async def collector_settings(body: CollectorSettings):
+    return await change_collector(collector().configure(body.revision, body.concurrency))
 
 
 @router.get('/mc/admin/api/manual-decks', dependencies=[Depends(admin)])

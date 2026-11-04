@@ -19,9 +19,28 @@ class NotifyingSemaphore(asyncio.Semaphore):
     def __init__(self, value, changed):
         super().__init__(value)
         self.changed = changed
+        self.limit = value
+        self.debt = 0
+
+    def resize(self, value):
+        delta = value - self.limit
+        self.limit = value
+        if delta < 0:
+            withdrawn = min(self._value, -delta)
+            self._value -= withdrawn
+            self.debt += -delta - withdrawn
+        else:
+            repaid = min(self.debt, delta)
+            self.debt -= repaid
+            for _ in range(delta - repaid):
+                super().release()
+        self.changed.set()
 
     def release(self):
-        super().release()
+        if self.debt:
+            self.debt -= 1
+        else:
+            super().release()
         self.changed.set()
 
 
@@ -36,6 +55,14 @@ class PrioritySlots:
         self.active = []
         self.sequence = 0
         self.dispatcher = None
+
+    def resize(self, concurrency):
+        self.semaphore.resize(concurrency)
+        # 缩容先关闭多余连接，释放前不允许其他房间占用这些名额。
+        for room in self.active[concurrency:]:
+            if self.preempt and not room.preempting:
+                room.preempting = True
+                self.preempt(room.state)
 
     async def dispatch(self):
         while self.waiting:

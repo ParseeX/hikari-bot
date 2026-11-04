@@ -16,13 +16,18 @@ class Account:
     retry_at: float = 0
     busy: bool = False
     failed: bool = False
+    enabled: bool = True
+    error: str = ''
+    checked_wall: float = 0
+    room: object = field(default=None, repr=False)
+    released: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    last_replay_at: float = 0
+    replay_count: int = 0
 
 
 class AccountPool:
     def __init__(self, credentials, *, retry_seconds=30, refresh_seconds=1):
         self.accounts = [Account(source) for source in credentials]
-        if not self.accounts:
-            raise ValueError('至少需要一个观战凭据')
         self.retry_seconds = retry_seconds
         self.refresh_seconds = refresh_seconds
         self.changed = asyncio.Event()
@@ -33,18 +38,21 @@ class AccountPool:
         try:
             account.identity = await account.credentials.get()
             account.failed = False
-        except CredentialError:
+            account.error = ''
+        except CredentialError as exc:
             account.identity = None
             account.failed = True
+            account.error = str(exc)
             account.retry_at = time.monotonic() + self.retry_seconds
         finally:
             account.checked_at = time.monotonic()
+            account.checked_wall = time.time()
             self.changed.set()
 
     def _start_checks(self):
         now = time.monotonic()
         for account in self.accounts:
-            if account.busy or now < account.retry_at:
+            if not account.enabled or account.busy or now < account.retry_at:
                 continue
             if account.checking is None or (account.checking.done()
                     and now - account.checked_at >= self.refresh_seconds):
@@ -77,6 +85,7 @@ class AccountPool:
         account.credentials.invalidate()
         account.identity = None
         account.failed = True
+        account.error = '认证或观战被拒绝，等待重新验证'
         account.retry_at = time.monotonic() + self.retry_seconds
         self.changed.set()
 
@@ -91,7 +100,7 @@ class AccountPool:
                 for offset in range(len(self.accounts)):
                     index = (self.cursor + offset) % len(self.accounts)
                     account = self.accounts[index]
-                    if (account.busy or account.checking is None or not account.checking.done()
+                    if (not account.enabled or account.busy or account.checking is None or not account.checking.done()
                             or account.identity is None or time.monotonic() < account.retry_at):
                         continue
                     identity = account.identity
@@ -99,6 +108,7 @@ class AccountPool:
                         continue
                     # 从选择到登记之间不 await，同一用户名的多个文件也不会重复出租。
                     account.busy = True
+                    account.released.clear()
                     self.active_users.add(identity[0])
                     selected, username = account, identity[0]
                     self.cursor = (index + 1) % len(self.accounts)
@@ -110,7 +120,9 @@ class AccountPool:
             if selected is not None:
                 self.active_users.remove(username)
                 selected.busy = False
+                selected.room = None
                 selected.checking = None
+                selected.released.set()
                 self.changed.set()
 
     async def close(self):
