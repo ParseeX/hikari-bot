@@ -90,7 +90,7 @@ def card_bytes(size=(200, 290)):
 def test_temporary_id_resolves_exact_card_and_caches_real_backup(monkeypatch, tmp_path):
     card = card_bytes()
     session = _FakeSession([
-        _FakeResponse(404), _FakeResponse(404),
+        _FakeResponse(404), _FakeResponse(404), _FakeResponse(404),
         _FakeResponse(200, json.dumps({'data': [{'id': 50849686, 'name': 'Flashforce Sword'}]}).encode()),
         _FakeResponse(200, card),
     ])
@@ -102,7 +102,7 @@ def test_temporary_id_resolves_exact_card_and_caches_real_backup(monkeypatch, tm
     assert not (tmp_path/'100268021.jpg').exists()
     assert (tmp_path/'fallback'/'100268021.jpg').read_bytes() == card
     assert asyncio.run(ygocard.get_ygopic(100268021)) == card
-    assert len(session.urls) == 4
+    assert len(session.urls) == 5
 
 
 def test_blank_cache_and_primary_are_replaced_by_real_backup(monkeypatch, tmp_path):
@@ -121,7 +121,7 @@ def test_failed_sources_never_cache_placeholder_and_next_call_recovers(monkeypat
     placeholder = BytesIO()
     Image.frombytes('RGB', (8, 8), _UNKNOWN).save(placeholder, format='PNG')
     unknown = placeholder.getvalue()
-    session = _FakeSession([_FakeResponse(200, unknown), _FakeResponse(200, unknown)])
+    session = _FakeSession([_FakeResponse(200, unknown)] * 3)
     monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
     monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path))
     async def missing():
@@ -251,7 +251,7 @@ def test_full_card_timeout_uses_backup_instead_of_placeholder(monkeypatch, tmp_p
 
 
 def test_invalid_primary_artwork_uses_backup(monkeypatch):
-    session = _FakeSession([_FakeResponse(200, b'<html>error</html>'), _FakeResponse(200, image_bytes((400, 580)))])
+    session = _FakeSession([_FakeResponse(200, b'<html>error</html>'), _FakeResponse(200, card_bytes((400, 580)))])
     monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', lambda: session)
     data = asyncio.run(ygocard.get_image_by_id(23219323))
     with Image.open(BytesIO(data)) as image:

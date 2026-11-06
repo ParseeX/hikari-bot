@@ -13,13 +13,11 @@ from hikari_bot.core.config import PROJECT_ROOT, settings
 from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.services.card_catalog import CardCatalog
 from hikari_bot.services.card_image_cache import read_card_image, valid_card_image, write_card_image
+from hikari_bot.services.card_image_sources import (
+    IMAGE_ORIGIN, IMAGE_FULL, IMAGE_CHINESE, IMAGE_TIMEOUT,
+    ImageSource, download_image, image_sources,
+)
 from hikari_bot.core.logger import log_message
-
-IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
-IMAGE_FULL = "https://images.ygoprodeck.com/images/cards/"
-IMAGE_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=3, sock_read=6)
-
-IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
 
 _CHINESE_CARD_ART_CROP = (0.1325, 0.1897, 0.87, 0.6983)
 CARD_ART_SIZE = (624, 624)
@@ -120,31 +118,31 @@ async def get_ygopic(id: int, half: bool = True, *, refresh=False):
         return fallback
 
     async with aiohttp.ClientSession() as session:
-        async def download(url, path):
-            try:
-                async with session.get(url, timeout=IMAGE_TIMEOUT) as resp:
-                    if resp.status != 200:
-                        await log_message(f'[get_ygopic] 下载失败 id={id} status={resp.status}')
-                        return None
-                    data = await asyncio.to_thread(valid_card_image, await resp.read())
-                await asyncio.to_thread(write_card_image, path, data)
-                return data
-            except (aiohttp.ClientError, TimeoutError, OSError, ValueError) as error:
-                await log_message(f'[get_ygopic] 下载失败 id={id} error={type(error).__name__}')
+        async def download(source, path):
+            data = await download_image(session, source, log_message=log_message)
+            if data is None:
                 return None
+            try:
+                await asyncio.to_thread(write_card_image, path, data)
+            except OSError as error:
+                # 缓存写入失败不应丢弃已经取得的有效图片。
+                await log_message(f'[get_ygopic] 缓存写入失败 id={id} error={type(error).__name__}')
+            return data
 
-        data = await download(f"{IMAGE_CHINESE}{id}.jpg{'!half' if half else ''}", local_path)
+        primary, *backups = image_sources(id, half=half)
+        data = await download(primary, local_path)
         if data:
             return data
         # 后台重试中文源时仍可继续使用真实备用图，无需重复下载。
         if fallback:
             return fallback
-        data = await download(f'{IMAGE_FULL}{id}.jpg', fallback_path)
-        if data:
-            return data
+        for source in backups:
+            data = await download(source, fallback_path)
+            if data:
+                return data
         resolved = await _resolved_image_id(session, id)
         if resolved is not None:
-            data = await download(f'{IMAGE_FULL}{resolved}.jpg', fallback_path)
+            data = await download(ImageSource('IMAGE_FULL', f'{IMAGE_FULL}{resolved}.jpg'), fallback_path)
             if data:
                 return data
     return await get_unknown_card()
@@ -169,31 +167,14 @@ def _crop_chinese_card_art(image_data: bytes) -> bytes:
 
 
 async def get_image_by_id(id: int):
-    """根据卡片 ID 下载卡图，主源不可用时回退到中文源。"""
-    image_urls = (
-        ("IMAGE_ORIGIN", IMAGE_ORIGIN + str(id) + ".jpg"),
-        ("IMAGE_CHINESE", IMAGE_CHINESE + str(id) + ".jpg"),
-    )
+    """优先使用原插画源，完整备用卡面沿用相同裁切规则。"""
     async with aiohttp.ClientSession() as session:
-        for source_name, image_url in image_urls:
-            try:
-                async with session.get(image_url, timeout=IMAGE_TIMEOUT) as response:
-                    if response.status == 200:
-                        image_data = await asyncio.to_thread(_valid_image, await response.read())
-                        if source_name == "IMAGE_CHINESE":
-                            return _crop_chinese_card_art(image_data)
-                        return image_data
-
-                    await log_message(
-                        f"[get_image_by_id] Failed to download image from "
-                        f"{source_name}: {response.status}"
-                    )
-            except Exception as e:
-                await log_message(
-                    f"[get_image_by_id] Exception occurred while downloading "
-                    f"image from {source_name}: {e}"
-                )
-
+        for source in image_sources(id, artwork=True):
+            data = await download_image(session, source, log_message=log_message)
+            if data is not None:
+                if source.full_card:
+                    return await asyncio.to_thread(_crop_chinese_card_art, data)
+                return data
     return None
 
 

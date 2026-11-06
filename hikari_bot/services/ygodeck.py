@@ -139,6 +139,9 @@ def parse_ydk(deck_text):
 
 
 
+CARD_IMAGE_LOAD_TIMEOUT = 35
+
+
 async def batch_get_images(card_ids, *, size=(100, 145), preserve_positions=False):
     # 原始卡图由 get_ygopic 持久缓存；本次生成中重复卡片共享只读缩略图。
     card_ids = list(card_ids)
@@ -153,7 +156,7 @@ async def batch_get_images(card_ids, *, size=(100, 145), preserve_positions=Fals
     async def worker():
         for card_id in pending:
             try:
-                img_data = await get_ygopic(card_id)
+                img_data = await asyncio.wait_for(get_ygopic(card_id), timeout=CARD_IMAGE_LOAD_TIMEOUT)
                 images[card_id] = await asyncio.to_thread(resize, img_data) if img_data else None
             except Exception as e:
                 await log_message(f"[ygodeck] Exception occurred while downloading card image {card_id}: {e}")
