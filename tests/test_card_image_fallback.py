@@ -112,7 +112,7 @@ def test_cdn_transient_failure_retries_once(monkeypatch, first):
     def get(url, **kwargs):
         if url.startswith(CDN):
             session.backup = next(attempts)
-        assert kwargs['timeout'].total == 6
+        assert kwargs['timeout'].total == 4
         return original_get(url, **kwargs)
 
     monkeypatch.setattr(session, 'get', get)

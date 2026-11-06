@@ -81,38 +81,64 @@ def _valid_image(data: bytes) -> bytes:
     return data
 
 
-async def _resolved_image_id(session, code):
-    """先行卡的临时编号与备用源不同；只接受主库英文名的精确匹配。"""
-    if int(code) < 100000000:
-        return None
+async def _resolved_image_id(session, code, *, info=None):
+    """按主库英文名精确确认外部编号；双方都可能仍使用不同的临时编号。"""
     try:
-        info = await asyncio.to_thread(catalog.by_id, code)
-        name = (info or {}).get('en_name') or (info or {}).get('wiki_en')
+        if info is None:
+            info = await asyncio.to_thread(catalog.by_id, code)
+        name = (info or {}).get('en_name') or (info or {}).get('wiki_en') or (info or {}).get('md_en_n')
         if not name:
             return None
         url = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + quote(name, safe='')
-        async with session.get(url, timeout=IMAGE_TIMEOUT) as response:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=3, connect=2)) as response:
             if response.status != 200:
                 return None
             payload = json.loads(await response.read())
         cards = payload.get('data', [])
         if len(cards) == 1 and cards[0].get('name') == name:
             resolved = cards[0].get('id')
-            if type(resolved) is int and 0 < resolved < 100000000:
+            if type(resolved) is int and 0 < resolved <= 2147483647:
                 return resolved
     except (aiohttp.ClientError, TimeoutError, OSError, ValueError, TypeError, AttributeError, sqlite3.Error):
         pass
     return None
 
 
+async def _image_identity(code):
+    """只为主库有临时编号的原画启用身份映射，已登记异画继续使用自身编号。"""
+    try:
+        info = await asyncio.to_thread(catalog.by_id, code)
+        temporary = int((info or {}).get('temporary_id') or 0)
+        canonical = int((info or {}).get('id') or 0)
+        if 0 < temporary <= 2147483647 and int(code) in (canonical, temporary):
+            return info
+    except (OSError, ValueError, TypeError, sqlite3.Error):
+        pass
+    return None
+
+
+async def _identified_source(session, source, code, identity):
+    """编号曾发生变更时，先核对 YGOPRODeck 身份，再接受其 HTTP 200 图片。"""
+    if identity and source.name in ('IMAGE_ORIGIN', 'IMAGE_FULL'):
+        resolved = await _resolved_image_id(session, code, info=identity)
+        if resolved is None:
+            # 核对失败不能退回未经确认、可能属于另一张卡的图片编号。
+            return None
+        base = IMAGE_FULL if source.full_card else IMAGE_ORIGIN
+        return ImageSource(source.name, f'{base}{resolved}.jpg', full_card=source.full_card)
+    return source
+
+
 async def get_ygopic(id: int, half: bool = True, *, refresh=False):
     """中文源优先，真实备用卡图单独缓存；占位图和空白图片不入缓存。"""
     directory = CARD_PICS if half else os.path.join(CARD_PICS, 'full')
     local_path = os.path.join(directory, f'{id}.jpg')
-    fallback_path = os.path.join(directory, 'fallback', f'{id}.jpg')
     cached = await asyncio.to_thread(read_card_image, local_path)
     if cached:
         return cached
+    identity = await _image_identity(id)
+    # 旧备用缓存只检查过图片格式，不能证明迁移过编号的卡片身份。
+    fallback_path = os.path.join(directory, 'fallback-identified' if identity else 'fallback', f'{id}.jpg')
     fallback = await asyncio.to_thread(read_card_image, fallback_path)
     if fallback and not refresh:
         return fallback
@@ -129,7 +155,7 @@ async def get_ygopic(id: int, half: bool = True, *, refresh=False):
                 await log_message(f'[get_ygopic] 缓存写入失败 id={id} error={type(error).__name__}')
             return data
 
-        primary, *backups = image_sources(id, half=half)
+        primary, *backups = image_sources(id, half=half, pre_release_code=(identity or {}).get('temporary_id'))
         data = await download(primary, local_path)
         if data:
             return data
@@ -137,10 +163,13 @@ async def get_ygopic(id: int, half: bool = True, *, refresh=False):
         if fallback:
             return fallback
         for source in backups:
+            source = await _identified_source(session, source, id, identity)
+            if source is None:
+                continue
             data = await download(source, fallback_path)
             if data:
                 return data
-        resolved = await _resolved_image_id(session, id)
+        resolved = await _resolved_image_id(session, id) if identity is None else None
         if resolved is not None:
             data = await download(ImageSource('IMAGE_FULL', f'{IMAGE_FULL}{resolved}.jpg'), fallback_path)
             if data:
@@ -168,8 +197,12 @@ def _crop_chinese_card_art(image_data: bytes) -> bytes:
 
 async def get_image_by_id(id: int):
     """优先使用原插画源，完整备用卡面沿用相同裁切规则。"""
+    identity = await _image_identity(id)
     async with aiohttp.ClientSession() as session:
-        for source in image_sources(id, artwork=True):
+        for source in image_sources(id, artwork=True, pre_release_code=(identity or {}).get('temporary_id')):
+            source = await _identified_source(session, source, id, identity)
+            if source is None:
+                continue
             data = await download_image(session, source, log_message=log_message)
             if data is not None:
                 if source.full_card:

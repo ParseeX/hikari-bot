@@ -11,8 +11,8 @@ IMAGE_ORIGIN = 'https://images.ygoprodeck.com/images/cards_cropped/'
 IMAGE_FULL = 'https://images.ygoprodeck.com/images/cards/'
 IMAGE_CHINESE = 'https://cdn.233.momobako.com/ygopro/pics/'
 IMAGE_PRE_RELEASE = 'https://cdncf.moecube.com/ygopro-super-pre/data/pics/'
-# 三个源加 CDN 的一次重试最多等待 24 秒，为卡图查询的 25 秒上限留余量。
-IMAGE_TIMEOUT = aiohttp.ClientTimeout(total=6, connect=2, sock_read=4, ceil_threshold=10)
+# 四个候选地址、CDN 一次重试及身份查询至多 23 秒，为 25 秒总上限留余量。
+IMAGE_TIMEOUT = aiohttp.ClientTimeout(total=4, connect=2, sock_read=3)
 
 
 @dataclass(frozen=True)
@@ -23,13 +23,16 @@ class ImageSource:
     retries: int = 0
 
 
-def image_sources(code, *, artwork=False, half=False):
-    """保留各入口的原有源顺序，先行卡 CDN 使用原卡密、无缩略图后缀。"""
+def image_sources(code, *, artwork=False, half=False, pre_release_code=None):
+    """保留原有源顺序；先行源使用主库登记的旧编号，无缩略图后缀。"""
     chinese = ImageSource('IMAGE_CHINESE', f'{IMAGE_CHINESE}{code}.jpg' + ('!half' if half and not artwork else ''))
-    backup = ImageSource('IMAGE_PRE_RELEASE', f'{IMAGE_PRE_RELEASE}{code}.jpg', retries=1)
+    backups = []
+    if pre_release_code and int(pre_release_code) != int(code):
+        backups.append(ImageSource('IMAGE_PRE_RELEASE', f'{IMAGE_PRE_RELEASE}{int(pre_release_code)}.jpg'))
+    backups.append(ImageSource('IMAGE_PRE_RELEASE', f'{IMAGE_PRE_RELEASE}{code}.jpg', retries=1))
     if artwork:
-        return (ImageSource('IMAGE_ORIGIN', f'{IMAGE_ORIGIN}{code}.jpg', full_card=False), chinese, backup)
-    return (chinese, ImageSource('IMAGE_FULL', f'{IMAGE_FULL}{code}.jpg'), backup)
+        return (ImageSource('IMAGE_ORIGIN', f'{IMAGE_ORIGIN}{code}.jpg', full_card=False), chinese, *backups)
+    return (chinese, ImageSource('IMAGE_FULL', f'{IMAGE_FULL}{code}.jpg'), *backups)
 
 
 async def download_image(session, source, *, log_message):
