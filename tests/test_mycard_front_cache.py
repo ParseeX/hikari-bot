@@ -346,7 +346,7 @@ def test_unknown_nonquarter_reset_does_not_invent_1000(previous):
 def test_previous_month_score_reads_snapshot_not_crossing_match_or_correction(monkeypatch):
     from hikari_bot.services import mycard
     calls=[]
-    async def get(path,params):
+    async def get(path,params,**kwargs):
         calls.append((path,params))
         return {'username':'ozxdno','season':'2026-08','pt':1427.63981934622,'correction':-213.819909673108}
     monkeypatch.setattr(mycard,'_api_get',get)
@@ -356,11 +356,11 @@ def test_previous_month_score_reads_snapshot_not_crossing_match_or_correction(mo
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize('response', [None,'',{}, {'username':'wrong','season':'2026-10','pt':1400},
+@pytest.mark.parametrize('response', [None,'', {'username':'wrong','season':'2026-10','pt':1400},
     {'username':'0','season':'2026-09','pt':1400},{'username':'0','season':'2026-10','pt':None}])
 def test_invalid_previous_snapshot_is_retryable(monkeypatch,response):
     from hikari_bot.services import mycard
-    async def get(path,params): return response
+    async def get(path,params,**kwargs): return response
     monkeypatch.setattr(mycard,'_api_get',get)
     with pytest.raises(ValueError): asyncio.run(mycard.fetch_previous_month_score('0',2026,11))
 
@@ -391,3 +391,42 @@ def test_nonquarter_snapshot_failure_keeps_old_trend_and_retries(tmp_path):
         assert cache.snapshot()['stats']['0']['trend'][0]['score']==1300
         assert calls['0']==2 and sum(calls.values())==101
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('response', [
+    {},
+    {'username':'Kochiyaol','season':'2026-10','rank':0,'pt':0},
+    {'username':'Kochiyaol','season':'2026-10','rank':0,'pt':None},
+])
+def test_missing_previous_month_snapshot_starts_at_1000(monkeypatch,response):
+    from hikari_bot.services import mycard
+    async def get(path,params,**kwargs):
+        assert kwargs == {'missing_as_empty':True}
+        return response
+    monkeypatch.setattr(mycard,'_api_get',get)
+    previous = asyncio.run(mycard.fetch_previous_month_score('Kochiyaol',2026,11))
+    assert previous == 1000
+    assert month_start_point(2026,11,previous)['score'] == 1000
+
+
+@pytest.mark.parametrize('status,payload,expected', [
+    (200,None,{}),
+    (404,None,{}),
+    (500,None,None),
+    (200,{'rank':1,'pt':1500}, {'rank':1,'pt':1500}),
+])
+def test_snapshot_api_only_treats_explicit_absence_as_empty(monkeypatch,status,payload,expected):
+    from hikari_bot.services import mycard
+    class Response:
+        async def __aenter__(self): return self
+        async def __aexit__(self,*args): return None
+        async def json(self): return payload
+    class Session:
+        async def __aenter__(self): return self
+        async def __aexit__(self,*args): return None
+        def get(self,*args,**kwargs):
+            response=Response()
+            response.status=status
+            return response
+    monkeypatch.setattr(mycard.aiohttp,'ClientSession',lambda:Session())
+    assert asyncio.run(mycard._api_get('arena/historyScore',{},missing_as_empty=True)) == expected
