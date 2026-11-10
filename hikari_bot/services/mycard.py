@@ -22,14 +22,21 @@ from hikari_bot.services.mycard_history import record_month
 
 _BASE = "https://sapi.moecube.com:444/ygopro/"
 
-async def _api_get(path: str, params: dict) -> dict | None:
-    """向 MC API 发起 GET 请求，返回响应 JSON；失败返回 None。"""
+async def _api_get(path: str, params: dict, *, missing_as_empty: bool = False) -> dict | None:
+    """向 MC API 发起 GET 请求，返回响应 JSON；失败返回 None。
+
+    仅在查询历史快照时，将明确的 404 / 200 JSON null 视为无记录。
+    其他 HTTP 错误及网络异常仍返回 None，不能误判成新玩家。
+    """
     url = _BASE + path
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, params=params) as resp:
                 if resp.status == 200:
-                    return await resp.json()
+                    data = await resp.json()
+                    return {} if missing_as_empty and data is None else data
+                if resp.status == 404 and missing_as_empty:
+                    return {}
                 logger.error(f"[mycard] API {path} returned {resp.status}")
                 return None
         except Exception:
@@ -115,10 +122,18 @@ async def fetch_previous_month_score(username: str, year: int, month: int):
     if month in (1, 4, 7, 10):
         return None
     season = f'{year:04d}-{month - 1:02d}'
-    data = await _api_get('arena/historyScore', {'username': username, 'season': season})
+    data = await _api_get(
+        'arena/historyScore', {'username': username, 'season': season},
+        missing_as_empty=True,
+    )
+    # 没有上月结算快照的玩家从 1000 PT 起算；传 0 会让非季度月从 0 开始。
+    if data == {}:
+        return 1000
     if not isinstance(data, dict) or data.get('username') != username or data.get('season') != season:
         raise ValueError('官方上月分数响应缺失或不匹配')
     score = data.get('pt')
+    if data.get('rank') == 0 and (score is None or score == 0):
+        return 1000
     if type(score) not in (int, float) or not math.isfinite(score):
         raise ValueError('官方上月分数无效')
     return score
