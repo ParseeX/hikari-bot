@@ -1,12 +1,12 @@
-name: Temporary server working-tree comparison
+name: Temporary safe server sync
 on:
   push:
     branches: [main]
 jobs:
-  inspect:
+  verify-and-sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Compare server worktree blobs to GitHub main (no file contents)
+      - name: Verify every local file has no unpublished functional changes, back up, and deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -15,78 +15,54 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: false
           script: |
+            set -eu
             cd "$HOME/hikari-bot"
             git fetch origin main >/dev/null 2>&1
             python3 - <<'PY'
+            import pathlib
             import subprocess
+            import sys
+            def run(*args):
+                return subprocess.run(['git', *args], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             def git(*args):
-                result = subprocess.run(['git', *args], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-                return result.stdout.decode('utf-8', errors='replace').strip()
-            print('SERVER_HEAD=' + git('rev-parse','--short','HEAD'))
-            print('REMOTE_HEAD=' + git('rev-parse','--short','origin/main'))
+                return run(*args).stdout.decode('utf-8',errors='replace').strip()
+            def normalize(data):
+                return data.replace(b'\r\n',b'\n').replace(b'\r',b'\n').rstrip(b'\n')
             paths = set(git('diff','--name-only','HEAD').splitlines())
             paths.update(git('ls-files','--others','--exclude-standard').splitlines())
-            matched = different = 0
+            unsafe = []
             for path in sorted(paths):
                 if not path:
                     continue
-                remote = git('rev-parse','-q','--verify','origin/main:' + path)
-                local = git('hash-object','--',path)
-                if remote and remote == local:
-                    matched += 1
-                    print('MATCH ' + path, flush=True)
+                remote_result = run('show', 'origin/main:' + path)
+                local_path = pathlib.Path(path)
+                if remote_result.returncode or not local_path.is_file():
+                    unsafe.append(path)
+                    print('UNSAFE missing from upstream or local: ' + path, flush=True)
+                    continue
+                remote = remote_result.stdout
+                local = local_path.read_bytes()
+                if local == remote:
+                    kind = 'EXACT'
+                elif normalize(local) == normalize(remote):
+                    kind = 'NEWLINES_ONLY'
                 else:
-                    different += 1
-                    previous = None
-                    for commit in git('log','--format=%H','origin/main','--',path).splitlines():
-                        if git('rev-parse','-q','--verify',commit + ':' + path) == local:
-                            previous = commit[:10]
-                            break
-                    if previous:
-                        print('HISTORICAL_MATCH ' + previous + ' ' + path, flush=True)
+                    local_hash = git('hash-object','--',path)
+                    history = git('log','--format=%H','origin/main','--',path).splitlines()
+                    match = next((commit for commit in history if git('rev-parse','-q','--verify',commit + ':' + path) == local_hash),None)
+                    if match:
+                        kind = 'PREVIOUSLY_COMMITTED:' + match[:10]
                     else:
-                        print('UNIQUE_WORKTREE ' + path, flush=True)
-            print(f'SUMMARY matched={matched} different={different}', flush=True)
-            import ast, pathlib, difflib
-            def signatures(code):
-                try:
-                    tree = ast.parse(code)
-                except SyntaxError:
-                    return None
-                items = {}
-                def visit(nodes, prefix=''):
-                    for node in nodes:
-                        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                            name = prefix + node.name
-                            items[name] = ast.dump(node, include_attributes=False)
-                            if isinstance(node, ast.ClassDef):
-                                visit(node.body, name + '.')
-                visit(tree.body)
-                return items
-            for path in sorted(paths):
-                if not path or not path.endswith('.py'):
-                    continue
-                remote_hash = git('rev-parse','-q','--verify','origin/main:' + path)
-                local_hash = git('hash-object','--',path)
-                if remote_hash and local_hash == remote_hash:
-                    continue
-                original = subprocess.run(['git','show','origin/main:' + path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode('utf-8',errors='replace')
-                try:
-                    current = pathlib.Path(path).read_text('utf-8')
-                except Exception:
-                    continue
-                a = signatures(current)
-                b = signatures(original)
-                if a is None or b is None:
-                    print('AST_PARSE_FAILED ' + path, flush=True)
-                    continue
-                added = sorted(set(a) - set(b))
-                removed = sorted(set(b) - set(a))
-                altered = sorted(k for k in (set(a) & set(b)) if a[k] != b[k])
-                delta = difflib.SequenceMatcher(None, original.splitlines(), current.splitlines(), autojunk=False)
-                changes = [(tag, i2-i1, j2-j1) for tag,i1,i2,j1,j2 in delta.get_opcodes() if tag!='equal']
-                print('FUNCTION_CHANGES ' + path, flush=True)
-                print('  only_local=' + ','.join(added[:30]) + ' only_remote=' + ','.join(removed[:30]), flush=True)
-                print('  modified=' + ','.join(altered[:35]), flush=True)
-                print('  line_ops=' + str(changes[:20]), flush=True)
+                        kind = 'UNPUBLISHED_CHANGE'
+                        unsafe.append(path)
+                print(kind + ' ' + path, flush=True)
+            if unsafe:
+                print('ABORT: unpublished or unverified differences: ' + ', '.join(unsafe), flush=True)
+                sys.exit(10)
+            print('VERIFIED_SAFE: ' + str(len(paths)) + ' paths. Existing files are published or only have newline differences.', flush=True)
             PY
+            git stash push -u -m "safety backup before sync of already-published worktree"
+            git merge --ff-only origin/main
+            bash "$HOME/hikari-bot/update.sh"
+            echo "SYNCED_HEAD=$(git rev-parse --short HEAD)"
+            git stash list -1
