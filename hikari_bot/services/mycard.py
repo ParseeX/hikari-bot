@@ -25,7 +25,7 @@ _BASE = "https://sapi.moecube.com:444/ygopro/"
 async def _api_get(path: str, params: dict, *, missing_as_empty: bool = False) -> dict | None:
     """向 MC API 发起 GET 请求，返回响应 JSON；失败返回 None。
 
-    仅在查询历史快照时，将明确的 404 / 200 JSON null 视为无记录。
+    仅在查询历史快照时，将明确的 404 / 200 空响应 / JSON null 视为无记录。
     其他 HTTP 错误及网络异常仍返回 None，不能误判成新玩家。
     """
     url = _BASE + path
@@ -33,6 +33,10 @@ async def _api_get(path: str, params: dict, *, missing_as_empty: bool = False) -
         try:
             async with session.get(url, params=params) as resp:
                 if resp.status == 200:
+                    if missing_as_empty and not (await resp.read()).strip():
+                        # 官方无历史快照时可能返回 200 + 空响应体，且没有 Content-Type。
+                        # aiohttp.json() 会先校验 MIME 类型，因此必须先判断空响应。
+                        return {}
                     data = await resp.json()
                     return {} if missing_as_empty and data is None else data
                 if resp.status == 404 and missing_as_empty:
