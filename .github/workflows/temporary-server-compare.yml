@@ -15,21 +15,28 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
           script: |
-            set -eu
             cd "$HOME/hikari-bot"
             git fetch origin main >/dev/null 2>&1
-            echo "SERVER_HEAD=$(git rev-parse --short HEAD)"
-            echo "REMOTE_HEAD=$(git rev-parse --short origin/main)"
-            {
-              git diff --name-only HEAD
-              git ls-files --others --exclude-standard
-            } | sort -u | while IFS= read -r file; do
-              [ -n "$file" ] || continue
-              remote_hash="$(git rev-parse -q --verify "origin/main:$file" 2>/dev/null || true)"
-              local_hash="$(git hash-object -- "$file" 2>/dev/null || true)"
-              if [ -n "$remote_hash" ] && [ "$remote_hash" = "$local_hash" ]; then
-                printf 'MATCH %s\n' "$file"
-              else
-                printf 'DIFFERENT %s\n' "$file"
-              fi
-            done
+            python3 - <<'PY'
+            import subprocess
+            def git(*args):
+                result = subprocess.run(['git', *args], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                return result.stdout.decode('utf-8', errors='replace').strip()
+            print('SERVER_HEAD=' + git('rev-parse','--short','HEAD'))
+            print('REMOTE_HEAD=' + git('rev-parse','--short','origin/main'))
+            paths = set(git('diff','--name-only','HEAD').splitlines())
+            paths.update(git('ls-files','--others','--exclude-standard').splitlines())
+            matched = different = 0
+            for path in sorted(paths):
+                if not path:
+                    continue
+                remote = git('rev-parse','-q','--verify','origin/main:' + path)
+                local = git('hash-object','--',path)
+                if remote and remote == local:
+                    matched += 1
+                    print('MATCH ' + path, flush=True)
+                else:
+                    different += 1
+                    print('DIFFERENT ' + path, flush=True)
+            print(f'SUMMARY matched={matched} different={different}', flush=True)
+            PY
