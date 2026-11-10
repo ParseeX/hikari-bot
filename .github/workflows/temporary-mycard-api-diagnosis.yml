@@ -1,0 +1,54 @@
+name: Temporary MyCard public API diagnosis
+on:
+  push:
+    branches: [main]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect public API response formats from bot host
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script_stop: false
+          script: |
+            python3 - <<'PY'
+            import json, urllib.parse, urllib.request, urllib.error
+            root='https://sapi.moecube.com:444/ygopro/'
+            tests=[
+              ('target_2026_10','arena/historyScore',{'username':'一群好事之徒','season':'2026-10'}),
+              ('target_2026_11','arena/historyScore',{'username':'一群好事之徒','season':'2026-11'}),
+              ('target_current','arena/user',{'username':'一群好事之徒'}),
+              ('target_history','arena/history',{'username':'一群好事之徒','type':0,'page_num':100}),
+              ('koch_2026_10','arena/historyScore',{'username':'Kochiyaol','season':'2026-10'}),
+            ]
+            for label,path,params in tests:
+                url=root+path+'?'+urllib.parse.urlencode(params)
+                print('CHECK',label,flush=True)
+                try:
+                    with urllib.request.urlopen(url,timeout=10) as r:
+                        status=r.status
+                        raw=r.read(256000)
+                    try:
+                        obj=json.loads(raw)
+                        if isinstance(obj,dict):
+                            sample={k:obj.get(k) for k in ('username','season','rank','pt','error','message','status','code','total') if k in obj}
+                            sample['keys']=sorted(obj.keys())
+                            if isinstance(obj.get('data'),list):
+                                sample['data_len']=len(obj['data'])
+                                sample['matching_current']=sum(1 for v in obj['data'] if isinstance(v,dict) and v.get('start_time','').startswith('2026-11'))
+                                sample['matching_october']=sum(1 for v in obj['data'] if isinstance(v,dict) and v.get('start_time','').startswith('2026-10'))
+                        elif isinstance(obj,list):
+                            sample={'type':'list','len':len(obj)}
+                        else: sample={'type':type(obj).__name__,'value':obj}
+                        print('RESULT',status,json.dumps(sample,ensure_ascii=False),flush=True)
+                    except Exception:
+                        print('RESULT',status,'NON_JSON',repr(raw[:250]),flush=True)
+                except urllib.error.HTTPError as e:
+                    print('HTTP_ERROR',e.code,repr(e.read(250)),flush=True)
+                except Exception as e:
+                    print('NETWORK_ERROR',type(e).__name__,str(e)[:200],flush=True)
+            PY
