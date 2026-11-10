@@ -420,7 +420,12 @@ def test_snapshot_api_only_treats_explicit_absence_as_empty(monkeypatch,status,p
     class Response:
         async def __aenter__(self): return self
         async def __aexit__(self,*args): return None
-        async def json(self): return payload
+        async def read(self):
+            return b'' if payload is None else json.dumps(payload).encode('utf-8')
+        async def json(self):
+            if payload is None:
+                raise AssertionError('empty 200 response must bypass JSON decoding')
+            return payload
     class Session:
         async def __aenter__(self): return self
         async def __aexit__(self,*args): return None
@@ -430,3 +435,25 @@ def test_snapshot_api_only_treats_explicit_absence_as_empty(monkeypatch,status,p
             return response
     monkeypatch.setattr(mycard.aiohttp,'ClientSession',lambda:Session())
     assert asyncio.run(mycard._api_get('arena/historyScore',{},missing_as_empty=True)) == expected
+
+
+def test_empty_non_json_snapshot_allows_new_player_monthly_trend(monkeypatch):
+    """实际官方行为：200 空 body，无 Content-Type；不应先调用 json()。"""
+    from hikari_bot.services import mycard
+    class Response:
+        status = 200
+        async def __aenter__(self): return self
+        async def __aexit__(self,*args): return None
+        async def read(self): return b''
+        async def json(self):
+            raise AssertionError('aiohttp would reject the missing JSON Content-Type')
+    class Session:
+        async def __aenter__(self): return self
+        async def __aexit__(self,*args): return None
+        def get(self,*args,**kwargs): return Response()
+    monkeypatch.setattr(mycard.aiohttp,'ClientSession',lambda:Session())
+    previous = asyncio.run(mycard.fetch_previous_month_score('一群好事之徒',2026,11))
+    assert previous == 1000
+    records = [match('一群好事之徒',before=1000,after=1012,
+                     start='2026-11-02T00:00:00Z',end='2026-11-02T00:10:00Z')]
+    assert [p['score'] for p in month_trend(records,'一群好事之徒',2026,11,previous)] == [1000,1012]
