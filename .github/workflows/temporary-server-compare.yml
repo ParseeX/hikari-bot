@@ -1,0 +1,35 @@
+name: Temporary server working-tree comparison
+on:
+  push:
+    branches: [main]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare server worktree blobs to GitHub main (no file contents)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -eu
+            cd "$HOME/hikari-bot"
+            git fetch origin main >/dev/null 2>&1
+            echo "SERVER_HEAD=$(git rev-parse --short HEAD)"
+            echo "REMOTE_HEAD=$(git rev-parse --short origin/main)"
+            {
+              git diff --name-only HEAD
+              git ls-files --others --exclude-standard
+            } | sort -u | while IFS= read -r file; do
+              [ -n "$file" ] || continue
+              remote_hash="$(git rev-parse -q --verify "origin/main:$file" 2>/dev/null || true)"
+              local_hash="$(git hash-object -- "$file" 2>/dev/null || true)"
+              if [ -n "$remote_hash" ] && [ "$remote_hash" = "$local_hash" ]; then
+                printf 'MATCH %s\n' "$file"
+              else
+                printf 'DIFFERENT %s\n' "$file"
+              fi
+            done
