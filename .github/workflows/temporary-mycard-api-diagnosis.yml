@@ -18,7 +18,7 @@ jobs:
             cd "$HOME/hikari-bot"
             echo "CODE_REVISION=$(git rev-parse --short HEAD)"
             systemctl is-active bot.service || true
-            uv run python - <<'PY'
+            "$HOME/.local/bin/uv" run python - <<'PY'
             import asyncio
             import traceback
             from hikari_bot.services import mycard
