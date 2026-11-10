@@ -37,6 +37,14 @@ jobs:
                     print('MATCH ' + path, flush=True)
                 else:
                     different += 1
-                    print('DIFFERENT ' + path, flush=True)
+                    previous = None
+                    for commit in git('log','--format=%H','origin/main','--',path).splitlines():
+                        if git('rev-parse','-q','--verify',commit + ':' + path) == local:
+                            previous = commit[:10]
+                            break
+                    if previous:
+                        print('HISTORICAL_MATCH ' + previous + ' ' + path, flush=True)
+                    else:
+                        print('UNIQUE_WORKTREE ' + path, flush=True)
             print(f'SUMMARY matched={matched} different={different}', flush=True)
             PY
