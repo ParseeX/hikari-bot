@@ -1,4 +1,4 @@
-name: Temporary MyCard public API diagnosis
+name: Temporary MyCard live query diagnosis
 on:
   push:
     branches: [main]
@@ -6,7 +6,7 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect public API response formats from bot host
+      - name: Reproduce MyCard queries with deployed code
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -15,40 +15,30 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: false
           script: |
-            python3 - <<'PY'
-            import json, urllib.parse, urllib.request, urllib.error
-            root='https://sapi.moecube.com:444/ygopro/'
-            tests=[
-              ('target_2026_10','arena/historyScore',{'username':'一群好事之徒','season':'2026-10'}),
-              ('target_2026_11','arena/historyScore',{'username':'一群好事之徒','season':'2026-11'}),
-              ('target_current','arena/user',{'username':'一群好事之徒'}),
-              ('target_history','arena/history',{'username':'一群好事之徒','type':0,'page_num':100}),
-              ('koch_2026_10','arena/historyScore',{'username':'Kochiyaol','season':'2026-10'}),
-            ]
-            for label,path,params in tests:
-                url=root+path+'?'+urllib.parse.urlencode(params)
-                print('CHECK',label,flush=True)
+            cd "$HOME/hikari-bot"
+            echo "CODE_REVISION=$(git rev-parse --short HEAD)"
+            systemctl is-active bot.service || true
+            uv run python - <<'PY'
+            import asyncio
+            import traceback
+            from hikari_bot.services import mycard
+            from hikari_bot.services.mycard_history import month_trend, is_zero_delta_match
+            async def check():
+                name='一群好事之徒'
                 try:
-                    with urllib.request.urlopen(url,timeout=10) as r:
-                        status=r.status
-                        raw=r.read(256000)
-                    try:
-                        obj=json.loads(raw)
-                        if isinstance(obj,dict):
-                            sample={k:obj.get(k) for k in ('username','season','rank','pt','error','message','status','code','total') if k in obj}
-                            sample['keys']=sorted(obj.keys())
-                            if isinstance(obj.get('data'),list):
-                                sample['data_len']=len(obj['data'])
-                                sample['matching_current']=sum(1 for v in obj['data'] if isinstance(v,dict) and v.get('start_time','').startswith('2026-11'))
-                                sample['matching_october']=sum(1 for v in obj['data'] if isinstance(v,dict) and v.get('start_time','').startswith('2026-10'))
-                        elif isinstance(obj,list):
-                            sample={'type':'list','len':len(obj)}
-                        else: sample={'type':type(obj).__name__,'value':obj}
-                        print('RESULT',status,json.dumps(sample,ensure_ascii=False),flush=True)
-                    except Exception:
-                        print('RESULT',status,'NON_JSON',repr(raw[:250]),flush=True)
-                except urllib.error.HTTPError as e:
-                    print('HTTP_ERROR',e.code,repr(e.read(250)),flush=True)
+                    records=await mycard.mycard_get_records(name,11,2026)
+                    print('ALL_RECORDS',type(records).__name__,len(records) if isinstance(records,list) else None,flush=True)
+                    valid=[x for x in records if not is_zero_delta_match(x,name)]
+                    print('VALID_RECORDS',len(valid),flush=True)
+                    prev=await mycard.fetch_previous_month_score(name,2026,11)
+                    print('PREVIOUS_SCORE',repr(prev),flush=True)
+                    points=month_trend(valid,name,2026,11,prev)
+                    print('TREND',len(points),points[0]['score'],points[-1]['score'],flush=True)
+                    print('RANK',await mycard.mycard_get_player_rank(name),flush=True)
+                    for rec in valid[:3]:
+                        print('RECORD_FIELDS',sorted(rec.keys()),flush=True)
                 except Exception as e:
-                    print('NETWORK_ERROR',type(e).__name__,str(e)[:200],flush=True)
+                    print('EXCEPTION',type(e).__name__,str(e),flush=True)
+                    traceback.print_exc(limit=6)
+            asyncio.run(check())
             PY
