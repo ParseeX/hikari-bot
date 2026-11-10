@@ -13,7 +13,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          script_stop: true
+          script_stop: false
           script: |
             cd "$HOME/hikari-bot"
             git fetch origin main >/dev/null 2>&1
