@@ -83,6 +83,8 @@ def test_reading_old_default_wrapper_preserves_custom_errors_and_file_bytes(stor
     data = store.load(); data['features']['history']['active'][HISTORY] = custom
     store.atomic(store.path, data)
     assert store.active(HISTORY)['template'] == custom['template']
+    hidden = deepcopy(old); hidden['visible'] = []
+    assert templates.upgrade_spec(HISTORY, hidden) == hidden
 
 
 def test_published_history_order_and_labels_reach_live_service_without_changing_onebot(store, monkeypatch):

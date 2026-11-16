@@ -68,7 +68,7 @@ def upgrade_spec(key, spec):
     definition = SCHEMA['states'][key]
     spec = deepcopy(spec)
     legacy = definition.get('legacy_template')
-    if legacy and spec.get('template') == legacy:
+    if legacy and spec.get('template') == legacy and legacy[1:-1] in spec.get('visible', []):
         spec['template'] = definition['template']
         spec['visible'] = list(dict.fromkeys([*spec['visible'], *definition['fields']]))
     return spec
