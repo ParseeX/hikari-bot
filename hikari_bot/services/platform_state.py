@@ -1,4 +1,4 @@
-"""官方入口的独立绑定、标签与待启用订阅；绝不打开旧 hikari.db。"""
+"""官方状态独立保存；已核验关联通过只读服务读取旧绑定与订阅。"""
 from contextlib import contextmanager
 from pathlib import Path
 import sqlite3
@@ -10,11 +10,12 @@ from .platform import Identity
 
 
 class PlatformState:
-    def __init__(self, directory):
+    def __init__(self, directory, *, legacy=None):
         directory = Path(directory)
         if not directory.is_absolute():
             raise ValueError("状态目录必须为绝对路径")
         self.path = directory / "qq-official-state.sqlite3"
+        self.legacy = legacy
 
     @contextmanager
     def connect(self):
@@ -27,6 +28,8 @@ class PlatformState:
                 CREATE TABLE IF NOT EXISTS subscriptions (
                     target TEXT, player TEXT, status TEXT NOT NULL, PRIMARY KEY(target,player));
                 CREATE TABLE IF NOT EXISTS event_claims (digest TEXT PRIMARY KEY, expires REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS verified_links (
+                    actor TEXT PRIMARY KEY, legacy_user TEXT NOT NULL, evidence TEXT NOT NULL);
             ''')
             with db:
                 yield db
@@ -45,7 +48,30 @@ class PlatformState:
             return None
         with self.connect() as db:
             row = db.execute("SELECT player FROM bindings WHERE actor=?", (key,)).fetchone()
-            return row[0] if row else None
+            if row:
+                return row[0]
+            link = db.execute('SELECT legacy_user FROM verified_links WHERE actor=?', (key,)).fetchone()
+        return self.legacy.binding(link[0]) if link and self.legacy else None
+
+    def link_legacy(self, actor, legacy_user, *, evidence):
+        """仅供受控部署工具调用；不是聊天命令，不按昵称/数字相同自动关联。"""
+        if actor.kind != 'user' or not legacy_user.isascii() or not legacy_user.isdigit() or not evidence:
+            raise ValueError('必须核验私聊身份并记录关联依据')
+        if self.legacy is None or self.legacy.binding(legacy_user) is None:
+            raise ValueError('原绑定不存在，未关联')
+        with self.connect() as db:
+            db.execute('INSERT INTO verified_links VALUES (?,?,?) ON CONFLICT(actor) DO UPDATE SET '
+                       'legacy_user=excluded.legacy_user,evidence=excluded.evidence',
+                       (self.key(actor), legacy_user, evidence))
+            # 去掉此前临时复制的绑定，之后直接读旧库；旧库没有任何写操作。
+            db.execute('DELETE FROM bindings WHERE actor=?', (self.key(actor),))
+
+    def legacy_subscriptions(self, target):
+        if not self.legacy or not self.path.exists() or target.kind != 'user':
+            return []
+        with self.connect() as db:
+            link = db.execute('SELECT legacy_user FROM verified_links WHERE actor=?', (self.key(target),)).fetchone()
+        return self.legacy.subscriptions(link[0]) if link else []
 
     def claim_event(self, request, *, now=None):
         """独立库原子去重，重启/重连不重复执行仍有效的旧事件。"""
@@ -72,15 +98,23 @@ class PlatformState:
         if not player or len(player) > 200:
             raise ValueError("MyCard 用户名无效")
         with self.connect() as db:
-            db.execute("INSERT OR IGNORE INTO subscriptions VALUES (?,?,?)",
+            db.execute("INSERT INTO subscriptions VALUES (?,?,?) ON CONFLICT(target,player) DO UPDATE SET status=excluded.status",
                        (self.key(target), player, "paused_platform_unverified"))
 
     def unsubscribe(self, target, player):
+        inherited = player in self.legacy_subscriptions(target)
         with self.connect() as db:
-            db.execute("DELETE FROM subscriptions WHERE target=? AND player=?", (self.key(target), player))
+            if inherited:
+                db.execute("INSERT INTO subscriptions VALUES (?,?,'disabled') ON CONFLICT(target,player) "
+                           "DO UPDATE SET status='disabled'", (self.key(target), player))
+            else:
+                db.execute("DELETE FROM subscriptions WHERE target=? AND player=?", (self.key(target), player))
 
     def subscriptions(self, target):
         if not self.path.exists():
             return []
         with self.connect() as db:
-            return db.execute("SELECT player,status FROM subscriptions WHERE target=? ORDER BY player", (self.key(target),)).fetchall()
+            rows = dict(db.execute("SELECT player,status FROM subscriptions WHERE target=?", (self.key(target),)).fetchall())
+        for player in self.legacy_subscriptions(target):
+            rows.setdefault(player, 'paused_platform_unverified')
+        return sorted((player, status) for player, status in rows.items() if status != 'disabled')

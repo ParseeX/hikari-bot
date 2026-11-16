@@ -15,7 +15,7 @@ async def reply_for(text: str, catalog=None) -> str | None:
     command = {'查卡密': '卡密', '查效果': '效果'}.get(command, command)
     if command in {'帮助', 'help'}:
         base = present('common.help')
-        return Output(str(base) + '\n常用命令：卡图、每日一卡、共界计算、卡价、日版价格查询、卡价曲线、卡价日报；绑定、查询绑定、查分、首胜查询、历史、胜率查询；裁定查询；卡组图片、卡组PDF；翻译、中译中或直接发送视频链接。\n订阅目前只保存到新库，通知暂停。比赛暂缓，管理功能尚未授权。QQ客户端验证尚未完成。', base.key, base.mode)
+        return Output(str(base) + '\n常用命令：卡图、每日一卡、共界计算、卡价、日版价格查询、卡价曲线、卡价日报；绑定、查询绑定、查分、首胜查询、历史、胜率查询；裁定查询；卡组图片、卡组PDF；翻译、中译中或直接发送视频链接。\n通知：订阅、退订、订阅状态、开启通知、关闭通知、通知状态。管理命令需单独核验的管理员私聊身份。比赛暂缓；各项收发状态以实际验证为准。', base.key, base.mode)
     if command.lower() == 'ping':
         return present('common.commands_1', {})
     if command in {'卡表', '中文卡表', '简中卡表', '日文卡表', '英文卡表'}:

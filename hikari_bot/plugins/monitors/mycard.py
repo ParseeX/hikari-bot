@@ -33,6 +33,9 @@ from hikari_bot.services.mycard_archive.ranking import RankFilter
 from hikari_bot.services.mycard_archive.spectator import watch
 from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.opponent_watch import OpponentWatch, WatchedAccounts
+from hikari_bot.services.official_bus import backend_bus
+from hikari_bot.services.official_publish import mycard_notice, subscription_targets, publish
+from hikari_bot.services.platform import Result
 
 
 # ── 常量与状态 ───────────────────────────────────────────────────────────────────────
@@ -84,8 +87,11 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
 
 # ── 对局事件处理 ─────────────────────────────────────────────────────────────────────
 
-async def handle_create_event(bot: Bot, player_ids: list):
+async def handle_create_event(bot: Bot, player_ids: list, room_id=None):
     try:
+        for index, player in enumerate(player_ids):
+            await mycard_notice(player, f'您关注的{player}已开始对局，对手id：{player_ids[1-index]}。',
+                                dedupe=f'start:{room_id}:{player}')
         subscribe_list = get_subscribe_list()
         for i, player_id in enumerate(player_ids):
             if player_id in subscribe_list:
@@ -103,7 +109,12 @@ async def handle_create_event(bot: Bot, player_ids: list):
 
 
 async def handle_delete_event(bot: Bot, room_id):
-    if _delivery_bot is None and bot is None:
+    try:
+        official_subscriptions = await asyncio.to_thread(subscription_targets)
+    except Exception as exc:
+        logger.warning(f'[official_publish] subscriptions unavailable: {type(exc).__name__}')
+        official_subscriptions = {}
+    if _delivery_bot is None and bot is None and not official_subscriptions:
         room_list.pop(room_id, None)
         return  # 归档已由独立监听处理；离线时不轮询仅用于推送的战绩。
     try:
@@ -153,6 +164,9 @@ async def handle_delete_event(bot: Bot, room_id):
 
         if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
+                if pt_deltas[i] > 0:
+                    await mycard_notice(player_id, f'您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。',
+                                        dedupe=f'firstwin:{room_id}:{player_id}')
                 if player_id in subscribe_list:
                     if pt_deltas[i] > 0:
                         message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
@@ -163,7 +177,7 @@ async def handle_delete_event(bot: Bot, room_id):
 
 
 async def process_mycard_event(bot: Bot, payload: dict):
-    if _opponent_watch and (_delivery_bot or bot):
+    if _opponent_watch and (_delivery_bot or bot or backend_bus()):
         try:
             _opponent_watch.process(payload)
         except Exception as exc:
@@ -193,7 +207,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
             if room_id in room_list:
                 return
             room_list[room_id] = player_ids
-            await handle_create_event(bot, player_ids)
+            await handle_create_event(bot, player_ids, room_id)
 
     elif event == "delete":
         room_id = data
@@ -248,7 +262,10 @@ async def _start_background():
             raise RuntimeError('OneBot delivery is paused')
         await _delivery_bot.send_private_msg(user_id=int(recipient), message=MessageSegment.text(text))
 
-    async def send_opponent_image(recipient: str, text: str, image: bytes | None):
+    async def send_opponent_image(recipient: str, text: str, image: bytes | None, *, dedupe=None):
+        if recipient == 'official':
+            await publish(Result(text, (image,) if image else ()), dedupe='opponent:' + dedupe if dedupe else None)
+            return
         if _delivery_bot is None:
             raise RuntimeError('OneBot delivery is paused')
         message = Message(MessageSegment.text(text))
@@ -262,7 +279,7 @@ async def _start_background():
         try:
             _opponent_watch = OpponentWatch(
                 watched_accounts(), DeckLibrary(settings.mycard_archive_dir / "archive.sqlite3"),
-                {uid for uid in settings.superusers if uid.isdigit()}, send_opponent_image,
+                {uid for uid in settings.superusers if uid.isdigit()} | ({'official'} if backend_bus() else set()), send_opponent_image,
             )
         except (OSError, ValueError) as exc:
             logger.error(f"[mycard_watch] 关注账号名单加载失败：{type(exc).__name__}")

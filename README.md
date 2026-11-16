@@ -3,7 +3,7 @@ A yu-gi-oh bot for qq group 457767939
 
 官方 QQ 入口为 `qq_bot.py` / `run_srbs.py`，原 OneBot 入口 `bot.py` 保留。
 迁移范围、功能差异、独立环境和回退方法见[官方 QQ 迁移清单](docs/qq-official-migration.md)。
-当前代码尚未切换现网，QQ 客户端收发验证待完成；比赛功能按要求暂缓。
+常用命令已接入现网；各项客户端验收、后续通知和管理迁移状态以清单为准，比赛功能按要求暂缓。
 
 ## 安装与启动
 

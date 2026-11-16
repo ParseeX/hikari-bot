@@ -119,6 +119,8 @@ async def check_once(force_notify: bool = False) -> None:
 
 async def scheduled_mensa_check() -> None:
     """带重试的定时检查任务（最多重试5次，每次间隔60秒）。"""
+    if not await get_mensa_enabled():
+        return
     for attempt in range(1, 6):
         try:
             await check_once(force_notify=False)

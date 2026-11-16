@@ -47,7 +47,7 @@ def build_services(home: Path, credential_directory: Path, catalog):
 
 
 def build_migration_queries(home, catalog, *, price_backend=None, config=None, credential_directory=None):
-    """仅新发布版调用；独立状态及缓存，不触碰旧 Bot 的数据库和配置。"""
+    """独立状态及缓存；显式配置后仅只读访问已关联的旧业务记录。"""
     from functools import partial
     from hikari_bot.services.platform_state import PlatformState
     from hikari_bot.services.card_media import CardMedia
@@ -58,6 +58,14 @@ def build_migration_queries(home, catalog, *, price_backend=None, config=None, c
     from .business import Queries
     from .admin import AdminQueries
     directory = Path(home) / '.local/share/srbs/migration'
+    legacy = None
+    legacy_profile = Path(home) / '.config/srbs/legacy-source.json'
+    if legacy_profile.is_file():
+        from hikari_bot.services.legacy_identity import LegacyRecords
+        profile = json.loads(legacy_profile.read_text(encoding='utf-8'))
+        if set(profile) != {'database'}:
+            raise ValueError('invalid legacy source profile')
+        legacy = LegacyRecords(profile['database'])
     media = CardMedia(catalog, directory / 'card-images') if catalog else None
     power = None
     power_profile = Path(home) / '.config/srbs/nas-power.json'
@@ -75,9 +83,29 @@ def build_migration_queries(home, catalog, *, price_backend=None, config=None, c
         if not token or token != token.strip() or '\x00' in token:
             raise ValueError('invalid NAS credential')
         power = partial(request_action, profile['base_url'], token, timeout=profile['timeout'])
+    from hikari_bot.services.official_bus import OfficialBus
+    from .notifications import Notifications
+    from .management import Management
+    bus = OfficialBus(directory)
+    state = PlatformState(directory, legacy=legacy)
+    notifications = None
+    if config:
+        bus.configure(config)
+        policy_path = Path(home) / '.config/srbs/notifications.json'
+        policy = json.loads(policy_path.read_text()) if policy_path.is_file() else {'enabled': False, 'daily_limit': 20}
+        if set(policy) != {'enabled', 'daily_limit'} or type(policy['enabled']) is not bool or type(policy['daily_limit']) is not int or not 1 <= policy['daily_limit'] <= 100:
+            raise ValueError('invalid notification policy')
+        notifications = Notifications(bus, state, config, **policy)
+    async def restart():
+        import asyncio
+        process = await asyncio.create_subprocess_exec('systemctl', '--user', 'restart', 'srbs.service',
+                                                       stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+        await process.wait()
+
+    management = Management(config, bus, restart=restart if credential_directory else None) if config else None
     return Queries(catalog, image_loader=media.full if media else None,
                    deck_renderer=DeckRenderer(catalog, media.full) if media else None,
                    ruling=partial(conclusion, url='https://ocg-ruling-assistant.vercel.app/api/answer'),
-                   state=PlatformState(directory), links=LinkParser(),
+                   state=state, links=LinkParser(), notifications=notifications,
                    price_reports=PriceReports(price_backend.comparison.cardrush, catalog) if price_backend else None,
-                   admin=AdminQueries(config, power=power) if config else None)
+                   admin=AdminQueries(config, power=power, bus=bus, management=management) if config else None)

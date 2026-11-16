@@ -137,6 +137,16 @@ assert 'nonebot_plugin_easy_translate' not in sys.modules
 
 
 class DeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_history_text_and_single_image_share_one_passive_message(self):
+        client, source = bot(), event()
+        delivery = ResultDelivery(ReplyPager())
+        await delivery.send(client, source, Result('玩家：synthetic\n胜率：50%', (b'image',)))
+        client.send_to_c2c.assert_awaited_once()
+        sent = client.send_to_c2c.call_args.kwargs
+        self.assertEqual(sent['msg_id'], source.id)
+        self.assertEqual(sent['message'].extract_plain_text(), '玩家：synthetic\n胜率：50%')
+        self.assertEqual(sent['message']['file_image'][0].data['content'], b'image')
+        self.assertFalse(delivery.has_pending(client, source))
     async def test_rate_limit_response_does_not_repeat_a_message(self):
         from nonebot.adapters.qq.exception import ActionFailed
         from nonebot.drivers import Response

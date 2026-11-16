@@ -46,6 +46,21 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
     from nonebot import get_driver
     try:
         get_driver().on_startup(editor.reset)
+        if queries.notifications:
+            driver = get_driver()
+            driver.on_bot_connect(queries.notifications.connect)
+            driver.on_bot_disconnect(queries.notifications.disconnect)
+            driver.on_shutdown(queries.notifications.close)
+            if queries.admin and queries.admin.management:
+                @driver.on_bot_connect
+                async def management_connected(bot):
+                    if str(bot.self_id) == config.app_id:
+                        queries.admin.management.bot = bot
+
+                @driver.on_bot_disconnect
+                async def management_disconnected(bot):
+                    if queries.admin.management.bot is bot:
+                        queries.admin.management.bot = None
     except ValueError:
         pass  # Isolated matcher tests have no initialized driver.
 

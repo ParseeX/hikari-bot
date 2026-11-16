@@ -415,11 +415,14 @@ def test_failed_handshakes_share_cooldown_and_only_one_recovery_probe(tmp_path):
         from hikari_bot.services.mycard_archive.admission import JoinGate
         calls = []
         third, probing, release_probe = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        registered = asyncio.Event()
         async def watcher(room, identity, ended, save, **kwargs):
             calls.append(room)
             if len(calls) <= 3:
                 if len(calls) == 3:
                     third.set()
+                    # 建立所有房间后再开始冷却，避免慢磁盘把冷却耗在测试准备阶段。
+                    await registered.wait()
                 raise ConnectionResetError()
             probing.set()
             await release_probe.wait()
@@ -431,7 +434,7 @@ def test_failed_handshakes_share_cooldown_and_only_one_recovery_probe(tmp_path):
         runtime = ArchiveRuntime(tmp_path, tmp_path/'creds', {'1'}, send,
                                  watch_room=watcher, join_interval=0, concurrency=8,
                                  credential_files=[tmp_path/f'creds-{i}' for i in range(8)])
-        runtime.join_gate = JoinGate(interval=0, cooldown=0.15)
+        runtime.join_gate = JoinGate(interval=0, cooldown=1)
         for index, account in enumerate(runtime.accounts.accounts):
             async def identity(index=index):
                 return f'观战{index}', 42
@@ -440,6 +443,7 @@ def test_failed_handshakes_share_cooldown_and_only_one_recovery_probe(tmp_path):
             for index in range(8):
                 await runtime.add({'id': f'M#{index}', 'users': [{'username': '甲'}, {'username': '乙'}]})
             await asyncio.wait_for(third.wait(), 2)
+            registered.set()
             await asyncio.sleep(0.05)
             assert len(calls) == 3
             await asyncio.wait_for(probing.wait(), 2)
@@ -451,6 +455,7 @@ def test_failed_handshakes_share_cooldown_and_only_one_recovery_probe(tmp_path):
                 while len(calls) < 8:
                     await asyncio.sleep(0.01)
         finally:
+            registered.set()
             await runtime.close()
     asyncio.run(run())
 

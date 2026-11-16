@@ -345,6 +345,12 @@ async def _auto_send_daily_report():
 
         # QQ 使用更小的 WebP 副本，B 站仍保留原始截图。
         qq_screenshots = await prepare_qq_pages(screenshots)
+        from hikari_bot.services.official_publish import publish
+        from hikari_bot.services.platform import Result
+        try:
+            await publish(Result(f'【{date_str}】卡价日报', tuple(qq_screenshots)), dedupe='cardrush-daily:' + date_str)
+        except Exception as exc:
+            logger.warning(f'[official_publish] daily report unavailable: {type(exc).__name__}')
         bot = get_bot()
         if settings.public_group_id:
             try:

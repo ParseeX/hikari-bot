@@ -13,15 +13,20 @@ HISTORY = re.compile(r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))
 
 
 class Queries:
-    def __init__(self, catalog, *, image_loader=None, ruling=None, deck_renderer=None, state=None, links=None, price_reports=None, admin=None):
+    def __init__(self, catalog, *, image_loader=None, ruling=None, deck_renderer=None, state=None, links=None, price_reports=None, admin=None, notifications=None):
         self.catalog, self.image_loader = catalog, image_loader
         self.ruling, self.deck_renderer = ruling, deck_renderer
         self.state = state
         self.links = links
         self.price_reports = price_reports
         self.admin = admin
+        self.notifications = notifications
 
     async def handle(self, request, command, argument):
+        if self.notifications:
+            result = await self.notifications.handle(request, command, argument)
+            if result is not None:
+                return result
         if self.admin:
             result = await self.admin.handle(request, command, argument)
             if result is not None:
@@ -53,11 +58,16 @@ class Queries:
                 return Result("群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。")
             if command == "订阅状态":
                 rows = await asyncio.to_thread(self.state.subscriptions, request.conversation)
-                return Result("\n".join(f"{player}：暂停，等待主动通知验证" for player, _ in rows) or "当前官方身份暂无订阅。")
+                active = self.notifications and self.notifications.enabled and 'mycard' in await asyncio.to_thread(self.notifications.bus.topics, request.actor)
+                label = '已启用，受平台投递限制' if active else '暂停，等待开启通知或平台验证'
+                return Result("\n".join(f"{player}：{label}" for player, _ in rows) or "当前官方身份暂无订阅。")
             if not argument:
                 return Result("请提供 MyCard 用户名！")
             method = self.state.subscribe if command == "订阅" else self.state.unsubscribe
             await asyncio.to_thread(method, request.conversation, argument)
+            if command == '订阅' and self.notifications and self.notifications.enabled:
+                await asyncio.to_thread(self.notifications.bus.allow_topic, request.actor, 'mycard', True)
+                return Result('订阅成功！官方通知受平台权限及频控限制。')
             return Result("已保存订阅，但通知暂停，需完成主动发送验证后启用。" if command == "订阅" else "已取消当前官方身份的这项订阅；旧 QQ 订阅保持不变。")
         if command == "每日一卡":
             if self.catalog is None or self.image_loader is None:
@@ -131,6 +141,8 @@ class Queries:
             if command == 'ym':
                 return Result('当前环境未启用 YouTube 音频下载组件；未将音频命令改成视频发送。')
             if command == 'bm' or LINK.search(request.text):
+                if self.notifications and not await asyncio.to_thread(self.notifications.bus.setting, request.actor.key, 'parser'):
+                    return Result('当前官方会话的链接解析已关闭。')
                 return await self.links.parse(request.text)
         if request.attachments:
             return Result("已收到附件事件。当前可用文字或分享链接查询；附件导入尚未启用，未自动下载或写入旧数据。")

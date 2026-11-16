@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import asyncio
 import time
 
-from nonebot.adapters.qq import MessageSegment
+from nonebot.adapters.qq import Message, MessageSegment
 from .delivery import context, chunk_end, TEXT_CHARS
 
 
@@ -13,6 +13,15 @@ class PendingResult:
     parts: list
     expires: float
     size: int = 0
+
+
+def payload_size(part):
+    if isinstance(part, str):
+        return len(part.encode('utf-8'))
+    if isinstance(part, Message):
+        return sum(payload_size(segment) for segment in part)
+    content = part.data.get('content', part.data.get('text', ''))
+    return len(content.encode('utf-8')) if isinstance(content, str) else len(content)
 
 
 class ResultDelivery:
@@ -42,6 +51,9 @@ class ResultDelivery:
                     parts.append(result.text[offset:end])
                     offset = end
                 parts.extend(MessageSegment.file_image(data) for data in result.images)
+                if result.text and len(result.text) <= TEXT_CHARS and len(result.images) == 1:
+                    # 已在官方 C2C 客户端验证普通图文合发；QQ 自行决定图片/文字布局。
+                    parts = [Message(result.text) + MessageSegment.file_image(result.images[0])]
                 if result.file is not None:
                     parts.append(MessageSegment.file_file(result.file, file_name=result.filename))
                 for media in result.media:
@@ -53,8 +65,7 @@ class ResultDelivery:
                             offset = end
                     else:
                         parts.append(getattr(MessageSegment, 'file_' + media.kind)(media.data, file_name=media.name or None))
-                size = sum(len(part.encode('utf-8')) if isinstance(part, str)
-                           else len(part.data['content']) for part in parts)
+                size = sum(payload_size(part) for part in parts)
                 if size > 100 * 1024 * 1024:
                     parts, size = ['媒体总大小超过100 MiB，请拆分内容或使用原链接。'], 0
                 elif len(self.pending) >= 128 or size + sum(p.size for p in self.pending.values()) > 256 * 1024 * 1024:
@@ -72,7 +83,6 @@ class ResultDelivery:
                     return
                 await asyncio.wait_for(bot.send(event, pending.parts[0]), timeout=90)
                 part = pending.parts.pop(0)
-                pending.size = max(0, pending.size - (len(part.encode('utf-8')) if isinstance(part, str)
-                                   else len(part.data['content'])))
+                pending.size = max(0, pending.size - payload_size(part))
                 pending.expires = self.clock() + 600
             self.pending.pop(key, None)

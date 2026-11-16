@@ -93,7 +93,7 @@ class OpponentWatch:
                 if player not in self.accounts.accounts:
                     continue
                 try:
-                    self._queue.put_nowait((player, players[1 - index]))
+                    self._queue.put_nowait((player, players[1 - index], str(room['id'])))
                 except asyncio.QueueFull:
                     logger.warning("[mycard_watch] 开局通知队列已满，跳过本次通知")
             if not self._queue.empty() and (self._worker is None or self._worker.done()):
@@ -110,20 +110,21 @@ class OpponentWatch:
             return f"{heading}\n{opponent}：暂无卡组", None
         return f"{heading}\n{opponent}：最新已收录卡组\n{link}", version
 
-    async def _deliver(self, player, text, image, stage):
+    async def _deliver(self, player, text, image, stage, notice_key):
         for recipient in self.recipients:
             if player not in self.accounts.accounts:
                 break
             started = time.monotonic()
             try:
-                await asyncio.wait_for(self.send(recipient, text, image), timeout=30)
+                options = {'dedupe': f'{notice_key}:{player}:{stage}'} if recipient == 'official' else {}
+                await asyncio.wait_for(self.send(recipient, text, image, **options), timeout=30)
                 logger.info(f"[mycard_watch] {stage}接口返回成功 bytes={len(image) if image else 0} elapsed={time.monotonic()-started:.2f}s")
             except Exception as exc:
                 logger.warning(f"[mycard_watch] {stage}发送失败：{type(exc).__name__} bytes={len(image) if image else 0} elapsed={time.monotonic()-started:.2f}s")
 
     async def _run(self):
         while not self._queue.empty():
-            player, opponent = self._queue.get_nowait()
+            player, opponent, notice_key = self._queue.get_nowait()
             try:
                 if player not in self.accounts.accounts:
                     continue
@@ -132,10 +133,10 @@ class OpponentWatch:
                 except Exception as exc:
                     logger.warning(f"[mycard_watch] 对手卡组读取失败：{type(exc).__name__}")
                     text, version = f"{player} vs {opponent}\n{opponent}：卡组暂时无法读取", None
-                await self._deliver(player, text, None, "链接通知")
+                await self._deliver(player, text, None, "链接通知", notice_key)
                 if version is not None and player in self.accounts.accounts:
                     try:
-                        self._image_queue.put_nowait((player, opponent, version))
+                        self._image_queue.put_nowait((player, opponent, version, notice_key))
                     except asyncio.QueueFull:
                         logger.warning("[mycard_watch] 图片队列已满，链接通知已尝试发送")
                     if not self._image_queue.empty() and (self._image_worker is None or self._image_worker.done()):
@@ -145,7 +146,7 @@ class OpponentWatch:
 
     async def _run_images(self):
         while not self._image_queue.empty():
-            player, opponent, version = self._image_queue.get_nowait()
+            player, opponent, version, notice_key = self._image_queue.get_nowait()
             try:
                 if player not in self.accounts.accounts:
                     continue
@@ -153,10 +154,10 @@ class OpponentWatch:
                 try:
                     image = await asyncio.wait_for(player_image(opponent, version, self.library.path.with_name("deck-rules.json")), timeout=120)
                     logger.info(f"[mycard_watch] 图片生成完成 bytes={len(image)} elapsed={time.monotonic()-started:.2f}s")
-                    await self._deliver(player, f"{player} vs {opponent}\n{opponent}：最新已收录卡组", image, "卡组图片")
+                    await self._deliver(player, f"{player} vs {opponent}\n{opponent}：最新已收录卡组", image, "卡组图片", notice_key)
                 except Exception as exc:
                     logger.warning(f"[mycard_watch] 卡组图片生成失败：{type(exc).__name__} elapsed={time.monotonic()-started:.2f}s")
-                    await self._deliver(player, f"{player} vs {opponent}\n{opponent}：卡组图片暂时无法生成", None, "图片失败提示")
+                    await self._deliver(player, f"{player} vs {opponent}\n{opponent}：卡组图片暂时无法生成", None, "图片失败提示", notice_key)
             finally:
                 self._image_queue.task_done()
 

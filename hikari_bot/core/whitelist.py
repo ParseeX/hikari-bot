@@ -27,6 +27,13 @@ async def is_allowed_group(group_id) -> bool:
 async def message_superusers(message: str):
     """向所有超级用户发送消息"""
     try:
+        from hikari_bot.services.official_publish import publish
+        from hikari_bot.services.platform import Result
+        await publish(Result(message))
+    except Exception:
+        # 队列失败不递归触发管理员通知，也不阻断旧发送通道。
+        pass
+    try:
         bot = get_bot()
         for uid in ADMIN:
             await bot.send_private_msg(user_id=int(uid), message=message)
