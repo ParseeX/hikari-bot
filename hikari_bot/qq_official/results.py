@@ -7,6 +7,7 @@ import time
 
 from nonebot.adapters.qq import Message, MessageSegment
 from .delivery import context, chunk_end, TEXT_CHARS
+from .markdown_image import MarkdownImage
 
 
 @dataclass
@@ -17,6 +18,8 @@ class PendingResult:
 
 
 def payload_size(part):
+    if isinstance(part, MarkdownImage):
+        return len(part.text.encode('utf-8')) + len(part.image)
     if isinstance(part, str):
         return len(part.encode('utf-8'))
     if isinstance(part, Message):
@@ -53,6 +56,11 @@ class ResultDelivery:
                     parts.append(Output(part, result.text.key, result.text.mode) if isinstance(result.text, Output) else part)
                     offset = end
                 parts.extend(MessageSegment.file_image(data) for data in result.images)
+                if (isinstance(result.text, Output) and result.text.mode == 'markdown'
+                        and result.text.key == 'history.mycard_reports_body_2fe0148e'
+                        and len(result.images) == 1):
+                    # 历史曲线作为 Markdown 素材引用；保留整份用户正文。
+                    parts = [MarkdownImage(str(result.text), result.images[0])]
                 if result.text and len(result.text) <= TEXT_CHARS and len(result.images) == 1 and getattr(result.text, 'mode', 'text') == 'text':
                     # 已在官方 C2C 客户端验证普通图文合发；QQ 自行决定图片/文字布局。
                     parts = [Message(result.text) + MessageSegment.file_image(result.images[0])]

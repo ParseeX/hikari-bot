@@ -34,7 +34,7 @@
       ],
       "status": "已接入",
       "implementation": "复用旧战绩过滤、月初分数、结算分数与趋势图。",
-      "differences": "普通文字与单张图保持同一条图文消息，图片在上由 QQ 客户端布局；选择 Markdown 后文字与上传图片分开发送。",
+      "differences": "普通图文由 QQ 布局；Markdown 历史将单张曲线嵌入正文上方，一条发送。文字保留 Markdown 样式，客户端显示需自行验收。",
       "qq": "普通图文历史曾在私聊验证；本轮网页改文案后的 QQ 渲染由用户验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "统计摘要、当前/结算分数、当前/结算排名均可改字样与顺序。预览覆盖本月、已结算、无对局和缺排名；曲线数据不修改。",
@@ -52,7 +52,7 @@
           "key": "paging.request_failed"
         }
       ],
-      "reason": "普通图文的上下布局由 QQ 客户端决定；当前代码尚未把上传图片内嵌进 Markdown。",
+      "reason": "本次将曲线上传为官方素材并嵌入 Markdown；不能直接混用普通上传附件。平台拒绝时提示失败，不自动拆条。",
       "pending_work": ""
     },
     "score": {
@@ -6035,6 +6035,21 @@
       "fragment": false,
       "note": "此字段是第三方解析器已经生成的内容，当前只能添加前后文字和选择发送格式，不能重排第三方内部字段；程序自身的用法、下载失败等提示已另列可编辑。B 站视频仍不先发送预览卡片。",
       "category": "main"
+    },
+    "paging.markdown_image_failed": {
+      "feature": "paging",
+      "label": "Markdown 图文发送失败",
+      "template": "Markdown 图文发送失败：{reason}。未改成普通文字或拆开发送；请稍后重新查询。",
+      "fields": {
+        "reason": "不含平台原始响应的安全失败原因"
+      },
+      "samples": {
+        "reason": "官方图片素材配额已满"
+      },
+      "mode": "text",
+      "fragment": true,
+      "category": "error",
+      "format_note": "固定普通文字错误提示；原图文保留待发，不降级、不自动重试。"
     }
   }
 }

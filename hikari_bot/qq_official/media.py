@@ -15,8 +15,19 @@ def output_message(message):
 
 async def send_formatted(bot, event, message, pager, *, can_continue=True):
     """明确拒绝 Markdown 时只报告失败，保留待发内容和原格式。"""
+    from .markdown_image import MarkdownImage, ImageDeliveryError
     try:
-        await bot.send(event, message)
+        if isinstance(message, MarkdownImage):
+            await message.send(bot, event)
+        else:
+            await bot.send(event, message)
+    except ImageDeliveryError as exc:
+        from .delivery import context
+        key = context(bot, event)
+        if key and pager.capacity(event, key[1]):
+            await bot.send(event, str(present('paging.markdown_image_failed',
+                {'reason': str(exc)}, plain=True)))
+        return False
     except ActionFailed as exc:
         markdown = (isinstance(message, Output) and message.mode == 'markdown') or (isinstance(message, Message) and bool(message['markdown']))
         if not (markdown and exc.status_code in {400, 403}):
