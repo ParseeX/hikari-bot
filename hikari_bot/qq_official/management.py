@@ -32,10 +32,7 @@ class Management:
             await asyncio.to_thread(self.bus.set_setting, request.actor.key, 'parser', command == '开启解析')
             return Result(f'当前官方私聊的链接解析已{"开启" if command == "开启解析" else "关闭"}。旧群设置未改变。')
         if command in {'白名单','添加至白名单','清空白名单'}:
-            if command == '白名单' and not argument:
-                return Result(f'官方允许私聊：{len(self.config.users)}；已核验群：{len(self.config.groups)}。\n'
-                              '群关联需使用接收专用配对流程核验 OpenID；旧群号不能直接填入。')
-            return Result('尚未实施官方白名单增删入口；需先核验对应群的 OpenID。未改原白名单，也未清空任何记录。')
+            return Result('旧白名单管理命令已停用，不再迁移。群接入由官方机器人配置管理；此命令不修改群接入、管理员权限或旧记录。')
         if command in {'切换AI权限','切换本地模型权限'}:
             return Result('原本地模型聊天模块当前未启用。尚未迁移官方群身份授权，未改变原权限开关。')
         if command == '重置卡价数据库':
