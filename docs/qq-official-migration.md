@@ -242,3 +242,11 @@ NAS 另需受控的 `~/.config/srbs/nas-power.json`（只含 `base_url`、`timeo
 - 官方网关在本次启动后重新连接，保留 `group_access=joined`；原后台独立队列心跳新鲜。没有创建生产模板覆盖文件，所有新模板保持原默认文案；没有发送 QQ 测试消息或触发开关机、广播、比赛写入。
 - 初次切换检查因账号仍被占用而停顿；代码核对确认占用含等待入场阶段、已收到录像写盘有关闭保护。本次无观战连接时完成正常重启。用户随后明确本任务不需要等待观战，不应再用观战占用阻塞部署；不更改采集权限或账号数据。
 - 可恢复备份在 `/home/xyk/srbs/deploy-backups/20261116-output-editor`：`before.json` 保存原官方 `e836238` 指针与原后台 `5c0c3a8`，`Caddyfile.before` / `route.json` 保存域名原路由，`backend-before.tar.gz` 保存旧代码，`backend-changed.json` / `backend-after-hashes.json` 限定可恢复文件并防止覆盖后来修改。已确认原发布目录和代码归档实际存在。
+
+### 2026-11-16 效果普通回复误显示 Markdown 标记
+
+- 用户截图中的 `#`、`**`、`## 效果` 源于程序误把富文本模板用于普通消息，并非已验证的 QQ 渲染能力限制。群聊、超长私聊及富文本拒绝回退均改用共享 `format_card_effect` 和后台 `common.effect_plain`；样式预览的回退也一起修复。
+- 默认恢复旧版“中文名（日文名）→类型→完整效果”的纯文本布局，灵摆效果保留原分隔线，正文中原有 `*`、`#` 不清除。普通回复不附加富文本专用读音行、标题和加粗；正常私聊 Markdown、读音和按钮保持原实现。后台可在“效果”中修改“普通效果回复（群聊、超长效果及富文本失败回退）”，默认文本模式，已有自定义模板不覆盖。
+- Windows 与 Linux 相关回归各 **97 passed**，覆盖带 @ / 不带 @ 群事件的 SDK 实际序列化、长文完整性、灵摆效果、富文本拒绝回退、原私聊 Markdown/按钮及文案后台。新增复现用例修复前两项失败，修复后通过；`git diff --check` 通过。没有发送 QQ 测试消息，客户端验收仍由用户进行。
+- 修复提交 `ffc1cb0` 已推送 `origin/main`，使用 `[skip ci]` 跳过旧自动部署。官方发布切换至 `/home/xyk/srbs/releases/20261116-ffc1cb0`，仅重启 `srbs.service` 和 `hikari-output-editor.service`；均 active，QQ 网关已重连，保留 `group_access=joined`，启动日志无 traceback。网页回环根路径 200、未登录模板 API 401。未更改原采集服务、数据库、模板覆盖、Caddy 或 NapCat。
+- 回退记录 `/home/xyk/srbs/deploy-backups/20261116-effect-ffc1cb0/before.json` 指向仍保留的 `20261116-3dc1599` 发布目录；切回该指针并重启两个用户服务即可回退代码。重启期间的消息无法追回，业务数据无需回滚。其他迁移缺口不受本次修复影响，比赛继续暂缓。
