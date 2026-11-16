@@ -179,7 +179,9 @@ class CallbackController:
             return GroupAtMessageCreateEvent.model_validate({
                 'id': 'callback:' + event.id, 'content': command, 'timestamp': event.timestamp,
                 'group_id': event.group_openid, 'group_openid': event.group_openid,
-                'author': {'id': event.group_member_openid, 'member_openid': event.group_member_openid, 'bot': False}})
+                # 点击事件不提供群角色，按普通成员构造，不从按钮继承管理权限。
+                'author': {'id': event.group_member_openid, 'member_openid': event.group_member_openid,
+                           'bot': False, 'member_role': 'member'}})
         return C2CMessageCreateEvent.model_validate({'id': 'callback:' + event.id, 'content': command, 'timestamp': event.timestamp, 'author': {'id': event.user_openid, 'user_openid': event.user_openid}})
 
     async def hint(self, bot, event, text):

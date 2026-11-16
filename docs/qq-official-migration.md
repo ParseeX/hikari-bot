@@ -370,3 +370,4 @@ NAS 另需受控的 `~/.config/srbs/nas-power.json`（只含 `base_url`、`timeo
 - [QQ 按钮文档](https://bot.q.qq.com/wiki/develop/api-v2/server-inter/message/trans/msg-btn.html)限制自定义按钮最多 5 行、每行 5 个；[群消息接口](https://bot.q.qq.com/wiki/develop/api-v2/autogen/api/v2_groups_group_openid_messages.post.html)标注按钮文本最多 10 字符。本次暂按用户要求保留完整中文名，不自行缩写，超长可能被平台拒绝；发送失败明确报错，不把失败说成已恢复。资料没有中文名时只能回退已有日文名、英文名或卡密。群聊按钮及长名真实接受情况尚待用户验收。
 - Windows 相关 **156 passed**：覆盖实际 matcher 和 SDK 请求、群/私聊点击直接返回、查询类型/参数保留、30 张候选翻页、重复/越权/过期回调、超长名称不静默缩写、发送失败撤销按钮，以及既有卡图、每日一卡、别名与迁移回归。使用临时数据库和模拟 HTTP，没有发送 QQ 测试消息。
 - 发布保留前一 release 与文案快照；回退只需切回原指针并重启官方机器人及文案后台，不恢复业务数据库。提交使用 `[skip ci]`，避免触发旧 OneBot 自动部署。
+- Linux（adapter 1.7.4）同组 **156 passed**。补齐该版本强制要求的群成员角色字段；点击事件没有角色资料，因此内部查询事件固定普通成员，不继承管理权限。选择页用 Markdown 承载官方按钮，点选后的查询结果仍沿用各功能原有格式。
