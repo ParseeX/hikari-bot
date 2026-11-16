@@ -57,7 +57,7 @@ def configuration(home, credential_directory):
         "HIKARI_QQ_ALLOWED_USERS": json.dumps(profile["allowed_users"]),
         "HIKARI_QQ_ALLOWED_GROUPS": json.dumps(profile['allowed_groups']),
         "HIKARI_QQ_ADMIN_USERS": json.dumps(profile.get('verified_admin_users', [])),
-        "HIKARI_QQ_RECEIVE_NON_AT": str(profile.get('receive_non_at', False)).lower(),
+        "HIKARI_QQ_RECEIVE_NON_AT": str(profile.get('receive_non_at', True)).lower(),
         "HIKARI_QQ_CARD_CATALOG": profile["card_catalog"],
     }
 

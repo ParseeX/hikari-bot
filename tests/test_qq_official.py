@@ -62,7 +62,8 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue(value.allows("group_at", "member", "opaque-group"))
         self.assertFalse(value.allows("group_at", "opaque-user", "unlisted-group"))
         self.assertFalse(value.allows("c2c", "opaque-group"))
-        self.assertFalse(value.allows("group", "opaque-user", "opaque-group"))
+        self.assertTrue(value.allows("group", "opaque-user", "opaque-group"))
+        self.assertFalse(value.allows("group", "opaque-user", "unlisted-group"))
         self.assertFalse(value.allows("guild", "opaque-user"))
 
     def test_invalid_allowlist_does_not_echo_input(self):

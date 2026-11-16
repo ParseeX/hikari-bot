@@ -4,7 +4,7 @@ from nonebot.adapters.qq import Bot
 from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupAtMessageCreateEvent, GroupMessageCreateEvent, MessageEvent
 from nonebot.rule import Rule
 
-from .commands import parse_command, reply_for
+from .commands import parse_command, reply_for, is_group_request
 from .delivery import ReplyPager
 from .preview import handle_preview
 from .card_actions import CardActions
@@ -71,6 +71,12 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
         key = context(bot, event)
         if key is None or not pager.capacity(event, key[1]):
             return
+        if isinstance(event, GroupMessageCreateEvent):
+            if getattr(event.author, 'bot', False):
+                return
+            if not isinstance(event, GroupAtMessageCreateEvent) and not is_group_request(
+                    request.text, price_active=price_backend is not None and price_backend.active(key)):
+                return
         if not gate.claim(request):
             return
         if request.session in inflight:

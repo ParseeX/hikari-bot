@@ -232,3 +232,57 @@ def test_timed_out_document_download_cannot_start_a_second_thread():
                 await official_control._document_task
             official_control._document_task = None
     asyncio.run(run())
+
+
+def test_full_group_messages_dispatch_only_commands_and_preserve_passive_context():
+    script = '''
+import asyncio
+from datetime import datetime,timezone
+from types import SimpleNamespace,MethodType
+from unittest.mock import AsyncMock,Mock
+import nonebot
+nonebot.logger.remove()
+nonebot.init(driver="~aiohttp",_env_file=[],log_level="ERROR")
+from nonebot.adapters.qq import Bot
+from nonebot.adapters.qq.event import GroupMessageCreateEvent,GroupAtMessageCreateEvent
+from hikari_bot.qq_official.plugin import register
+from hikari_bot.qq_official.config import PilotConfig
+config=PilotConfig('app','synthetic',groups=frozenset({'g','next-group'}))
+state=SimpleNamespace(claim_event=Mock(return_value=True))
+queries=SimpleNamespace(state=state,notifications=None,handle=AsyncMock(return_value=None))
+client=SimpleNamespace(self_id='app',send_to_group=AsyncMock(return_value=SimpleNamespace(id='reply')))
+client.send=MethodType(Bot.send,client)
+def event(id,text,group='g',robot=False,at=False):
+ cls=GroupAtMessageCreateEvent if at else GroupMessageCreateEvent
+ return cls.model_validate(dict(id=id,content=text,group_id=group,group_openid=group,timestamp=datetime.now(timezone.utc).isoformat(),author=dict(id='member',member_openid='member',bot=robot)))
+async def run():
+ handler=register(config,queries=queries).handlers[0].call
+ await handler(client,event('chat','今天吃什么'))
+ await handler(client,event('robot','ping',robot=True))
+ await handler(client,event('other','ping',group='unconfigured'))
+ state.claim_event.assert_not_called()
+ await handler(client,event('plain','ping'))
+ await handler(client,event('plain','ping',at=True))
+ assert state.claim_event.call_count==1
+ args=client.send_to_group.call_args.kwargs
+ assert args['group_openid']=='g' and args['msg_id']=='plain' and args['msg_seq']==1
+ assert '@' not in str(args['message'])
+ await handler(client,event('future','ping',group='next-group'))
+ assert client.send_to_group.await_count==2
+ assert client.send_to_group.call_args.kwargs['group_openid']=='next-group'
+asyncio.run(run())
+'''
+    result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr[-3000:]
+
+
+def test_full_group_filter_keeps_legacy_commands_links_and_active_price_choices():
+    from hikari_bot.qq_official.commands import is_group_request
+    for text in ('卡密 灰流丽', '/卡图 14558127 1', '26年11月历史 player', '中译日 你好',
+                 '卡组PDF #main', '关注账号', '状态', '确认操作 code', '继续',
+                 'https://www.bilibili.com/video/BV1xx411c7mD', 'BV1xx411c7mD', '比赛查询'):
+        assert is_group_request(text), text
+    assert not is_group_request('今天吃什么')
+    assert not is_group_request('1')
+    assert is_group_request('1', price_active=True)
+    assert is_group_request('SER', price_active=True)

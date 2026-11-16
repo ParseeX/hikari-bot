@@ -24,7 +24,7 @@ class PilotConfig:
     users: frozenset[str] = field(default_factory=frozenset, repr=False)
     groups: frozenset[str] = field(default_factory=frozenset, repr=False)
     catalog_path: Path | None = None
-    receive_non_at: bool = False
+    receive_non_at: bool = True
     admins: frozenset[str] = field(default_factory=frozenset, repr=False)
 
     @classmethod
@@ -37,7 +37,7 @@ class PilotConfig:
         sandbox = env.get("HIKARI_QQ_SANDBOX", "").lower()
         if sandbox not in {"true", "false"}:
             raise ValueError("HIKARI_QQ_SANDBOX must be true or false")
-        non_at = env.get("HIKARI_QQ_RECEIVE_NON_AT", "false").lower()
+        non_at = env.get("HIKARI_QQ_RECEIVE_NON_AT", "true").lower()
         if non_at not in {"true", "false"}:
             raise ValueError("HIKARI_QQ_RECEIVE_NON_AT must be true or false")
         if pairing:

@@ -93,13 +93,14 @@ class IdentityTests(unittest.TestCase):
         self.assertTrue(gate.claim(request()))
         self.assertFalse(gate.claim(request(id='')))
 
-    def test_scope_non_at_is_explicit_and_admin_is_not_inherited(self):
+    def test_scope_non_at_defaults_on_and_admin_is_not_inherited(self):
         config = PilotConfig('app', 'fake', users=frozenset({'u'}), groups=frozenset({'g'}))
         self.assertTrue(config.allows('group_at', 'member', 'g'))
-        self.assertFalse(config.allows('group', 'member', 'g'))
+        self.assertTrue(config.allows('group', 'member', 'g'))
+        self.assertFalse(config.allows('group', 'member', 'other'))
         self.assertFalse(config.allows('c2c', 'member'))
         self.assertFalse(config.allows('superuser', 'u'))
-        self.assertTrue(PilotConfig('app', 'fake', groups=frozenset({'g'}), receive_non_at=True).allows('group', 'member', 'g'))
+        self.assertFalse(PilotConfig('app', 'fake', groups=frozenset({'g'}), receive_non_at=False).allows('group', 'member', 'g'))
 
     def test_new_bindings_and_paused_subscriptions_leave_legacy_bytes_intact(self):
         with tempfile.TemporaryDirectory() as tmp:
