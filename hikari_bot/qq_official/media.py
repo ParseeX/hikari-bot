@@ -13,13 +13,13 @@ def output_message(message):
     return Message(message)
 
 
-async def send_formatted(bot, event, message, pager):
+async def send_formatted(bot, event, message, pager, *, can_continue=True):
     """明确拒绝 Markdown 时只报告失败，保留待发内容和原格式。"""
     try:
         await bot.send(event, message)
     except ActionFailed as exc:
-        if not (isinstance(message, Output) and message.mode == 'markdown'
-                and exc.status_code in {400, 403}):
+        markdown = (isinstance(message, Output) and message.mode == 'markdown') or (isinstance(message, Message) and bool(message['markdown']))
+        if not (markdown and exc.status_code in {400, 403}):
             raise
         from .delivery import context
         key = context(bot, event)
@@ -27,7 +27,8 @@ async def send_formatted(bot, event, message, pager):
             code = exc.code if type(exc.code) is int and 0 <= exc.code <= 99999999 else '未知'
             # 错误说明本身固定普通文字，避免再次请求刚被拒绝的格式。
             await bot.send(event, str(present('paging.markdown_failed',
-                {'status': exc.status_code, 'code': code}, plain=True)))
+                {'status': exc.status_code, 'code': code,
+                 'recovery': '请调整文案后重新查询，或回复“继续”按原格式重试。' if can_continue else '请调整文案后重新查询。'}, plain=True)))
         return False
     return True
 

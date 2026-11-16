@@ -46,7 +46,11 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
             source = event('group')
             if not at:
                 source = GroupMessageCreateEvent.model_validate(source.model_dump())
-            await CardActions(catalog).handle('效果', '卡名', config, NamedFileBot(client), source, ReplyPager(now=lambda: NOW))
+            from hikari_bot.qq_official.output_templates import default, draft
+            spec = default('effect.card')
+            spec.update(template='{body}', mode='text')
+            with draft('effect.card', spec):
+                await CardActions(catalog).handle('效果', '卡名', config, NamedFileBot(client), source, ReplyPager(now=lambda: NOW))
             payload = client._request.call_args.args[0].json
             self.assertEqual(payload['msg_type'], 0)
             self.assertEqual(payload['content'], format_card_effect(info))
@@ -57,8 +61,12 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         info = copy.deepcopy(INFO)
         info['text']['desc'] = '①：完整长效果。' * 350
         client = bot()
-        await CardActions(Mock(search=Mock(return_value=info))).handle(
-            '效果', '卡名', CONFIG, client, event(), ReplyPager(now=lambda: NOW))
+        from hikari_bot.qq_official.output_templates import default, draft
+        spec = default('effect.card')
+        spec.update(template='{body}', mode='text')
+        with draft('effect.card', spec):
+            await CardActions(Mock(search=Mock(return_value=info))).handle(
+                '效果', '卡名', CONFIG, client, event(), ReplyPager(now=lambda: NOW))
         payloads = [call.args[0].json for call in client._request.call_args_list]
         self.assertTrue(all(p['msg_type'] == 0 for p in payloads))
         self.assertEqual(''.join(p['content'] for p in payloads), format_card_effect(info))

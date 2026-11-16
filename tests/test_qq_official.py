@@ -252,7 +252,10 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
         catalog.search.return_value = {"passcode": "00001234", "cn_name": "测试卡",
                                       "text": {"types": "魔法", "desc": "测试效果"}}
         self.assertEqual(await commands.reply_for("卡密 测试卡", catalog), "00001234")
-        self.assertEqual(await commands.reply_for("/效果 测试卡", catalog), "测试卡（）\n魔法\n测试效果")
+        from hikari_bot.qq_official.card_actions import card_text
+        result = await commands.reply_for("/效果 测试卡", catalog)
+        self.assertEqual(result, card_text(catalog.search.return_value))
+        self.assertEqual(result.mode, 'markdown')
         catalog.search.side_effect = RuntimeError("sensitive-path")
         self.assertNotIn("sensitive-path", await commands.reply_for("效果 card", catalog))
 

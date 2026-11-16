@@ -57,7 +57,7 @@ class ReplyPager:
             return 0
         return max(0, limit - event._reply_seq)
 
-    async def send(self, bot, event, text=None, *, preview=None, report=None):
+    async def send(self, bot, event, text=None, *, preview=None, report=None, allow_text_fallback=True):
         """text=None continues this user's pending result using a NEW event budget.
 
         Failed sends are never retried automatically. Their unconfirmed text stays
@@ -87,6 +87,13 @@ class ReplyPager:
             state = self.pending.get(key)
             if state is None:
                 await bot.send(event, present('paging.delivery_1', {}))
+                return
+            if preview is not None and not allow_text_fallback:
+                from .media import send_formatted
+                if not await send_formatted(bot, event, preview, self):
+                    return
+                self.pending.pop(key, None)
+                if report: report('rich_api_accepted', None)
                 return
             if preview is not None:
                 try:

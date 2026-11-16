@@ -2,7 +2,6 @@
 from .output_templates import present, Output
 import asyncio
 import re
-from hikari_bot.services.card_text import format_card_effect
 from hikari_bot.services.card_catalog import AmbiguousCardName
 HELP = '官方 QQ 测试入口：ping、帮助、卡密 <卡名/卡密>、效果 <卡名/卡密>、卡表。长回复未完时发送“继续”。已接入群开启全量消息后可直接发送命令。'
 DECK_URL = 'https://ygo.xyk.one/deck'
@@ -67,4 +66,5 @@ async def reply_for(text: str, catalog=None) -> str | None:
         return present('common.commands_7', {})
     if '卡密' in command:
         return present('common.passcode',{'code':str(info.get('passcode') or info.get('id') or present('common.passcode_missing'))})
-    return present('common.effect_plain',{'body':format_card_effect(info)})
+    from .card_actions import card_text
+    return card_text(info)

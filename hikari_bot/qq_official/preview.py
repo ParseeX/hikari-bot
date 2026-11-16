@@ -14,11 +14,12 @@ def report(result, exc=None):
     print('SRBS_PREVIEW ' + json.dumps(payload, ensure_ascii=True, sort_keys=True), flush=True)
 
 def build_preview(info, user_id):
-    from .card_actions import card_content,card_text,command_button,output_message
+    from .card_actions import card_content,command_button,output_message
+    from hikari_bot.services.card_text import format_card_effect
     content=card_content('preview.card',info)
     buttons=[(key,command_button('ash_'+key,label,command+' '+CARD_ID,user_id,style))
              for key,label,command,style in [('effect','完整效果','效果',1),('passcode','卡密','卡密',0)]]
-    return output_message(content,arrange('preview.card',buttons)),card_text(info),content
+    return output_message(content,arrange('preview.card',buttons)),format_card_effect(info),content
 
 async def handle_preview(config, bot, event, pager, catalog):
     if not isinstance(event, C2CMessageCreateEvent) or len(config.users) != 1 or (not config.allows('c2c', event.get_user_id())):

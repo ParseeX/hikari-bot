@@ -195,7 +195,7 @@ def test_markdown_queue_and_group_send_preserve_mode():
 
 
 @pytest.mark.parametrize('mode', ['text', 'markdown'])
-@pytest.mark.parametrize('kind', ['group_at', 'group', 'long_c2c'])
+@pytest.mark.parametrize('kind', ['group_at', 'group', 'c2c', 'long_c2c', 'long_group_at', 'long_group'])
 def test_published_effect_format_reaches_actual_sdk(setup, mode, kind):
     from copy import deepcopy
     from test_qq_preview import INFO, NOW, bot, event
@@ -207,12 +207,12 @@ def test_published_effect_format_reaches_actual_sdk(setup, mode, kind):
     from hikari_bot.qq_official.media import NamedFileBot
     from unittest.mock import Mock
     _, store, _ = setup
-    spec = default('common.effect_plain')
+    spec = default('effect.card')
     spec.update(template='# 自定义标题\n{body}', mode=mode)
-    store.mutate('save', 'effect', 'common.effect_plain', spec, 0)
+    store.mutate('save', 'effect', 'effect.card', spec, 0)
     store.mutate('publish', 'effect', revision=1)
     info = deepcopy(INFO)
-    if kind == 'long_c2c':
+    if kind.startswith('long_'):
         info['text']['desc'] = '完整效果。' * 700
     client = bot()
     async def post(**kwargs):
@@ -220,8 +220,8 @@ def test_published_effect_format_reaches_actual_sdk(setup, mode, kind):
     async def group(**kwargs):
         return await Bot.send_to_group(client, **kwargs)
     client.post_group_messages, client.send_to_group = post, group
-    source = event('c2c' if kind == 'long_c2c' else 'group')
-    if kind == 'group':
+    source = event('c2c' if kind in {'c2c', 'long_c2c'} else 'group')
+    if kind in {'group', 'long_group'}:
         source = GroupMessageCreateEvent.model_validate(source.model_dump())
     config = PilotConfig('synthetic-app', 'fake', users=frozenset({'only-user'}), groups=frozenset({'synthetic-group'}))
     asyncio.run(CardActions(Mock(search=Mock(return_value=info))).handle(
@@ -231,6 +231,7 @@ def test_published_effect_format_reaches_actual_sdk(setup, mode, kind):
     content = ''.join(p['markdown']['content'] if mode == 'markdown' else p['content'] for p in payloads)
     assert content == card_text(info)
     assert all('keyboard' not in p for p in payloads)
+    assert [key for key, value in store.state()['states'].items() if value['feature'] == 'effect'] == ['effect.card']
 
 
 def test_plain_card_selection_does_not_send_rich_message_with_buttons(setup):
@@ -255,6 +256,63 @@ def test_plain_card_selection_does_not_send_rich_message_with_buttons(setup):
     payload = client._request.call_args.args[0].json
     assert payload['msg_type'] == 0 and 'keyboard' not in payload
     assert payload['content'] == INFO['cn_name'] + '\n原文 * 与 #\n---------------\n' + INFO['text']['desc']
+
+
+@pytest.mark.parametrize('kind', ['group', 'c2c'])
+def test_effect_markdown_rejection_never_switches_template_or_format(setup, kind):
+    from test_qq_preview import INFO, NOW, bot, event
+    from nonebot.adapters.qq import Bot
+    from nonebot.adapters.qq.exception import ActionFailed
+    from nonebot.drivers import Response
+    from hikari_bot.qq_official.card_actions import CardActions
+    from hikari_bot.qq_official.config import PilotConfig
+    from hikari_bot.qq_official.delivery import ReplyPager
+    from hikari_bot.qq_official.media import NamedFileBot
+    from unittest.mock import Mock
+    _, store, _ = setup
+    spec = default('effect.card'); spec.update(template='# 同一份\n{effect}', mode='markdown')
+    store.mutate('save', 'effect', 'effect.card', spec, 0)
+    store.mutate('publish', 'effect', revision=1)
+    async def run():
+        client = bot()
+        async def post(**kwargs): return await Bot.post_group_messages(client, **kwargs)
+        async def group(**kwargs): return await Bot.send_to_group(client, **kwargs)
+        client.post_group_messages, client.send_to_group = post, group
+        client._request.side_effect = [ActionFailed(Response(403, content=json.dumps({'code': 304003}))),
+            {'id': 'notice', 'timestamp': NOW.isoformat()}, {'id': 'retried', 'timestamp': NOW.isoformat()}]
+        pager = ReplyPager(now=lambda: NOW)
+        config = PilotConfig('synthetic-app', 'fake', users=frozenset({'only-user'}), groups=frozenset({'synthetic-group'}))
+        wrapped = NamedFileBot(client)
+        await CardActions(Mock(search=Mock(return_value=INFO)), image_loader=AsyncMock()).handle(
+            '效果', '卡名', config, wrapped, event(kind), pager)
+        payloads = [call.args[0].json for call in client._request.call_args_list]
+        assert len(payloads) == 2 and payloads[0]['markdown']['content'].startswith('# 同一份')
+        assert payloads[1]['msg_type'] == 0 and '尚未改成普通文字' in payloads[1]['content']
+        assert INFO['text']['desc'] not in payloads[1]['content']
+        assert bool(payloads[0].get('keyboard')) == (kind == 'c2c')
+        source = event(kind); source.id = 'manual-continue'
+        await pager.send(wrapped, source)
+        assert client._request.call_args.args[0].json['markdown']['content'] == payloads[0]['markdown']['content']
+        assert not pager.pending
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('mode', ['text', 'markdown'])
+def test_art_page_uses_one_published_template_for_both_chats(setup, mode):
+    from test_qq_preview import INFO
+    from hikari_bot.qq_official.card_actions import image_navigation
+    _, store, _ = setup
+    spec = default('art.page')
+    spec.update(template='{name}\n第 {index}/{total} 张\n{navigation}', mode=mode)
+    store.mutate('save', 'art', 'art.page', spec, 0)
+    store.mutate('publish', 'art', revision=1)
+    for offset in (0, 1):
+        private = image_navigation(INFO, 'only-user', offset, 2, buttons=True)
+        group = image_navigation(INFO, 'only-user', offset, 2, buttons=False)
+        assert private[0] == group[0]
+        assert private[0].type == ('markdown' if mode == 'markdown' else 'text')
+        assert bool(private['keyboard']) == (mode == 'markdown') and not group['keyboard']
+        assert ('卡图 14558127 1' if offset == 0 else '已是最后一张') in str(group)
 
 
 @pytest.mark.parametrize('delivery_type', ['pager', 'result'])

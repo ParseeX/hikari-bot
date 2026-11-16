@@ -134,11 +134,11 @@
         "卡片按钮：完整效果"
       ],
       "status": "已接入",
-      "implementation": "保留效果、灵摆及原官方试点 Markdown 和按钮。",
-      "differences": "私聊卡片与群聊/长文使用各自的文案设置，两者均支持普通文字或 Markdown。普通文字不带按钮；Markdown 按钮仍限已接入的 C2C 短回复。长文分页可能拆开 Markdown 语法。原私聊卡片被平台明确拒绝时会说明原因并回退；群聊/长文 Markdown 被明确拒绝时只提示失败，保留原格式等待手动继续。",
+      "implementation": "群聊、私聊及长短回复共用同一条效果文案和格式；保留完整效果、灵摆及既有私聊 Markdown 按钮。",
+      "differences": "文案和发送格式不再按群聊/私聊区分。按钮目前只在私聊短 Markdown 回复接入；群聊、普通文字和长文分页不附带按钮。分页额度因会话场景不同，可能需发送“继续”；Markdown 跨页可能拆开语法。效果查询被明确拒绝时只提示失败，不改为另一套文案或普通文字。",
       "qq": "试点 Markdown/按钮已有验收；自定义模板和群 Markdown 待验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "效果卡片和兼容纯文本回复；卡片数据库的原始效果内容是变量，不在此改库。",
+      "coverage": "只编辑一条“效果回复”，对所有会话生效。{body} 提供原版完整纯文本排版，也可用卡名、类型、效果等细分变量；原始卡库不在此修改。",
       "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
       "updated": "2026-11-16",
       "related": [
@@ -157,7 +157,7 @@
       ],
       "status": "已接入",
       "implementation": "逐张读取原卡图，保留上一张/下一张操作。",
-      "differences": "多张卡图分开发送，导航可能单独一条；原合并转发外观未恢复。",
+      "differences": "群聊与私聊共用卡图页码和操作提示；图片与导航分条。只有已接入的私聊 Markdown 附带按钮，群聊/普通文字可输入相同提示中的下一张命令。原合并转发外观未恢复。",
       "qq": "群内不 @ 卡图及分页已验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
@@ -956,23 +956,25 @@
   "states": {
     "effect.card": {
       "feature": "effect",
-      "label": "私聊效果卡片（短回复）",
-      "note": "仅用于私聊短回复；群聊与超长效果请编辑下面的“群聊与长文效果回复”。格式由各自文案的选择决定。",
-      "format_note": "普通文字按原文发送，不解析 #、** 等标记，也不附带按钮；请同步调整模板内容。Markdown 保留已有私聊按钮。原卡片被 QQ 明确拒绝时，会说明错误并使用回退文案，不能把回退当作 Markdown 发送成功。",
+      "label": "效果回复",
+      "note": "群聊（带 @ 或不带 @）、私聊以及长文分页统一使用这一条文案和发送格式，不再提供按聊天场景分开的配置。",
+      "format_note": "选择普通文字或 Markdown 后，两边都按此格式发送。普通文字不解析模板里手写的 #、**；想沿用原版排版，可填 {body} 并选择普通文字。Markdown 保留已有私聊短回复按钮；群聊和长文暂不附带按钮，正文与格式仍相同。明确拒绝时只提示错误，不自动改格式。",
       "template": "# {name}\n{official}\n\n**{types}**\n\n{pendulum}## 效果\n{effect}",
       "fields": {
         "name": "卡名",
         "official": "日文名与已有读音",
         "types": "类型/属性/数值",
         "pendulum": "完整灵摆段落",
-        "effect": "完整效果原文"
+        "effect": "完整效果原文",
+        "body": "原版完整效果文本（包含卡名、类型、灵摆和效果）"
       },
       "samples": {
         "name": "灰流うらら",
         "official": "示例值",
         "types": "示例值",
         "pendulum": "示例值",
-        "effect": "示例值"
+        "effect": "示例值",
+        "body": "灰流丽（灰流うらら）\n[怪兽|效果|调整]\n完整效果示例。"
       },
       "mode": "markdown",
       "buttons": {
@@ -993,16 +995,18 @@
     "art.page": {
       "feature": "art",
       "label": "卡图页与导航",
-      "template": "**{name}**\n第 {index} / {total} 张卡图",
+      "template": "**{name}**\n第 {index} / {total} 张卡图\n{navigation}",
       "fields": {
         "name": "卡名",
         "index": "当前图片序号",
-        "total": "图片总数"
+        "total": "图片总数",
+        "navigation": "下一张操作提示或最后一张提示"
       },
       "samples": {
         "name": "灰流うらら",
         "index": "1",
-        "total": "3"
+        "total": "3",
+        "navigation": "下一张请发送：卡图 14558127 1"
       },
       "mode": "markdown",
       "buttons": {
@@ -1022,7 +1026,8 @@
         ]
       ],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "note": "群聊和私聊共用此页码文案及格式，跟在卡图后发送。只有已接入的私聊 Markdown 附带按钮，其他场景可输入文案中的下一张命令。"
     },
     "preview.card": {
       "feature": "preview",
@@ -1613,9 +1618,17 @@
     "paging.markdown_failed": {
       "feature": "paging",
       "label": "Markdown 发送被拒绝（固定普通文字提示）",
-      "template": "本次 Markdown 发送被 QQ 拒绝（HTTP {status}，错误码 {code}）。可能涉及内容校验、权限或平台限制；尚未改成普通文字发送。请调整文案后重新查询，或回复“继续”按原格式重试。",
-      "fields": {"status": "安全 HTTP 状态码", "code": "安全平台错误码"},
-      "samples": {"status": "403", "code": "304003"},
+      "template": "本次 Markdown 发送被 QQ 拒绝（HTTP {status}，错误码 {code}）。可能涉及内容校验、权限或平台限制；尚未改成普通文字发送。{recovery}",
+      "fields": {
+        "status": "安全 HTTP 状态码",
+        "code": "安全平台错误码",
+        "recovery": "按该场景提供重新查询或手动继续的说明"
+      },
+      "samples": {
+        "status": "403",
+        "code": "304003",
+        "recovery": "请调整文案后重新查询，或回复“继续”按原格式重试。"
+      },
       "mode": "text",
       "fragment": true,
       "format_note": "这条错误提示固定使用普通文字，以免重复请求刚被拒绝的 Markdown；不能单独选择 Markdown。错误码不代表已确认具体原因。若回复额度已耗尽或网络异常，错误提示本身也可能无法送达。"
@@ -1623,7 +1636,7 @@
     "paging.rejected": {
       "feature": "paging",
       "label": "Markdown 拒绝后的说明",
-      "format_note": "原私聊卡片被 QQ 明确拒绝后的回退说明，固定普通文字并附带兼容正文。不能单独选择 Markdown，不能把回退成功当成 Markdown 验收成功。",
+      "format_note": "仅用于独立的“样式预览”试点命令，固定普通文字回退说明；正常效果查询不使用此回退。不能单独选择 Markdown，也不代表 Markdown 已验收。",
       "template": "格式预览被平台拒绝（HTTP {status}，错误码 {code}），已改为纯文本。\n\n",
       "fields": {
         "status": "安全 HTTP 状态码",
@@ -1754,24 +1767,6 @@
       "mode": "text",
       "fields": {},
       "samples": {},
-      "rows": [],
-      "buttons": {},
-      "blocks": [],
-      "fragment": false
-    },
-    "common.effect_plain": {
-      "feature": "effect",
-      "label": "群聊与长文效果回复",
-      "note": "群聊（带 @ 或不带 @）及超长私聊按本条格式发送，与上方私聊卡片独立。也提供原私聊富文本拒绝后的回退正文；该失败回退固定普通文字并附错误说明。",
-      "format_note": "群聊和长文可选择普通文字或 Markdown，不因群聊强制转文字。Markdown 模式可在 {body} 前后写标题、加粗等语法；正文变量按数据处理，不执行其中的 Markdown。当前群聊效果不附带按钮；群 Markdown 客户端显示待用户验收。超长内容分页可能拆开语法。",
-      "template": "{body}",
-      "mode": "text",
-      "fields": {
-        "body": "完整原效果文本"
-      },
-      "samples": {
-        "body": "灰流丽\n[怪兽|效果|调整]\n这段为完整效果示例。"
-      },
       "rows": [],
       "buttons": {},
       "blocks": [],
@@ -4335,6 +4330,28 @@
       "samples": {},
       "fragment": true,
       "mode": "text"
+    },
+    "art.next_hint": {
+      "feature": "art",
+      "label": "下一张操作提示",
+      "template": "下一张请发送：{command}",
+      "fields": {
+        "command": "下一张卡图命令"
+      },
+      "samples": {
+        "command": "卡图 14558127 1"
+      },
+      "mode": "text",
+      "fragment": true
+    },
+    "art.last_hint": {
+      "feature": "art",
+      "label": "最后一张提示",
+      "template": "已是最后一张。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true
     }
   }
 }

@@ -55,7 +55,11 @@ class FormatParityTests(unittest.IsolatedAsyncioTestCase):
         service.get_card_info.assert_awaited_once_with("synthetic query")
         catalog = Mock()
         catalog.search.return_value = info
-        new = await reply_for("效果 synthetic query", catalog)
+        from hikari_bot.qq_official.output_templates import default, draft
+        spec = default('effect.card')
+        spec.update(template='{body}', mode='text')
+        with draft('effect.card', spec):
+            new = await reply_for("效果 synthetic query", catalog)
         catalog.search.assert_called_once_with("synthetic query")
         self.assertEqual(old, expected)
         self.assertEqual(new, old)

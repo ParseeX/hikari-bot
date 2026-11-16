@@ -1,4 +1,4 @@
-"""C2C card replies; optional price backend must be explicitly injected."""
+"""群聊与私聊共用卡片文案；可选卡价后端必须显式注入。"""
 from .output_templates import present, arrange
 import asyncio
 import re
@@ -39,14 +39,15 @@ def command_button(key, label, command, user_id, style=0):
 def primary_buttons(code, user_id, *, images, prices):
     return [command_button(key + '_' + code, label, f'{command} {code}', user_id, style) for available, key, label, command, style in ((images, 'image', '查看卡图', '卡图', 1), (prices, 'price', '查询卡价', '卡价', 0)) if code and available]
 
-def image_navigation(info, user_id, offset, total, *, prices=False):
+def image_navigation(info, user_id, offset, total, *, prices=False, buttons=True):
     code = stable_code(info)
-    buttons=[]
+    available_buttons=[]
     for enabled,step,label,role in ((offset>0,-1,'上一张','previous'),(offset+1<total,1,'下一张','next')):
-        if enabled: buttons.append((role,command_button(f'art_{code}_{offset+step}',label,f'卡图 {code} {offset+step}',user_id)))
-    buttons.extend((b['id'].split('_')[0],b) for b in primary_buttons(code,user_id,images=True,prices=prices))
-    text=present('art.page',{'name':info.get('cn_name') or info.get('jp_name') or '卡图','index':offset+1,'total':total})
-    return output_message(text,arrange('art.page',buttons))
+        if enabled: available_buttons.append((role,command_button(f'art_{code}_{offset+step}',label,f'卡图 {code} {offset+step}',user_id)))
+    available_buttons.extend((b['id'].split('_')[0],b) for b in primary_buttons(code,user_id,images=True,prices=prices))
+    navigation = present('art.next_hint', {'command': f'卡图 {code} {offset+1}'}) if offset+1 < total else present('art.last_hint')
+    text=present('art.page',{'name':info.get('cn_name') or info.get('jp_name') or '卡图','index':offset+1,'total':total,'navigation':navigation})
+    return output_message(text,arrange('art.page',available_buttons) if buttons else [])
 
 def stable_code(info):
     value = str(info.get('passcode') or info.get('temporary_id') or info.get('id') or '')
@@ -66,18 +67,18 @@ def card_values(info):
     return {'name':info.get('cn_name') or jp or info.get('en_name') or '卡片',
             'official':official,'types':texts.get('types') or '',
             'pendulum':('## 灵摆效果\n'+escape_markdown(texts['pdesc'])+'\n\n***\n\n') if texts.get('pdesc') else '',
-            'effect':texts.get('desc') or '暂无效果资料。'}
+            'effect':texts.get('desc') or '暂无效果资料。', 'body':format_card_effect(info)}
 
 def card_message(info, user_id, *, images=False, prices=False):
     content=card_content('effect.card',info)
     buttons=primary_buttons(stable_code(info),user_id,images=images,prices=prices)
     rows=arrange('effect.card',[(b['id'].split('_')[0],b) for b in buttons])
-    return output_message(content,rows),card_text(info),content
+    return output_message(content,rows),format_card_effect(info),content
 
 
 def card_text(info):
-    """群聊和长文使用独立文案，保留后台选择的发送格式。"""
-    return present('common.effect_plain', {'body': format_card_effect(info)})
+    """所有会话和长短回复共用同一条效果文案及格式。"""
+    return card_content('effect.card', info)
 
 
 def card_content(key, info):
@@ -133,11 +134,11 @@ class CardActions:
             if not info:
                 await pager.send(bot, event, present('art.card_actions_3', {}))
             elif command in EFFECT_COMMANDS:
-                rich, plain, content = card_message(info, event.get_user_id(), images=self.image_loader is not None, prices=self.price_backend is not None)
-                if not group and len(content) <= TEXT_CHARS:
-                    await pager.send(bot, event, plain, preview=rich, report=report)
+                rich, _, content = card_message(info, event.get_user_id(), images=self.image_loader is not None, prices=self.price_backend is not None)
+                if not group and len(content) <= TEXT_CHARS and content.mode == 'markdown':
+                    await pager.send(bot, event, content, preview=rich, report=report, allow_text_fallback=False)
                 else:
-                    await pager.send(bot, event, plain)
+                    await pager.send(bot, event, content)
             elif command in price_commands:
                 if self.price_backend is None:
                     await pager.send(bot, event, present('art.card_actions_4', {}))
@@ -182,10 +183,9 @@ class CardActions:
             payload = MessageSegment.file_image(data) if data and len(data) <= 8 * 1024 * 1024 else present('art.failed',{'index':offset+1})
             await bot.send(event, payload)
             if pager.capacity(event, key[1]):
-                if isinstance(event, C2CMessageCreateEvent):
-                    await bot.send(event, image_navigation(info, event.get_user_id(), offset, len(ids), prices=self.price_backend is not None))
-                elif offset + 1 < len(ids):
-                    await bot.send(event, f'共有 {len(ids)} 张卡图。下一张请发送：卡图 {code} {offset + 1}')
+                from .media import send_formatted
+                await send_formatted(bot, event, image_navigation(info, event.get_user_id(), offset, len(ids),
+                    prices=self.price_backend is not None, buttons=isinstance(event, C2CMessageCreateEvent)), pager, can_continue=False)
 
 async def existing_art_loader(card_id):
     from hikari_bot.services.card_art import get_image_by_id, normalize_card_art
