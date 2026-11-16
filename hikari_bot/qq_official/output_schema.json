@@ -135,7 +135,7 @@
       ],
       "status": "已接入",
       "implementation": "保留效果、灵摆及原官方试点 Markdown 和按钮。",
-      "differences": "按钮仍限已验证的 C2C 场景；群场景和长文会走普通文字及续读。",
+      "differences": "私聊卡片与群聊/长文使用各自的文案设置，两者均支持普通文字或 Markdown。普通文字不带按钮；Markdown 按钮仍限已接入的 C2C 短回复。长文分页可能拆开 Markdown 语法。原私聊卡片被平台明确拒绝时会说明原因并回退；群聊/长文 Markdown 被明确拒绝时只提示失败，保留原格式等待手动继续。",
       "qq": "试点 Markdown/按钮已有验收；自定义模板和群 Markdown 待验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "效果卡片和兼容纯文本回复；卡片数据库的原始效果内容是变量，不在此改库。",
@@ -956,7 +956,9 @@
   "states": {
     "effect.card": {
       "feature": "effect",
-      "label": "效果卡片",
+      "label": "私聊效果卡片（短回复）",
+      "note": "仅用于私聊短回复；群聊与超长效果请编辑下面的“群聊与长文效果回复”。格式由各自文案的选择决定。",
+      "format_note": "普通文字按原文发送，不解析 #、** 等标记，也不附带按钮；请同步调整模板内容。Markdown 保留已有私聊按钮。原卡片被 QQ 明确拒绝时，会说明错误并使用回退文案，不能把回退当作 Markdown 发送成功。",
       "template": "# {name}\n{official}\n\n**{types}**\n\n{pendulum}## 效果\n{effect}",
       "fields": {
         "name": "卡名",
@@ -1608,9 +1610,20 @@
       "blocks": [],
       "fragment": true
     },
+    "paging.markdown_failed": {
+      "feature": "paging",
+      "label": "Markdown 发送被拒绝（固定普通文字提示）",
+      "template": "本次 Markdown 发送被 QQ 拒绝（HTTP {status}，错误码 {code}）。可能涉及内容校验、权限或平台限制；尚未改成普通文字发送。请调整文案后重新查询，或回复“继续”按原格式重试。",
+      "fields": {"status": "安全 HTTP 状态码", "code": "安全平台错误码"},
+      "samples": {"status": "403", "code": "304003"},
+      "mode": "text",
+      "fragment": true,
+      "format_note": "这条错误提示固定使用普通文字，以免重复请求刚被拒绝的 Markdown；不能单独选择 Markdown。错误码不代表已确认具体原因。若回复额度已耗尽或网络异常，错误提示本身也可能无法送达。"
+    },
     "paging.rejected": {
       "feature": "paging",
       "label": "Markdown 拒绝后的说明",
+      "format_note": "原私聊卡片被 QQ 明确拒绝后的回退说明，固定普通文字并附带兼容正文。不能单独选择 Markdown，不能把回退成功当成 Markdown 验收成功。",
       "template": "格式预览被平台拒绝（HTTP {status}，错误码 {code}），已改为纯文本。\n\n",
       "fields": {
         "status": "安全 HTTP 状态码",
@@ -1748,7 +1761,9 @@
     },
     "common.effect_plain": {
       "feature": "effect",
-      "label": "普通效果回复（群聊、超长效果及富文本失败回退）",
+      "label": "群聊与长文效果回复",
+      "note": "群聊（带 @ 或不带 @）及超长私聊按本条格式发送，与上方私聊卡片独立。也提供原私聊富文本拒绝后的回退正文；该失败回退固定普通文字并附错误说明。",
+      "format_note": "群聊和长文可选择普通文字或 Markdown，不因群聊强制转文字。Markdown 模式可在 {body} 前后写标题、加粗等语法；正文变量按数据处理，不执行其中的 Markdown。当前群聊效果不附带按钮；群 Markdown 客户端显示待用户验收。超长内容分页可能拆开语法。",
       "template": "{body}",
       "mode": "text",
       "fields": {
@@ -4304,6 +4319,7 @@
     "callback.unsupported": {
       "feature": "callback",
       "label": "当前客户端不支持回调；可手动输入原查询命令",
+      "format_note": "这是 QQ 按钮协议的纯文本提示字段，不能选择 Markdown。",
       "template": "当前客户端不支持回调；可手动输入原查询命令",
       "fields": {},
       "samples": {},

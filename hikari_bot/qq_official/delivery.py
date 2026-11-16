@@ -118,7 +118,9 @@ class ReplyPager:
                     payload += hint
                 if isinstance(state.text,Output) and preview is None:
                     payload=Output(payload,state.text.key,state.text.mode)
-                await bot.send(event, payload)
+                from .media import send_formatted
+                if not await send_formatted(bot, event, payload, self):
+                    return
                 state.offset = end
                 state.expires = self.clock() + PENDING_SECONDS
                 if end == len(state.text):

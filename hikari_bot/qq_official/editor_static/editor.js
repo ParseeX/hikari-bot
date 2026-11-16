@@ -41,7 +41,7 @@ function fillEditor() {
   const state = data.states[key]; $('editor').hidden = false; $('scene-title').textContent = state.label; $('scene-key').textContent = data.features[feature].label + ' / 场景文案'; $('scene-note').textContent = state.note || '此场景出现时使用以下文案。';
   $('draft-status').textContent = dirty ? '未保存' : state.has_draft ? '草稿未发布' : '当前已发布';
   $('mode').value = spec.mode; $('mode').disabled = !!state.fragment;
-  $('mode-note').textContent = state.fragment ? '这是组合消息中的一段，格式跟随该功能的“完整回复”设置。' : 'Markdown 是否可显示取决于当前 QQ 场景权限；若含上传图片或文件，会分开发送，QQ 内效果需自行确认。';
+  $('mode-note').textContent = state.format_note || (state.fragment ? '这是组合消息中的一段，格式跟随该功能的“完整回复”设置。' : '群聊和私聊均按此处选择发送：普通文字不解析 Markdown 标记；Markdown 使用官方 Markdown 消息。保存后需发布。QQ 已开放群聊/私聊自定义 Markdown，当前应用的群聊客户端效果仍待验收。上传图片、PDF、视频与 Markdown 文字目前分条发送，这是现有实现限制；图片可以使用官方 Markdown 图片语法，上传素材内嵌尚未接入。长文分段可能拆开 Markdown 语法。');
   $('template').value = spec.template; $('variables').replaceChildren();
   for (const [name, label] of Object.entries(state.fields)) { const b = el('button', '{'+name+'} · '+label); b.type = 'button'; b.onclick = () => { const area = $('template'); area.setRangeText('{'+name+'}', area.selectionStart, area.selectionEnd, 'end'); area.focus(); edited(); }; $('variables').append(b); }
   $('button-settings').hidden = !Object.keys(spec.labels).length; $('button-labels').replaceChildren();

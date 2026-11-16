@@ -194,6 +194,100 @@ def test_markdown_queue_and_group_send_preserve_mode():
     assert bot.send.call_args.args[1]['markdown']
 
 
+@pytest.mark.parametrize('mode', ['text', 'markdown'])
+@pytest.mark.parametrize('kind', ['group_at', 'group', 'long_c2c'])
+def test_published_effect_format_reaches_actual_sdk(setup, mode, kind):
+    from copy import deepcopy
+    from test_qq_preview import INFO, NOW, bot, event
+    from nonebot.adapters.qq import Bot
+    from nonebot.adapters.qq.event import GroupMessageCreateEvent
+    from hikari_bot.qq_official.card_actions import CardActions, card_text
+    from hikari_bot.qq_official.config import PilotConfig
+    from hikari_bot.qq_official.delivery import ReplyPager
+    from hikari_bot.qq_official.media import NamedFileBot
+    from unittest.mock import Mock
+    _, store, _ = setup
+    spec = default('common.effect_plain')
+    spec.update(template='# 自定义标题\n{body}', mode=mode)
+    store.mutate('save', 'effect', 'common.effect_plain', spec, 0)
+    store.mutate('publish', 'effect', revision=1)
+    info = deepcopy(INFO)
+    if kind == 'long_c2c':
+        info['text']['desc'] = '完整效果。' * 700
+    client = bot()
+    async def post(**kwargs):
+        return await Bot.post_group_messages(client, **kwargs)
+    async def group(**kwargs):
+        return await Bot.send_to_group(client, **kwargs)
+    client.post_group_messages, client.send_to_group = post, group
+    source = event('c2c' if kind == 'long_c2c' else 'group')
+    if kind == 'group':
+        source = GroupMessageCreateEvent.model_validate(source.model_dump())
+    config = PilotConfig('synthetic-app', 'fake', users=frozenset({'only-user'}), groups=frozenset({'synthetic-group'}))
+    asyncio.run(CardActions(Mock(search=Mock(return_value=info))).handle(
+        '效果', '卡名', config, NamedFileBot(client), source, ReplyPager(now=lambda: NOW)))
+    payloads = [call.args[0].json for call in client._request.call_args_list]
+    assert payloads and all(p['msg_type'] == (2 if mode == 'markdown' else 0) for p in payloads)
+    content = ''.join(p['markdown']['content'] if mode == 'markdown' else p['content'] for p in payloads)
+    assert content == card_text(info)
+    assert all('keyboard' not in p for p in payloads)
+
+
+def test_plain_card_selection_does_not_send_rich_message_with_buttons(setup):
+    from copy import deepcopy
+    from test_qq_preview import INFO, NOW, bot, event
+    from hikari_bot.qq_official.card_actions import CardActions
+    from hikari_bot.qq_official.config import PilotConfig
+    from hikari_bot.qq_official.delivery import ReplyPager
+    from hikari_bot.qq_official.media import NamedFileBot
+    from unittest.mock import Mock
+    _, store, _ = setup
+    spec = default('effect.card')
+    spec.update(template='{name}\n{pendulum}{effect}', mode='text')
+    store.mutate('save', 'effect', 'effect.card', spec, 0)
+    store.mutate('publish', 'effect', revision=1)
+    client = bot()
+    config = PilotConfig('synthetic-app', 'fake', users=frozenset({'only-user'}))
+    info = deepcopy(INFO)
+    info['text']['pdesc'] = '原文 * 与 #'
+    asyncio.run(CardActions(Mock(search=Mock(return_value=info)), image_loader=AsyncMock()).handle(
+        '效果', '卡名', config, NamedFileBot(client), event(), ReplyPager(now=lambda: NOW)))
+    payload = client._request.call_args.args[0].json
+    assert payload['msg_type'] == 0 and 'keyboard' not in payload
+    assert payload['content'] == INFO['cn_name'] + '\n原文 * 与 #\n---------------\n' + INFO['text']['desc']
+
+
+@pytest.mark.parametrize('delivery_type', ['pager', 'result'])
+@pytest.mark.parametrize('status', [400, 403])
+def test_markdown_rejection_reports_failure_and_keeps_original_format(delivery_type, status):
+    from test_qq_preview import NOW, bot, event
+    from nonebot.adapters.qq.exception import ActionFailed
+    from nonebot.drivers import Response
+    from hikari_bot.qq_official.delivery import ReplyPager
+    from hikari_bot.qq_official.results import ResultDelivery
+    from hikari_bot.qq_official.media import NamedFileBot
+    async def run():
+        client = bot()
+        client._request.side_effect = [ActionFailed(Response(status, content=json.dumps(
+            {'code': 304003, 'message': 'secret-payload'}))), {'id': 'notice', 'timestamp': NOW.isoformat()},
+            {'id': 'retried', 'timestamp': NOW.isoformat()}]
+        wrapped = NamedFileBot(client)
+        pager = ReplyPager(now=lambda: NOW)
+        delivery = pager if delivery_type == 'pager' else ResultDelivery(pager)
+        output = Output('# 原文\n**完整正文**', 'synthetic', 'markdown')
+        await delivery.send(wrapped, event(), output if delivery_type == 'pager' else Result(output))
+        payloads = [call.args[0].json for call in client._request.call_args_list]
+        assert [p['msg_type'] for p in payloads] == [2, 0]
+        assert '304003' in payloads[1]['content'] and '尚未改成普通文字' in payloads[1]['content']
+        assert 'secret-payload' not in payloads[1]['content'] and '**完整正文**' not in payloads[1]['content']
+        assert delivery.pending
+        source = event(); source.id = 'new-event'
+        await delivery.send(wrapped, source)
+        assert client._request.call_args.args[0].json['markdown']['content'] == output
+        assert not delivery.pending
+    asyncio.run(run())
+
+
 def test_markdown_result_is_separate_from_image_but_plain_keeps_same_bubble():
     from datetime import datetime, timezone
     from nonebot.adapters.qq.event import C2CMessageCreateEvent

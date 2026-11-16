@@ -2,7 +2,8 @@
 from pathlib import PurePath
 
 from nonebot.adapters.qq import Bot, Message, MessageSegment
-from .output_templates import Output
+from .output_templates import Output, present
+from nonebot.adapters.qq.exception import ActionFailed
 
 
 def output_message(message):
@@ -10,6 +11,25 @@ def output_message(message):
     if isinstance(message, Output):
         return Message(MessageSegment.markdown(str(message))) if message.mode == 'markdown' else Message(str(message))
     return Message(message)
+
+
+async def send_formatted(bot, event, message, pager):
+    """明确拒绝 Markdown 时只报告失败，保留待发内容和原格式。"""
+    try:
+        await bot.send(event, message)
+    except ActionFailed as exc:
+        if not (isinstance(message, Output) and message.mode == 'markdown'
+                and exc.status_code in {400, 403}):
+            raise
+        from .delivery import context
+        key = context(bot, event)
+        if key and pager.capacity(event, key[1]):
+            code = exc.code if type(exc.code) is int and 0 <= exc.code <= 99999999 else '未知'
+            # 错误说明本身固定普通文字，避免再次请求刚被拒绝的格式。
+            await bot.send(event, str(present('paging.markdown_failed',
+                {'status': exc.status_code, 'code': code}, plain=True)))
+        return False
+    return True
 
 
 class NamedFileBot:

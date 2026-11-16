@@ -55,7 +55,7 @@ def stable_code(info):
 def output_message(text,rows):
     segment=MessageSegment.markdown(str(text)) if text.mode=='markdown' else MessageSegment.text(str(text))
     message=Message(segment)
-    if rows: message+=MessageSegment.keyboard(MessageKeyboard.model_validate({'content':{'rows':rows}}))
+    if rows and text.mode == 'markdown': message+=MessageSegment.keyboard(MessageKeyboard.model_validate({'content':{'rows':rows}}))
     return message
 
 def card_values(info):
@@ -69,15 +69,24 @@ def card_values(info):
             'effect':texts.get('desc') or '暂无效果资料。'}
 
 def card_message(info, user_id, *, images=False, prices=False):
-    content=present('effect.card',card_values(info))
+    content=card_content('effect.card',info)
     buttons=primary_buttons(stable_code(info),user_id,images=images,prices=prices)
     rows=arrange('effect.card',[(b['id'].split('_')[0],b) for b in buttons])
     return output_message(content,rows),card_text(info),content
 
 
 def card_text(info):
-    """普通回复使用独立文案，避免把富文本模板标记原样发出。"""
+    """群聊和长文使用独立文案，保留后台选择的发送格式。"""
     return present('common.effect_plain', {'body': format_card_effect(info)})
+
+
+def card_content(key, info):
+    values = card_values(info)
+    content = present(key, values)
+    if content.mode == 'text' and values['pendulum']:
+        values['pendulum'] = info['text']['pdesc'] + '\n---------------\n'
+        content = present(key, values)
+    return content
 
 class CardActions:
 

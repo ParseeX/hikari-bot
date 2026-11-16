@@ -84,7 +84,9 @@ class ResultDelivery:
                 if capacity == 1 and len(pending.parts) > 1:
                     await bot.send(event, present('paging.results_23325cb3', {}))
                     return
-                await asyncio.wait_for(bot.send(event, pending.parts[0]), timeout=90)
+                from .media import send_formatted
+                if not await asyncio.wait_for(send_formatted(bot, event, pending.parts[0], self.pager), timeout=90):
+                    return
                 part = pending.parts.pop(0)
                 pending.size = max(0, pending.size - payload_size(part))
                 pending.expires = self.clock() + 600
