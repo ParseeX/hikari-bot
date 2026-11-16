@@ -26,6 +26,7 @@ class PilotConfig:
     catalog_path: Path | None = None
     receive_non_at: bool = True
     admins: frozenset[str] = field(default_factory=frozenset, repr=False)
+    accept_joined_groups: bool = False
 
     @classmethod
     def from_env(cls, env: Mapping[str, str], *, pairing: bool = False):
@@ -47,9 +48,12 @@ class PilotConfig:
         users = _ids(env, "HIKARI_QQ_ALLOWED_USERS")
         groups = _ids(env, "HIKARI_QQ_ALLOWED_GROUPS")
         admins = _ids(env, 'HIKARI_QQ_ADMIN_USERS')
+        joined = env.get('HIKARI_QQ_ACCEPT_JOINED_GROUPS', 'false').lower()
+        if joined not in {'true', 'false'}:
+            raise ValueError('HIKARI_QQ_ACCEPT_JOINED_GROUPS must be true or false')
         if not admins <= users:
             raise ValueError('HIKARI_QQ_ADMIN_USERS must be explicitly allowed C2C users')
-        if not users and not groups:
+        if not users and not groups and joined != 'true':
             raise ValueError("Configure at least one allowed official QQ user/group identifier")
         path = env.get("HIKARI_QQ_CARD_CATALOG", "").strip()
         if path and not Path(path).is_file():
@@ -57,11 +61,13 @@ class PilotConfig:
         return cls(env["HIKARI_QQ_APP_ID"].strip(), env["HIKARI_QQ_APP_SECRET"],
                    env.get("HIKARI_QQ_TOKEN", ""), sandbox == "true", users, groups,
                    Path(path) if path else None,
-                   non_at == "true", admins)
+                   non_at == "true", admins, joined == 'true')
 
     def allows(self, kind: str, user_id: str, group_id: str = "") -> bool:
         if kind == "group_at" or (kind == "group" and self.receive_non_at):
-            return bool(group_id) and group_id in self.groups
+            # 事件由当前应用已鉴权的 QQ 连接送达；允许入群由 QQ 平台控制。
+            # 这里只决定被动命令接入，不授予主动通知或管理员权限。
+            return bool(group_id) and (self.accept_joined_groups or group_id in self.groups)
         return kind == "c2c" and user_id in self.users
 
     def bot_info(self):

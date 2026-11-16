@@ -13,19 +13,24 @@ def read_profile(path):
         data = json.loads(path.read_text(encoding="utf-8-sig"))
         keys = {"schema_version", "allowed_users", "allowed_groups", "card_catalog"}
         version = data.get('schema_version')
-        if version == 2:
+        if version in {2, 3}:
             keys |= {'verified_admin_users', 'receive_non_at'}
-        if set(data) != keys or type(version) is not int or version not in {1, 2}:
+        if version == 3:
+            keys |= {'accept_joined_groups'}
+        if set(data) != keys or type(version) is not int or version not in {1, 2, 3}:
+            raise ValueError
+        if version == 3 and type(data['accept_joined_groups']) is not bool:
             raise ValueError
         users = data["allowed_users"]
         groups = data['allowed_groups']
-        if (not isinstance(users, list) or not isinstance(groups, list) or not (users or groups)
+        if (not isinstance(users, list) or not isinstance(groups, list)
+                or not (users or groups or data.get('accept_joined_groups', False))
                 or any(not isinstance(value, str) or not value.strip() or value.startswith('REPLACE_') for value in users + groups)
                 or not isinstance(data['card_catalog'], str)):
             raise ValueError
         if version == 1 and (len(users) != 1 or groups):
             raise ValueError
-        if version == 2 and (not isinstance(data['verified_admin_users'], list)
+        if version in {2, 3} and (not isinstance(data['verified_admin_users'], list)
                 or any(not isinstance(value, str) or value not in users for value in data['verified_admin_users'])
                 or type(data['receive_non_at']) is not bool):
             raise ValueError
@@ -58,6 +63,7 @@ def configuration(home, credential_directory):
         "HIKARI_QQ_ALLOWED_GROUPS": json.dumps(profile['allowed_groups']),
         "HIKARI_QQ_ADMIN_USERS": json.dumps(profile.get('verified_admin_users', [])),
         "HIKARI_QQ_RECEIVE_NON_AT": str(profile.get('receive_non_at', True)).lower(),
+        "HIKARI_QQ_ACCEPT_JOINED_GROUPS": str(profile.get('accept_joined_groups', False)).lower(),
         "HIKARI_QQ_CARD_CATALOG": profile["card_catalog"],
     }
 
@@ -97,7 +103,7 @@ def main():
 
         @driver.on_bot_connect
         async def connected(bot):
-            print(f'srbs connected; configured C2C users={len(config.users)}, groups={len(config.groups)}, admins={len(config.admins)}.', flush=True)
+            print(f'srbs connected; configured C2C users={len(config.users)}, groups={len(config.groups)}, admins={len(config.admins)}, group_access={"joined" if config.accept_joined_groups else "configured"}.', flush=True)
 
         diagnostic.phase = "srbs_runtime"
         print("srbs starting; no original bot plugins or collection tasks loaded.", flush=True)

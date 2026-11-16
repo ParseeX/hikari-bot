@@ -12,6 +12,12 @@ from hikari_bot.services import mycard
 HISTORY = re.compile(r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))?$")
 
 
+def binding_help(command=None):
+    prompt = (f'请提供 MyCard 用户名，例如：{command} 用户名。' if command
+              else '你还未绑定 MyCard 用户名。')
+    return Result(prompt + '\n请发送「绑定 用户名」完成绑定后再查询。\n旧机器人绑定不会自动沿用，请重新绑定。')
+
+
 class Queries:
     def __init__(self, catalog, *, image_loader=None, ruling=None, deck_renderer=None, state=None, links=None, price_reports=None, admin=None, notifications=None):
         self.catalog, self.image_loader = catalog, image_loader
@@ -46,14 +52,14 @@ class Queries:
                 return Result("官方入口独立状态库尚未配置，未修改旧记录。")
             if command == "绑定":
                 if not argument:
-                    return Result("请提供要绑定的用户名！")
+                    return Result("请发送：绑定 MyCard用户名")
                 await asyncio.to_thread(self.state.bind, request.actor, argument)
-                return Result("绑定成功！此绑定仅用于当前官方身份，旧 QQ 记录保留。")
+                return Result("绑定成功")
             if command in {"查询绑定", "绑定查询"}:
                 if argument:
                     return Result("官方入口只查询自己的绑定，不能从 MyCard 用户名反查旧 QQ 号。")
                 player = await asyncio.to_thread(self.state.binding, request.actor)
-                return Result(f"你绑定的 MyCard 用户名为：{player}" if player else "你还未绑定 MyCard 用户名！")
+                return Result(f"你绑定的 MyCard 用户名为：{player}") if player else binding_help()
             if request.conversation.kind != "user":
                 return Result("群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。")
             if command == "订阅状态":
@@ -98,7 +104,7 @@ class Queries:
             if not argument and self.state:
                 argument = await asyncio.to_thread(self.state.binding, request.actor) or ""
             if not argument:
-                return Result("请提供 MyCard 用户名；旧绑定尚未经过身份关联。")
+                return binding_help(command)
             if command == "查分":
                 info = await mycard.fetch_player_info(argument)
                 if not isinstance(info, dict) or "pt" not in info:
@@ -115,7 +121,7 @@ class Queries:
             if not player and self.state:
                 player = await asyncio.to_thread(self.state.binding, request.actor)
             if not player:
-                return Result("请先提供 MyCard 用户名；旧绑定尚未经过身份关联。")
+                return binding_help(command)
             if not match:
                 return await winrate_report(player)
             now = datetime.now(ZoneInfo("Asia/Shanghai"))

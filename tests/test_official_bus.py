@@ -286,3 +286,62 @@ def test_full_group_filter_keeps_legacy_commands_links_and_active_price_choices(
     assert not is_group_request('1')
     assert is_group_request('1', price_active=True)
     assert is_group_request('SER', price_active=True)
+
+
+def test_joined_group_receives_without_registration_but_not_admin_or_private_access(tmp_path):
+    script = '''
+import asyncio,sys
+from datetime import datetime,timezone
+from types import SimpleNamespace,MethodType
+from unittest.mock import AsyncMock
+import nonebot
+nonebot.logger.remove()
+nonebot.init(driver="~aiohttp",_env_file=[],log_level="ERROR")
+from nonebot.adapters.qq import Bot
+from nonebot.adapters.qq.event import GroupMessageCreateEvent,C2CMessageCreateEvent
+from hikari_bot.qq_official.plugin import register
+from hikari_bot.qq_official.config import PilotConfig
+from hikari_bot.qq_official.admin import AdminQueries
+from hikari_bot.qq_official.business import Queries
+from hikari_bot.services.platform_state import PlatformState
+config=PilotConfig('app','synthetic',users=frozenset({'owner'}),admins=frozenset({'owner'}),accept_joined_groups=True)
+client=SimpleNamespace(self_id='app',send_to_group=AsyncMock(),send_to_c2c=AsyncMock())
+client.send=MethodType(Bot.send,client)
+state=PlatformState(sys.argv[1])
+queries=Queries(None,state=state,admin=AdminQueries(config))
+def event(id,text,group='new-group'):
+ return GroupMessageCreateEvent.model_validate(dict(id=id,content=text,group_id=group,group_openid=group,timestamp=datetime.now(timezone.utc).isoformat(),author=dict(id='owner',member_openid='owner',member_role='owner',bot=False)))
+async def run():
+ handler=register(config,queries=queries).handlers[0].call
+ await handler(client,event('first','绑定 synthetic-player'))
+ assert str(client.send_to_group.call_args.kwargs['message'])=='绑定成功'
+ restarted=register(config,queries=queries).handlers[0].call
+ await restarted(client,event('second','查询绑定'))
+ assert 'synthetic-player' in str(client.send_to_group.call_args.kwargs['message'])
+ await restarted(client,event('third','查询绑定',group='another-new-group'))
+ assert '绑定 用户名' in str(client.send_to_group.call_args.kwargs['message'])
+ await restarted(client,event('admin','状态'))
+ assert '权限不足' in str(client.send_to_group.call_args.kwargs['message'])
+ calls=client.send_to_group.await_count
+ client.self_id='other-app'
+ await restarted(client,event('wrong-app','ping'))
+ assert client.send_to_group.await_count==calls
+ client.self_id='app'
+ private=C2CMessageCreateEvent.model_validate(dict(id='private',content='ping',timestamp=datetime.now(timezone.utc).isoformat(),author=dict(id='unlisted',user_openid='unlisted')))
+ await restarted(client,private)
+ client.send_to_c2c.assert_not_awaited()
+asyncio.run(run())
+'''
+    result = subprocess.run([sys.executable, '-c', script, str(tmp_path)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr[-3000:]
+
+
+def test_joined_group_queries_do_not_enroll_proactive_routes(tmp_path):
+    import pytest
+    config = PilotConfig('app', 'synthetic', accept_joined_groups=True)
+    bus = OfficialBus(tmp_path)
+    bus.configure(config)
+    group = Identity('qq_official', 'app', 'group', 'new-group')
+    assert bus.recipients('broadcast') == []
+    with pytest.raises(ValueError):
+        bus.allow_topic(group, 'broadcast', True)

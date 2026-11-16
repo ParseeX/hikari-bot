@@ -426,3 +426,63 @@ class CallbackGatewayTests(unittest.IsolatedAsyncioTestCase):
             await socket.receive()
         self.assertEqual(report.call_args.args[0], 'receive_timeout')
         self.assertIs(socket.send, inner.send)
+
+
+def test_joined_group_access_is_explicit_and_does_not_grant_private_or_admin_access():
+    import pytest
+    from hikari_bot.qq_official.config import PilotConfig
+    env = dict(HIKARI_QQ_ENABLED='true', HIKARI_QQ_SANDBOX='false',
+               HIKARI_QQ_APP_ID='app', HIKARI_QQ_APP_SECRET='synthetic',
+               HIKARI_QQ_ACCEPT_JOINED_GROUPS='true')
+    config = PilotConfig.from_env(env)
+    assert config.allows('group', 'member', 'new-group')
+    assert config.allows('group_at', 'member', 'another-new-group')
+    assert not config.allows('group', 'member', '')
+    assert not config.allows('c2c', 'member')
+    assert not config.admins
+    assert not config.groups
+    with pytest.raises(ValueError):
+        PilotConfig.from_env({**env, 'HIKARI_QQ_ACCEPT_JOINED_GROUPS': 'maybe'})
+    assert not PilotConfig.from_env(env, pairing=True).accept_joined_groups
+
+
+def test_server_profile_v3_explicit_joined_groups_preserves_old_profiles(tmp_path):
+    import pytest
+    from run_srbs import configuration, read_profile
+    from hikari_bot.qq_official.config import PilotConfig
+    path = tmp_path / '.config/srbs/profile.json'
+    path.parent.mkdir(parents=True)
+    credentials = tmp_path / 'credentials'
+    credentials.mkdir()
+    (credentials / 'srbs-app-id').write_text('app')
+    (credentials / 'srbs-app-secret').write_text('synthetic')
+    data = dict(schema_version=3, allowed_users=[], allowed_groups=[], card_catalog='',
+                verified_admin_users=[], receive_non_at=True, accept_joined_groups=True)
+    path.write_text(json.dumps(data))
+    config = PilotConfig.from_env(configuration(tmp_path, credentials))
+    assert config.allows('group', 'member', 'new-group')
+    data['accept_joined_groups'] = 'true'
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError):
+        read_profile(path)
+    data.update(schema_version=2, allowed_users=['owner'])
+    data.pop('accept_joined_groups')
+    path.write_text(json.dumps(data))
+    config = PilotConfig.from_env(configuration(tmp_path, credentials))
+    assert not config.accept_joined_groups
+    assert not config.allows('group', 'member', 'new-group')
+
+
+def test_unbound_mycard_queries_explain_username_and_rebinding(tmp_path):
+    async def run():
+        state = PlatformState(tmp_path)
+        queries = Queries(None, state=state)
+        for command in ('历史', '11月历史', '26年11月历史', '查分', '首胜查询', '首赢查询', '胜率查询', '胜率统计'):
+            result = await queries.handle(request(command, kind='group'), command, '')
+            assert f'{command} 用户名' in result.text
+            assert '绑定 用户名' in result.text
+            assert '旧机器人绑定不会自动沿用' in result.text
+            assert 'OpenID' not in result.text
+        assert (await queries.handle(request(kind='group'), '绑定', 'player')).text == '绑定成功'
+        assert 'player' in (await queries.handle(request(kind='group'), '查询绑定', '')).text
+    asyncio.run(run())
