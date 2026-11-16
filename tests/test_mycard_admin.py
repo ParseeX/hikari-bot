@@ -337,7 +337,8 @@ def test_private_player_history_preserves_manual_changes(web, root, monkeypatch,
     assert client.get(endpoint).status_code == 401
     assert client.get(endpoint + '?player=甲').status_code == 401
     client.post('/mc/admin/api/login', json={'password': PASSWORD})
-    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(by_id=lambda code: {'id': code}))
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(
+        by_id=lambda code: {'id': code}, deck_sort_data=lambda codes: {}))
     manual = '/mc/admin/api/manual-decks'
     for main in [tuple(range(1, 41)), tuple(reversed(range(1, 41))), tuple(range(2, 42)), tuple(range(1, 41))]:
         state = client.get(manual).json()
@@ -352,3 +353,37 @@ def test_private_player_history_preserves_manual_changes(web, root, monkeypatch,
     if not classified:
         assert result['versions'][1]['main'] == list(range(2, 42))
     assert client.get(endpoint).json()['players'] == ['甲']
+
+
+def test_admin_player_decks_sort_ygopro_without_changing_saved_cards(web, root, monkeypatch):
+    from hikari_bot.services.mycard_archive.presentation import deck_url
+
+    module, client = web
+    assert client.post('/mc/admin/api/login', json={'password': PASSWORD}).status_code == 200
+    # 怪兽、魔法卡先于资料未知的卡号；主/额外/副卡组各自整理。
+    sort_data = {39: (33, 4, 1000, 1000), 40: (2, 0, 0, 0)}
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(
+        by_id=lambda code: {'id': code},
+        deck_sort_data=lambda codes: {code: sort_data[code] for code in codes if code in sort_data},
+    ))
+    endpoint = '/mc/admin/api/manual-decks'
+    state = client.get(endpoint).json()
+    original = Deck('甲', tuple(range(1, 41)), (38, 39, 40), (38, 40, 40))
+    response = client.post(endpoint, json={
+        'revision': state['revision'], 'player': '甲', 'link': deck_url(original),
+    })
+    assert response.status_code == 200
+
+    saved = json.loads((root / 'manual-decks.json').read_text(encoding='utf-8'))
+    before = (root / 'manual-decks.json').read_bytes()
+    assert saved['decks'][0]['main'] == list(range(1, 41))
+    assert saved['decks'][0]['extra'] == [38, 39, 40]
+    assert saved['decks'][0]['side'] == [38, 40, 40]
+
+    result = client.get('/mc/admin/api/player-decks', params={'player': '甲'})
+    assert result.status_code == 200
+    version = result.json()['versions'][0]
+    assert version['main'] == [39, 40, *range(1, 39)]
+    assert version['extra'] == [39, 40, 38]
+    assert version['side'] == [40, 40, 38]
+    assert (root / 'manual-decks.json').read_bytes() == before
