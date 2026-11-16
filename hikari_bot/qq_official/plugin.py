@@ -26,9 +26,9 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
     if config.catalog_path is not None:
         from hikari_bot.services.card_catalog import CardCatalog
         catalog = CardCatalog(config.catalog_path)
-    cards = CardActions(catalog, image_loader=image_loader, price_backend=price_backend)
     queries = queries or Queries(catalog, image_loader=image_loader)
     results = ResultDelivery(pager)
+    cards = CardActions(catalog, image_loader=image_loader, price_backend=price_backend, result_delivery=results)
     gate = EventGate()
     inflight = set()
 

@@ -122,7 +122,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(await CardActions(catalog).handle('效果', 'test', CONFIG, bot(), source, ReplyPager()))
         catalog.search.assert_not_called()
 
-    async def test_image_upload_sdk_passive_context_and_bounded_page(self):
+    async def test_explicit_image_page_keeps_existing_navigation(self):
         from PIL import Image
         buffer = io.BytesIO()
         Image.new('RGB', (10, 10), 'blue').save(buffer, format='PNG')
@@ -133,7 +133,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         catalog.search.return_value = INFO
         catalog.image_ids.return_value = [14558127, 14558128, 14558129]
         loader = AsyncMock(return_value=buffer.getvalue())
-        await CardActions(catalog, image_loader=loader).handle('卡图', '14558127', CONFIG, client, event(), ReplyPager(now=lambda: NOW))
+        await CardActions(catalog, image_loader=loader).handle('卡图', '14558127 0', CONFIG, client, event(), ReplyPager(now=lambda: NOW))
         self.assertEqual(loader.call_count, 1)
         self.assertEqual(client.post_c2c_files.call_count, 1)
         self.assertFalse(client.post_c2c_files.call_args.kwargs['srv_send_msg'])

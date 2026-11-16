@@ -91,8 +91,9 @@ def card_content(key, info):
 
 class CardActions:
 
-    def __init__(self, catalog, *, image_loader=None, price_backend=None):
+    def __init__(self, catalog, *, image_loader=None, price_backend=None, result_delivery=None):
         self.catalog, self.image_loader, self.price_backend = (catalog, image_loader, price_backend)
+        self.result_delivery = result_delivery
 
     async def handle(self, command, argument, config, bot, event, pager):
         group = isinstance(event, GroupMessageCreateEvent)
@@ -119,7 +120,7 @@ class CardActions:
             if self.catalog is None:
                 await pager.send(bot, event, present('art.card_actions_2', {}))
                 return True
-            offset = 0
+            offset = None
             query = argument
             rarity = prefix = None
             if command in price_commands:
@@ -162,7 +163,10 @@ class CardActions:
             await pager.send(bot, event, present('art.card_actions_6', {}))
             return
         ids = await asyncio.wait_for(asyncio.to_thread(self.catalog.image_ids, code), timeout=8)
-        if offset < 0 or offset >= len(ids):
+        if offset is None and ids:
+            await self.all_images(ids, bot, event, pager)
+            return
+        if not ids or offset < 0 or offset >= len(ids):
             await pager.send(bot, event, present('art.card_actions_7', {}))
             return
         key = context(bot, event)
@@ -186,6 +190,45 @@ class CardActions:
                 from .media import send_formatted
                 await send_formatted(bot, event, image_navigation(info, event.get_user_id(), offset, len(ids),
                     prices=self.price_backend is not None, buttons=isinstance(event, C2CMessageCreateEvent)), pager, can_continue=False)
+
+    async def all_images(self, ids, bot, event, pager):
+        """整组入队，保留失败位置；额度不足由现有媒体分页继续发送。"""
+        from hikari_bot.services.platform import Result, Media
+        from .results import ResultDelivery
+        key = context(bot, event)
+        if key is None:
+            return
+        async with pager.lock:
+            now = pager.clock()
+            for old in [k for k, expiry in pager.seen.items() if expiry <= now]:
+                del pager.seen[old]
+            marker = (*key, event.id)
+            if marker in pager.seen or not pager.capacity(event, key[1]):
+                return
+            pager.seen[marker] = now + 3600
+            while len(pager.seen) > 2048:
+                pager.seen.popitem(last=False)
+        semaphore = asyncio.Semaphore(3)
+
+        async def load(index, card_id):
+            async with semaphore:
+                try:
+                    data = await asyncio.wait_for(self.image_loader(card_id), timeout=30)
+                    if data and len(data) <= 8 * 1024 * 1024:
+                        return Media('image', data)
+                except (TimeoutError, OSError, ValueError):
+                    pass
+                return present('art.failed', {'index': index})
+
+        parts = await asyncio.gather(*(load(index, card_id) for index, card_id in enumerate(ids, 1)))
+        if self.result_delivery is None:
+            self.result_delivery = ResultDelivery(pager)
+        try:
+            await self.result_delivery.send(bot, event, Result(media=tuple(parts)))
+        except Exception as exc:
+            report('card_reply_failed', exc)
+            if pager.capacity(event, key[1]):
+                await bot.send(event, str(present('art.send_failed', plain=True)))
 
 async def existing_art_loader(card_id):
     from hikari_bot.services.card_art import get_image_by_id, normalize_card_art
