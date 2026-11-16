@@ -5,7 +5,17 @@ import sqlite3
 from .card_catalog import AmbiguousCardName, normalize
 
 
-async def add_alias_reply(catalog, argument):
+class AliasAdded(str):
+    """保留原文字兼容性，另附本次真实新增的撤销信息供官方入口使用。"""
+    def __new__(cls, text, info, alias):
+        value = super().__new__(cls, text)
+        value.receipt = info['alias_receipt']
+        value.code = str(info.get('passcode') or info['id'])
+        value.alias = alias
+        return value
+
+
+async def add_alias_reply(catalog, argument, *, with_receipt=False):
     parts = argument.rsplit(maxsplit=1)
     if len(parts) != 2:
         return '用法：添加别名 卡名或卡密 别名（最后一个空格后为别名）'
@@ -30,7 +40,23 @@ async def add_alias_reply(catalog, argument):
         logging.getLogger(__name__).exception('添加卡片别名失败')
         return '别名保存失败，请稍后再试。'
     name = info.get('cn_name') or info.get('jp_name') or info.get('en_name') or '未命名卡片'
-    return f'已添加别名：{parts[1]} → {name}' if added else f'这个别名已关联到{name}。'
+    if not added:
+        return f'这个别名已关联到{name}。'
+    text = f'已添加别名：{parts[1]} → {name}'
+    return AliasAdded(text, info, parts[1]) if with_receipt else text
+
+
+async def undo_alias_reply(catalog, receipt):
+    try:
+        result = await asyncio.to_thread(catalog.undo_alias, receipt)
+    except (OSError, sqlite3.Error):
+        logging.getLogger(__name__).exception('撤销卡片别名失败')
+        return '别名删除失败，请使用删除别名命令重试。'
+    if result is None:
+        return '这条别名关联已失效，未执行删除。'
+    info, alias = result
+    name = info.get('cn_name') or info.get('jp_name') or info.get('en_name') or '未命名卡片'
+    return f'已删除别名：{alias} → {name}'
 
 
 async def delete_alias_reply(catalog, argument):

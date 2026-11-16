@@ -111,6 +111,11 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
                 cancel_price = getattr(price_backend, 'cancel', None)
                 if callable(cancel_price):
                     cancel_price(context(bot, event))
+                from hikari_bot.services.card_aliases import AliasAdded
+                if isinstance(result.text, AliasAdded):
+                    from .alias_undo import send_added
+                    await send_added(bot, event, result.text)
+                    return
                 await results.send(bot, event, result,
                                    markdown_images=command in {'每日一卡', '随机一卡'})
                 return
@@ -138,7 +143,8 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
             except Exception:
                 logger.warning("Official QQ reply failed; no automatic retry")
 
-    callbacks = CallbackController(config, process)
+    from .alias_undo import undo_handler
+    callbacks = CallbackController(config, process, undo_handler=undo_handler(catalog))
 
     @matcher.handle()
     async def handle(bot: Bot, event: MessageEvent):

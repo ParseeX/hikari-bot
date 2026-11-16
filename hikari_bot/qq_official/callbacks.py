@@ -14,6 +14,7 @@ from nonebot.adapters.qq.models import MessageKeyboard
 from .preview import report
 COMMAND = re.compile('^(效果|卡图|卡价|卡密|日版价格查询|共界计算) ([0-9]{1,10})(?: (.{1,80}))?$')
 PAGE_COMMAND = re.compile(r'^候选页 [A-Za-z0-9_-]{24} [0-9]{1,6}$')
+UNDO_COMMAND = re.compile(r'^撤销别名 ([0-9a-f]{32})$')
 PREFIX = 'srbs:'
 TTL = 600
 ACK_SECONDS = 2.0
@@ -33,7 +34,7 @@ class Action:
 
 
 def supported_command(command):
-    if PAGE_COMMAND.fullmatch(command):
+    if PAGE_COMMAND.fullmatch(command) or UNDO_COMMAND.fullmatch(command):
         return True
     match = COMMAND.fullmatch(command)
     if not match or not 0 < int(match[2]) <= 2147483647:
@@ -99,13 +100,14 @@ class CallbackBot:
 
 class CallbackController:
 
-    def __init__(self, config, processor, *, clock=time.monotonic, now=None):
+    def __init__(self, config, processor, *, clock=time.monotonic, now=None, undo_handler=None):
         self.config, self.processor, self.clock = (config, processor, clock)
         self.now = now or (lambda: datetime.now(timezone.utc))
         self.actions = OrderedDict()
         self.seen = OrderedDict()
         self.tasks = set()
         self.inflight = 0
+        self.undo_handler = undo_handler
 
     def prune(self):
         now = self.clock()
@@ -245,7 +247,13 @@ class CallbackController:
         try:
             source = self.source(event, command)
             proxy = CallbackBot(self, bot, source, interaction=event)
-            await asyncio.wait_for(self.processor(proxy, source), timeout=BUSINESS_SECONDS)
+            undo = UNDO_COMMAND.fullmatch(command)
+            if undo:
+                if self.undo_handler is None:
+                    raise ValueError('Alias undo handler unavailable')
+                await asyncio.wait_for(self.undo_handler(proxy, source, undo[1]), timeout=BUSINESS_SECONDS)
+            else:
+                await asyncio.wait_for(self.processor(proxy, source), timeout=BUSINESS_SECONDS)
         except Exception as exc:
             report('callback_business_failed', exc)
         finally:

@@ -44,7 +44,7 @@ class Queries:
     async def _handle(self, request, command, argument):
         if command == '添加别名':
             from hikari_bot.services.card_aliases import add_alias_reply
-            return Result(await add_alias_reply(self.catalog, argument))
+            return Result(await add_alias_reply(self.catalog, argument, with_receipt=True))
         if command == '删除别名':
             from hikari_bot.services.card_aliases import delete_alias_reply
             return Result(await delete_alias_reply(self.catalog, argument))

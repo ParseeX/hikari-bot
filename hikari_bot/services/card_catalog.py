@@ -6,6 +6,7 @@ from pathlib import Path
 import random
 import re
 import sqlite3
+import secrets
 import unicodedata
 
 
@@ -137,7 +138,49 @@ class CardCatalog:
                     db.execute('INSERT INTO card_names VALUES (?,?,?,?,?)',
                                (row['id'], 'und', 'manual:alias', name, key))
                 info = self._info(db, row)
+                if not existing:
+                    self._alias_receipts(db)
+                    receipt = secrets.token_hex(16)
+                    db.execute('INSERT OR REPLACE INTO card_alias_receipts VALUES (?,?,?)', (row['id'], key, receipt))
+                    info['alias_receipt'] = receipt
             return info, not bool(existing)
+        finally:
+            db.close()
+
+    @staticmethod
+    def _alias_receipts(db):
+        # 只为新添加的关联记录代次；旧关联不补写，也不存平台身份。
+        db.execute('CREATE TABLE IF NOT EXISTS card_alias_receipts ('
+                   'card_id INTEGER NOT NULL, normalized TEXT NOT NULL, token TEXT NOT NULL UNIQUE, '
+                   'PRIMARY KEY(card_id,normalized))')
+        for operation in ('DELETE', 'UPDATE'):
+            db.execute(f'CREATE TRIGGER IF NOT EXISTS alias_receipt_on_{operation.lower()} '
+                       f"AFTER {operation} ON card_names WHEN OLD.source='manual:alias' BEGIN "
+                       'DELETE FROM card_alias_receipts WHERE card_id=OLD.card_id AND normalized=OLD.normalized; END')
+
+    def undo_alias(self, receipt):
+        """仅撤销凭据对应的那一代关联；旧按钮不能删除重建后的关联。"""
+        if not re.fullmatch(r'[0-9a-f]{32}', receipt):
+            return None
+        db = sqlite3.connect(self.path.resolve().as_uri() + '?mode=rw', uri=True, timeout=5)
+        db.row_factory = sqlite3.Row
+        try:
+            with db:
+                db.execute('BEGIN IMMEDIATE')
+                if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='card_alias_receipts'").fetchone():
+                    return None
+                target = db.execute('SELECT n.card_id,n.name,n.normalized FROM card_alias_receipts r '
+                                    'JOIN card_names n ON n.card_id=r.card_id AND n.normalized=r.normalized '
+                                    "WHERE r.token=? AND n.source='manual:alias'", (receipt,)).fetchone()
+                if target is None:
+                    return None
+                row = db.execute('SELECT * FROM cards WHERE id=?', (target['card_id'],)).fetchone()
+                if row is None:
+                    return None
+                info = self._info(db, row)
+                db.execute("DELETE FROM card_names WHERE card_id=? AND source='manual:alias' AND normalized=?",
+                           (target['card_id'], target['normalized']))
+                return info, target['name']
         finally:
             db.close()
 
