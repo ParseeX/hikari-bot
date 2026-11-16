@@ -164,7 +164,7 @@ class CardActions:
             return
         ids = await asyncio.wait_for(asyncio.to_thread(self.catalog.image_ids, code), timeout=8)
         if offset is None and ids:
-            await self.all_images(ids, bot, event, pager)
+            await self.all_images(info, ids, bot, event, pager)
             return
         if not ids or offset < 0 or offset >= len(ids):
             await pager.send(bot, event, present('art.card_actions_7', {}))
@@ -191,10 +191,14 @@ class CardActions:
                 await send_formatted(bot, event, image_navigation(info, event.get_user_id(), offset, len(ids),
                     prices=self.price_backend is not None, buttons=isinstance(event, C2CMessageCreateEvent)), pager, can_continue=False)
 
-    async def all_images(self, ids, bot, event, pager):
-        """整组入队，保留失败位置；额度不足由现有媒体分页继续发送。"""
+    async def all_images(self, info, ids, bot, event, pager):
+        """默认 Markdown 单条图集；主动选择普通文字时保留原媒体分页。"""
         from hikari_bot.services.platform import Result, Media
+        from .markdown_image import MarkdownGallery, GALLERY_MARKER
         from .results import ResultDelivery
+        from .media import send_formatted
+        gallery = present('art.gallery', {'name': info.get('cn_name') or info.get('jp_name') or '卡图',
+                                         'total': len(ids), 'images': GALLERY_MARKER})
         key = context(bot, event)
         if key is None:
             return
@@ -214,13 +218,19 @@ class CardActions:
             async with semaphore:
                 try:
                     data = await asyncio.wait_for(self.image_loader(card_id), timeout=30)
-                    if data and len(data) <= 8 * 1024 * 1024:
+                    if data and len(data) <= (10_000_000 if gallery.mode == 'markdown' else 8 * 1024 * 1024):
                         return Media('image', data)
                 except (TimeoutError, OSError, ValueError):
                     pass
                 return present('art.failed', {'index': index})
 
         parts = await asyncio.gather(*(load(index, card_id) for index, card_id in enumerate(ids, 1)))
+        if gallery.mode == 'markdown':
+            await send_formatted(bot, event, MarkdownGallery(str(gallery),
+                tuple(part.data if isinstance(part, Media) else str(part) for part in parts)), pager, can_continue=False)
+            return
+        prefix, _, suffix = str(gallery).partition(GALLERY_MARKER)
+        parts = ([prefix] if prefix else []) + parts + ([suffix] if suffix else [])
         if self.result_delivery is None:
             self.result_delivery = ResultDelivery(pager)
         try:

@@ -48,6 +48,10 @@ def validate(key,spec):
             raise ValueError('只能使用列出的 {变量名}，不允许表达式、属性、格式转换')
     if not isinstance(spec['visible'],list) or len(set(spec['visible'])) != len(spec['visible']) or not set(spec['visible']) <= set(fields):
         raise ValueError('显示字段无效')
+    for required in definition.get('required_fields', []):
+        names = [name for _, name, _, _ in string.Formatter().parse(template)]
+        if names.count(required) != 1 or required not in spec['visible']:
+            raise ValueError(f'必须保留且只使用一次 {{{required}}}')
     roles = definition.get('buttons',{})
     rows = spec['rows']
     if not isinstance(rows,list) or len(rows)>5 or any(not isinstance(row,list) or not 1<=len(row)<=5 for row in rows): raise ValueError('按钮最多 5 行，每行 5 个')

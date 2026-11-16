@@ -24,6 +24,15 @@ def client():
 CONFIG = PilotConfig('synthetic-app', 'fake', users=frozenset({'only-user'}), accept_joined_groups=True)
 
 
+@pytest.fixture(autouse=True)
+def plain_gallery_mode():
+    from hikari_bot.qq_official.output_templates import OVERRIDE, default
+    spec = default('art.gallery'); spec['mode'] = 'text'
+    token = OVERRIDE.set({'art.gallery': spec})
+    yield
+    OVERRIDE.reset(token)
+
+
 @pytest.mark.parametrize('kind,total', [('c2c', 1), ('c2c', 4), ('group', 5), ('group-no-at', 3)])
 def test_default_query_sends_whole_set_without_navigation(kind, total):
     async def run():
@@ -123,6 +132,8 @@ from nonebot.adapters.qq.event import C2CMessageCreateEvent
 from hikari_bot.qq_official import plugin
 from hikari_bot.qq_official.card_actions import CardActions
 from hikari_bot.qq_official.config import PilotConfig
+from hikari_bot.qq_official.output_templates import OVERRIDE,default
+spec=default('art.gallery');spec['mode']='text';OVERRIDE.set({'art.gallery':spec})
 catalog=Mock(search=Mock(return_value={'id':123}),image_ids=Mock(return_value=list(range(7))))
 plugin.CardActions=lambda _,**kwargs: CardActions(catalog,**kwargs)
 config=PilotConfig('app','fake',users=frozenset({'user'}))

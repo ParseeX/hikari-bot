@@ -15,9 +15,9 @@ def output_message(message):
 
 async def send_formatted(bot, event, message, pager, *, can_continue=True):
     """明确拒绝 Markdown 时只报告失败，保留待发内容和原格式。"""
-    from .markdown_image import MarkdownImage, ImageDeliveryError
+    from .markdown_image import MarkdownImage, MarkdownGallery, ImageDeliveryError
     try:
-        if isinstance(message, MarkdownImage):
+        if isinstance(message, (MarkdownImage, MarkdownGallery)):
             await message.send(bot, event)
         else:
             await bot.send(event, message)
