@@ -30,6 +30,7 @@ def matchers(monkeypatch):
             raise FinishedException
     def register(name, **kwargs):
         registered[name] = Matcher()
+        registered[name].options = kwargs
         return registered[name]
     monkeypatch.setattr(nonebot, 'on_command', register)
     monkeypatch.setattr(nonebot, 'require', lambda _: None)

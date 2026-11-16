@@ -27,6 +27,7 @@ def is_group_request(text: str, *, price_active=False):
         '帮助', 'help', '继续', '输出预览', '样式预览',
         '卡表', '中文卡表', '简中卡表', '日文卡表', '英文卡表',
         '卡密', '卡密查询', '游戏王卡密', '查卡密',
+        '添加别名',
         '效果', '效果查询', '游戏王效果', '查效果',
         '卡图', '卡图查询', '游戏王卡图', '查卡图',
         '卡价', '卡价查询', '价格查询', '日版价格查询', '日版卡价查询',
@@ -62,7 +63,7 @@ async def reply_for(text: str, catalog=None) -> str | None:
     if catalog is None:
         return present('common.commands_5', {})
     try:
-        info = await asyncio.wait_for(asyncio.to_thread(catalog.search, argument), timeout=8)
+        info = await asyncio.wait_for(asyncio.to_thread(catalog.search, argument, fuzzy=True), timeout=8)
     except AmbiguousCardName as exc:
         return str(exc)
     except Exception:

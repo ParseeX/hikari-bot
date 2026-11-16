@@ -27,6 +27,7 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import log_message
 from hikari_bot.services import ygocard as card_service
 from hikari_bot.services.card_catalog import AmbiguousCardName
+from hikari_bot.services.card_aliases import add_alias_reply
 from hikari_bot.services.card_text import format_card_effect
 from hikari_bot.services.ygodeck import generate_card_list_image
 
@@ -118,6 +119,12 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             return
 
         await ygo_card_effect.finish(format_card_effect(card_info))
+
+
+ygo_add_alias = on_cmd("添加别名", priority=5)
+@ygo_add_alias.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    await ygo_add_alias.finish(await add_alias_reply(card_service.catalog, args.extract_plain_text().strip()))
 
 
 # ── 数据库维护 ─────────────────────────────────────────────────────────────────────────

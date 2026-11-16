@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from hikari_bot.services.platform import Result
 from hikari_bot.services import mycard
+from hikari_bot.services.card_catalog import AmbiguousCardName
 
 
 HISTORY = re.compile(r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))?$")
@@ -35,10 +36,15 @@ class Queries:
         from hikari_bot.services.platform_state import BindingConflict
         try:
             return await self._handle(request, command, argument)
+        except AmbiguousCardName as error:
+            return Result(str(error))
         except BindingConflict:
             return Result(present('binding.conflict'))
 
     async def _handle(self, request, command, argument):
+        if command == '添加别名':
+            from hikari_bot.services.card_aliases import add_alias_reply
+            return Result(await add_alias_reply(self.catalog, argument))
         if self.notifications:
             result = await self.notifications.handle(request, command, argument)
             if result is not None:
@@ -98,7 +104,7 @@ class Queries:
                 return Result(present('calculation.business_1d688354', {}))
             if self.catalog is None:
                 return Result(present('calculation.business_4fde7d2f', {}))
-            info = await asyncio.to_thread(self.catalog.search, argument)
+            info = await asyncio.to_thread(self.catalog.search, argument, fuzzy=True)
             if not info:
                 return Result(present('calculation.business_7502167d', {}))
             cards = await asyncio.to_thread(self.catalog.metaltronus, info["id"])

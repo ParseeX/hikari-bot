@@ -1,5 +1,7 @@
-"""Bot 的卡片资料入口；每次查询打开只读连接，及时看到主库更新。"""
+"""卡片资料查询使用只读快照；手动别名通过独立事务保存。"""
+from collections import Counter
 from contextlib import contextmanager
+from difflib import SequenceMatcher
 from pathlib import Path
 import random
 import re
@@ -12,35 +14,16 @@ def normalize(value: str) -> str:
 
 
 class AmbiguousCardName(ValueError):
-    """容错查询无法确定唯一卡片，由命令入口展示候选。"""
+    """一个手动别名对应多张卡，由命令入口展示全部候选。"""
 
     def __init__(self, cards):
         self.cards = tuple(cards)
-        lines = ['找到多个接近的卡名，请使用卡密重新查询：']
-        for card in self.cards[:5]:
+        lines = ['这个别名对应多张卡，请使用卡密重新查询：']
+        for card in self.cards:
             name = card.get('cn_name') or card.get('jp_name') or card.get('en_name') or '未命名卡片'
             code = card.get('passcode') or str(card['id'])
             lines.append(f'{name}：{code}')
-        if len(self.cards) > 5:
-            lines.append('还有其他接近结果，请补充更完整的卡名。')
         super().__init__('\n'.join(lines))
-
-
-def _edit_distance(left, right, limit):
-    """计算有界编辑距离；相邻两字颠倒也算一次输入错误。"""
-    previous = list(range(len(right) + 1))
-    before_previous = None
-    for i, char in enumerate(left, 1):
-        current = [i]
-        for j, other in enumerate(right, 1):
-            cost = min(current[-1] + 1, previous[j] + 1, previous[j - 1] + (char != other))
-            if i > 1 and j > 1 and char == right[j - 2] and left[i - 2] == other:
-                cost = min(cost, before_previous[j - 2] + 1)
-            current.append(cost)
-        if min(current) > limit:
-            return limit + 1
-        before_previous, previous = previous, current
-    return previous[-1]
 
 
 class CardCatalog:
@@ -70,7 +53,11 @@ class CardCatalog:
     @staticmethod
     def _by_id(db, value):
         text = str(value).strip()
-        if not text.isascii() or not text.isdigit() or int(text) <= 0:
+        if not text.isascii() or not text.isdigit():
+            return None
+        text = text.lstrip('0')
+        # SQLite 整数参数有上限；错误的长卡密也应返回未找到。
+        if not text or len(text) > 19 or int(text) > 2**63 - 1:
             return None
         kind = 'temporary' if int(text) >= 100000000 else 'passcode'
         key = str(int(text)) if kind == 'temporary' else f'{int(text):08d}'
@@ -107,6 +94,33 @@ class CardCatalog:
         with self.connect() as db:
             return self._info(db, self._by_id(db, value))
 
+    def add_alias(self, code, alias):
+        """只用精确卡密绑定别名；保留其他卡的同名别名，重复添加不产生副本。"""
+        name = unicodedata.normalize('NFKC', alias).strip()
+        key = normalize(name)
+        if not key or len(key) > 128 or not any(c.isalpha() for c in key):
+            raise ValueError('别名须包含文字，不能是纯数字，长度不能超过 128 字。')
+        if any(unicodedata.category(c).startswith('C') for c in name):
+            raise ValueError('别名不能包含控制字符。')
+        db = sqlite3.connect(self.path.resolve().as_uri() + '?mode=rw', uri=True, timeout=5)
+        db.row_factory = sqlite3.Row
+        try:
+            db.execute('PRAGMA foreign_keys=ON')
+            with db:
+                db.execute('BEGIN IMMEDIATE')
+                row = self._by_id(db, normalize(str(code)))
+                if row is None:
+                    raise ValueError('未找到这个卡密，请使用准确的卡密添加别名。')
+                existing = db.execute("SELECT 1 FROM card_names WHERE card_id=? "
+                                      "AND source='manual:alias' AND normalized=?", (row['id'], key)).fetchone()
+                if not existing:
+                    db.execute('INSERT INTO card_names VALUES (?,?,?,?,?)',
+                               (row['id'], 'und', 'manual:alias', name, key))
+                info = self._info(db, row)
+            return info, not bool(existing)
+        finally:
+            db.close()
+
     def cards_by_id(self, codes):
         """批量读取卡片名称和统一身份，使用同一个只读快照。"""
         with self.connect() as db:
@@ -139,19 +153,26 @@ class CardCatalog:
         with self.connect() as db:
             if key.isascii() and key.isdigit():
                 return self._info(db, self._by_id(db, key))
+            aliases = db.execute('SELECT DISTINCT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
+                                 "WHERE n.source='manual:alias' AND n.normalized=? "
+                                 'ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id', (key,)).fetchall()
+            if len(aliases) > 1:
+                raise AmbiguousCardName([self._info(db, row) for row in aliases])
+            if aliases:
+                return self._info(db, aliases[0])
             # 精确别名优先；模糊查询仅搜索卡名，百分号和下划线都是普通文字。
             row = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
                              'WHERE n.normalized=? ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
             if row is None:
                 row = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                                 'WHERE instr(n.normalized,?)>0 '
+                                 "WHERE n.source!='manual:alias' AND instr(n.normalized,?)>0 "
                                  'ORDER BY length(n.normalized),c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
             if row is None and fuzzy:
                 row = self._closest_name(db, key)
             return self._info(db, row)
 
     def search_many(self, keyword: str):
-        """返回所有名称包含关键词的卡，按卡片身份去重，精确名称优先。"""
+        """卡名按片段、手动别名按完整名称查询；按身份去重，精确名称优先。"""
         key = normalize(keyword)
         if not key:
             return []
@@ -160,25 +181,27 @@ class CardCatalog:
                 card = self._info(db, self._by_id(db, key))
                 return [card] if card else []
             rows = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                              'WHERE instr(n.normalized,?)>0 '
+                              "WHERE ((n.source='manual:alias' AND n.normalized=?) "
+                              "OR (n.source!='manual:alias' AND instr(n.normalized,?)>0)) "
                               'AND (c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL) '
                               'GROUP BY c.id ORDER BY MAX(n.normalized=?) DESC,MIN(length(n.normalized)),'
-                              'c.konami_cid IS NULL,c.konami_cid,c.id', (key, key)).fetchall()
+                              'c.konami_cid IS NULL,c.konami_cid,c.id', (key, key, key)).fetchall()
             return [self._info(db, row) for row in rows]
 
     @staticmethod
     def _closest_name(db, key):
-        """忽略标点后按编辑次数容错；相近结果先提示，避免猜错卡片。"""
+        """综合连续字序和共有字符排序，始终取第一名，不设相似度门槛。"""
         query = ''.join(c for c in key if c.isalnum())
-        if not query or len(query) > 128:
+        if not query or query.isdigit() or len(query) > 128:
             return None
-        matches = {}
-        # 三至七字允许一次错误，更长卡名允许两次；两字输入只做包含匹配。
-        limit = 1 if len(query) < 8 else 2
+        query_counts = Counter(query)
+        best = None
+        best_id = None
         numbers = re.findall(r'\d+', query)
         rows = db.execute('SELECT DISTINCT n.card_id,n.normalized,c.konami_cid '
                           'FROM card_names n JOIN cards c ON c.id=n.card_id '
-                          'WHERE c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL')
+                          "WHERE n.source!='manual:alias' "
+                          'AND (c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL)')
         for row in rows:
             name = ''.join(c for c in row['normalized'] if c.isalnum())
             if not name:
@@ -188,31 +211,21 @@ class CardCatalog:
             elif query in name:
                 score = (2, len(query) / len(name))
             else:
-                if len(query) < 3 or abs(len(query) - len(name)) > limit:
-                    continue
-                # 先排除明显无关的名字，避免对全库逐字计算编辑距离。
-                if sum(char in query for char in name) < max(len(query), len(name)) - limit:
-                    continue
                 # No. 编号等数字具有卡片身份含义，不能当作错字改成另一张卡。
                 if re.findall(r'\d+', name) != numbers:
                     continue
-                distance = _edit_distance(query, name, limit)
-                if distance > limit:
+                common = sum(min(count, query_counts[char]) for char, count in Counter(name).items())
+                overlap = 2 * common / (len(query) + len(name))
+                # 共有字符是字序得分的上界，只跳过不可能成为第一名的候选。
+                if best is not None and (1, overlap) < best[:2]:
                     continue
-                score = (1, 1 - distance / max(len(query), len(name)))
+                ordered = SequenceMatcher(None, query, name, autojunk=False).ratio()
+                # 降低纯字序变化的惩罚，同时让字序也一致的名字排在前面。
+                score = (1, max(ordered, .9 * overlap))
             rank = (*score, -(row['konami_cid'] is None), -(row['konami_cid'] or 0), -row['card_id'])
-            if row['card_id'] not in matches or rank > matches[row['card_id']]:
-                matches[row['card_id']] = rank
-        if not matches:
-            return None
-        ranked = sorted(matches, key=matches.get, reverse=True)
-        best = matches[ranked[0]]
-        close = [card_id for card_id in ranked
-                 if matches[card_id][0] == best[0] and best[1] - matches[card_id][1] <= .05]
-        cards = [db.execute('SELECT * FROM cards WHERE id=?', (card_id,)).fetchone() for card_id in close]
-        if len(cards) > 1:
-            raise AmbiguousCardName([CardCatalog._info(db, row) for row in cards])
-        return cards[0]
+            if best is None or rank > best:
+                best, best_id = rank, row['card_id']
+        return db.execute('SELECT * FROM cards WHERE id=?', (best_id,)).fetchone() if best_id is not None else None
 
     def random_id(self, seed=None, *, include_artworks=False):
         with self.connect() as db:

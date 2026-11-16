@@ -71,8 +71,10 @@ def test_price_fuzzy_search_ranks_names_and_keeps_identity(catalog, monkeypatch)
     assert catalog.search('青眼白龙王', fuzzy=True)['id'] == 10000
     assert catalog.search('青眼白隆王', fuzzy=True)['id'] == 10000
     assert catalog.search('青眼白隆') is None
-    for name in ('%', '_', '青隆', '绝对不存在的卡片', '1236'):
+    for name in ('%', '_', '1236'):
         assert catalog.search(name, fuzzy=True) is None
+    for name in ('青隆', '绝对不存在的卡片'):
+        assert catalog.search(name, fuzzy=True) is not None
     monkeypatch.setattr(ygocard, 'catalog', catalog)
     assert asyncio.run(ygocard.get_card_info('青眼白隆', fuzzy=True))['id'] == 1234
 
@@ -145,7 +147,7 @@ def test_bot_facade_uses_catalog_without_http(catalog, monkeypatch):
     monkeypatch.setattr(ygocard.aiohttp, 'ClientSession', no_http)
     assert asyncio.run(ygocard.get_card_info('蓝眼白龙'))['id'] == 1234
     assert asyncio.run(ygocard.get_card_info_by_id('1235'))['id'] == 1234
-    assert asyncio.run(ygocard.get_card_info('未知')) is None
+    assert asyncio.run(ygocard.get_card_info('未知')) is not None
     assert ygocard.metaltronus_calc(1234) == [2000, 100000002]
 
 

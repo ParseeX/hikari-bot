@@ -110,7 +110,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         catalog.search_many.return_value = [INFO, {'id': 999}]
         client = bot()
         await CardActions(catalog, image_loader=AsyncMock()).handle('效果', '模糊片段', CONFIG, client, event(), ReplyPager(now=lambda: NOW))
-        catalog.search.assert_called_once_with('模糊片段')
+        catalog.search.assert_called_once_with('模糊片段', fuzzy=True)
         catalog.search_many.assert_not_called()
         payload = client._request.call_args.args[0].json
         self.assertEqual(payload['msg_type'], 2)

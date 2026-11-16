@@ -130,8 +130,7 @@ class CardActions:
                 parts = argument.split()
                 if len(parts) == 2 and all((p.isascii() and p.isdigit() for p in parts)):
                     query, offset = (parts[0], int(parts[1]))
-            search_options = {'fuzzy': True} if command in price_commands else {}
-            info = await asyncio.wait_for(asyncio.to_thread(self.catalog.search, query, **search_options), timeout=8)
+            info = await asyncio.wait_for(asyncio.to_thread(self.catalog.search, query, fuzzy=True), timeout=8)
             if not info:
                 await pager.send(bot, event, present('art.card_actions_3', {}))
             elif command in EFFECT_COMMANDS:

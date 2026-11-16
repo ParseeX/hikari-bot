@@ -1,4 +1,4 @@
-"""从查卡入口验证标点、错字容错及歧义提示，卡片资料始终只读。"""
+"""验证无门槛卡名排序、手动别名精确匹配以及命令入口。"""
 import asyncio
 import importlib.util
 from types import SimpleNamespace
@@ -19,7 +19,8 @@ def add_cards(catalog, *records):
 
 
 @pytest.mark.parametrize('query', [
-    '青眼白隆', '青·眼白龙', '青白眼龙', 'Blue Eyes White Dragon',
+    '青眼白隆', '青·眼白龙', '青白眼龙', '白龙青眼', '青岩白隆',
+    '青白', '青隆', 'Blue Eyes White Dragon',
     'Ｂｌｕｅ－Ｅｙｅｓ　Ｗｈｉｔｅ　Ｄｒａｇｏｎ',
 ])
 def test_ordinary_lookup_tolerates_typos_and_punctuation(catalog, monkeypatch, query):
@@ -36,30 +37,25 @@ def test_three_character_name_accepts_one_typo(catalog, monkeypatch):
     assert info and info['id'] == 7000
 
 
-def test_long_names_allow_two_edits_but_short_names_do_not(catalog):
+def test_missing_characters_and_multiple_typos_return_best_match(catalog):
     add_cards(catalog, record(7, 7000, '测试系列的终极召唤龙'))
     info = catalog.search('测试系烈的终极召换龙', fuzzy=True)
     assert info and info['id'] == 7000
-    assert catalog.search('青岩白隆', fuzzy=True) is None
+    assert catalog.search('青岩白隆', fuzzy=True)['id'] == 1234
+    assert catalog.search('测试的终极召唤龙', fuzzy=True)['id'] == 7000
 
 
-def test_fuzzy_search_does_not_guess_short_queries_or_numbers(catalog):
+def test_fuzzy_search_keeps_numeric_identity_and_input_bounds(catalog):
     add_cards(catalog, record(7, 7000, 'No.39 希望皇 霍普'))
-    for query in ['灰莉', '青隆', '1236', 'No.38 希望皇 霍普', '%', '_', 'x' * 129]:
+    for query in ['', '1236', 'No.38 希望皇 霍普', '%', '_', 'x' * 129]:
         assert catalog.search(query, fuzzy=True) is None
     assert catalog.search('青眼白隆', fuzzy=False) is None
     assert catalog.image_ids('青眼白龙 异画1') == []
 
 
-def test_ambiguous_corrections_offer_distinct_cards_and_exact_names_still_win(catalog):
+def test_fuzzy_ties_choose_one_card_and_exact_names_still_win(catalog):
     add_cards(catalog, record(7, 7000, '青眼黑龙'))
-    with pytest.raises(ValueError) as error:
-        catalog.search('青眼红龙', fuzzy=True)
-    text = str(error.value)
-    assert text.count('青眼白龙') == 1
-    assert '青眼黑龙' in text
-    assert '00001234' in text and '00007000' in text
-    assert '重新查询' in text
+    assert catalog.search('青眼红龙', fuzzy=True)['id'] == 1234
     assert catalog.search('青眼白龙', fuzzy=True)['id'] == 1234
     assert catalog.search('青眼黑龙', fuzzy=True)['id'] == 7000
 
@@ -67,10 +63,12 @@ def test_ambiguous_corrections_offer_distinct_cards_and_exact_names_still_win(ca
 @pytest.mark.parametrize('command', ['效果查询', '卡密查询', '卡图查询', '共界计算'])
 def test_commands_display_ambiguous_cards(catalog, matchers, monkeypatch, command):
     add_cards(catalog, record(7, 7000, '青眼黑龙'))
+    catalog.add_alias('1234', '小龙')
+    catalog.add_alias('7000', '小龙')
     monkeypatch.setattr(ygocard, 'catalog', catalog)
     matcher = matchers[command]
     with pytest.raises(FinishedException):
-        asyncio.run(matcher.callback(None, None, Message('青眼红龙')))
+        asyncio.run(matcher.callback(None, None, Message('小龙')))
     assert len(matcher.messages) == 1
     text = str(matcher.messages[0])
     assert '青眼白龙' in text and '青眼黑龙' in text
@@ -79,6 +77,8 @@ def test_commands_display_ambiguous_cards(catalog, matchers, monkeypatch, comman
 
 def test_price_command_shows_candidates_before_requesting_prices(catalog, monkeypatch):
     add_cards(catalog, record(7, 7000, '青眼黑龙'))
+    catalog.add_alias('1234', '小龙')
+    catalog.add_alias('7000', '小龙')
     monkeypatch.setattr(ygocard, 'catalog', catalog)
     spec = importlib.util.spec_from_file_location('price_tolerance_adapter',
                                                 'hikari_bot/plugins/monitors/cardrush_query.py')
@@ -112,7 +112,17 @@ def test_price_command_shows_candidates_before_requesting_prices(catalog, monkey
     adapter.register_price_query(matcher, None)
     state = {}
     with pytest.raises(FinishedException):
-        asyncio.run(matcher.start(state, Message('青眼红龙')))
+        asyncio.run(matcher.start(state, Message('小龙')))
     assert state == {}
     assert len(matcher.messages) == 1
     assert '青眼白龙' in matcher.messages[0] and '青眼黑龙' in matcher.messages[0]
+
+
+def test_onebot_alias_command_has_no_admin_restriction(catalog, matchers, monkeypatch):
+    monkeypatch.setattr(ygocard, 'catalog', catalog)
+    matcher = matchers['添加别名']
+    assert 'permission' not in matcher.options
+    with pytest.raises(FinishedException):
+        asyncio.run(matcher.callback(None, None, Message('1234 社长的龙')))
+    assert '已添加别名' in matcher.messages[0]
+    assert catalog.search('社长的龙')['id'] == 1234
