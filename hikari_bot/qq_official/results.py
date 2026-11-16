@@ -7,7 +7,7 @@ import time
 
 from nonebot.adapters.qq import Message, MessageSegment
 from .delivery import context, chunk_end, TEXT_CHARS
-from .markdown_image import MarkdownImage
+from .markdown_image import MarkdownImage, MarkdownGallery, GALLERY_MARKER
 
 
 @dataclass
@@ -18,6 +18,10 @@ class PendingResult:
 
 
 def payload_size(part):
+    if isinstance(part, MarkdownGallery):
+        return len(part.template.encode('utf-8')) + sum(
+            len(value) if isinstance(value, bytes) else len(value.encode('utf-8'))
+            for value in part.parts)
     if isinstance(part, MarkdownImage):
         return len(part.text.encode('utf-8')) + len(part.image)
     if isinstance(part, str):
@@ -38,7 +42,7 @@ class ResultDelivery:
         value = self.pending.get(context(bot, event))
         return value is not None and value.expires > self.clock()
 
-    async def send(self, bot, event, result=None):
+    async def send(self, bot, event, result=None, *, markdown_images=False):
         key = context(bot, event)
         if key is None:
             return
@@ -55,13 +59,17 @@ class ResultDelivery:
                     part = result.text[offset:end]
                     parts.append(Output(part, result.text.key, result.text.mode) if isinstance(result.text, Output) else part)
                     offset = end
-                parts.extend(MessageSegment.file_image(data) for data in result.images)
+                if markdown_images and result.images:
+                    # 每日/随机一卡复用卡图素材与尺寸语法；续发保留同一种格式。
+                    parts.append(MarkdownGallery(GALLERY_MARKER, result.images))
+                else:
+                    parts.extend(MessageSegment.file_image(data) for data in result.images)
                 if (isinstance(result.text, Output) and result.text.mode == 'markdown'
                         and result.text.key == 'history.mycard_reports_body_2fe0148e'
                         and len(result.images) == 1):
                     # 历史曲线作为 Markdown 素材引用；保留整份用户正文。
                     parts = [MarkdownImage(str(result.text), result.images[0])]
-                if result.text and len(result.text) <= TEXT_CHARS and len(result.images) == 1 and getattr(result.text, 'mode', 'text') == 'text':
+                if not markdown_images and result.text and len(result.text) <= TEXT_CHARS and len(result.images) == 1 and getattr(result.text, 'mode', 'text') == 'text':
                     # 已在官方 C2C 客户端验证普通图文合发；QQ 自行决定图片/文字布局。
                     parts = [Message(result.text) + MessageSegment.file_image(result.images[0])]
                 if result.file is not None:

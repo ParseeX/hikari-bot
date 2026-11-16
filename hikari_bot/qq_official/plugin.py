@@ -107,7 +107,8 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
                 cancel_price = getattr(price_backend, 'cancel', None)
                 if callable(cancel_price):
                     cancel_price(context(bot, event))
-                await results.send(bot, event, result)
+                await results.send(bot, event, result,
+                                   markdown_images=command in {'每日一卡', '随机一卡'})
                 return
         except Exception:
             await pager.send(bot, event, present('paging.request_failed'))
