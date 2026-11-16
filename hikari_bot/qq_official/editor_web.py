@@ -45,8 +45,20 @@ class QQPreview(BaseModel):
     revision: int = Field(ge=0)
 
 
-def create_app(*, store=None, auth=None, origin='https://bot.xyk.one'):
+class SourceRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    operation: str
+    feature: str = Field(max_length=100)
+    path: str = Field(default='', max_length=240)
+    text: str = Field(default='', max_length=1_000_000)
+    base: str = Field(default='', max_length=64)
+    revision: int = Field(default=0, ge=0)
+
+
+def create_app(*, store=None, auth=None, origin='https://bot.xyk.one', source_store=None):
     store = store or Store()
+    from .source_editor import SourceStore, check
+    source_store = source_store or SourceStore(store.home)
     if auth is None:
         root = Path.home() / '.local/share/srbs/editor'
         root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -62,19 +74,20 @@ def create_app(*, store=None, auth=None, origin='https://bot.xyk.one'):
 
     @app.middleware('http')
     async def protect(request, call_next):
+        limit = 2_000_000 if request.url.path == '/api/source' else 65536
         if request.method not in {'GET', 'HEAD'} and request.headers.get('origin') != origin:
             response = JSONResponse({'detail': '请求来源无效'}, status_code=403)
-        elif request.headers.get('content-length', '').isdigit() and int(request.headers['content-length']) > 65536:
+        elif request.headers.get('content-length', '').isdigit() and int(request.headers['content-length']) > limit:
             response = JSONResponse({'detail': '请求过大'}, status_code=413)
         else:
             # 包括无 Content-Length 的分块请求，先限长再交给 JSON 解析。
             size, chunks = 0, []
             async for chunk in request.stream():
                 size += len(chunk)
-                if size > 65536:
+                if size > limit:
                     break
                 chunks.append(chunk)
-            if size > 65536:
+            if size > limit:
                 response = JSONResponse({'detail': '请求过大'}, status_code=413)
             else:
                 request._body = b''.join(chunks)
@@ -107,7 +120,7 @@ def create_app(*, store=None, auth=None, origin='https://bot.xyk.one'):
 
     @app.get('/assets/{name}')
     async def asset(name: str):
-        if name not in {'editor.css', 'editor.js'}:
+        if name not in {'editor.css', 'editor.js', 'source.js'}:
             raise HTTPException(404)
         return FileResponse(STATIC / name)
 
@@ -139,6 +152,29 @@ def create_app(*, store=None, auth=None, origin='https://bot.xyk.one'):
     async def templates(request: Request):
         await require(request)
         return await asyncio.to_thread(state)
+
+    @app.post('/api/source')
+    async def source(body: SourceRequest, request: Request):
+        await require(request)
+        try:
+            if body.operation == 'list':
+                return await asyncio.to_thread(source_store.listing, body.feature)
+            if body.operation == 'read':
+                return await asyncio.to_thread(source_store.read, body.feature, body.path)
+            if body.operation == 'check':
+                from .source_catalog import files
+                if body.path not in files(body.feature):
+                    raise ValueError('该源码不属于当前功能')
+                return await asyncio.to_thread(check, body.path, body.text)
+            if body.operation == 'save':
+                return await asyncio.to_thread(source_store.save, body.feature, body.path, body.text, body.base, body.revision)
+            if body.operation in {'publish','rollback'}:
+                return await asyncio.to_thread(source_store.enqueue, body.feature, body.revision, body.operation)
+            raise ValueError('源码操作无效')
+        except ValueError as error:
+            raise HTTPException(409, str(error)) from None
+        except (OSError, KeyError, TypeError):
+            raise HTTPException(503, '源码暂不可用，请重新载入；未覆盖线上代码') from None
 
     @app.post('/api/change')
     async def change(body: Change, request: Request):

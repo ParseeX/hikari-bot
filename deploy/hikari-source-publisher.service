@@ -1,0 +1,14 @@
+[Unit]
+Description=Hikari source release publisher
+After=network.target
+
+[Service]
+Type=simple
+# 部署时替换为固定、保留的管理代码目录，不能指向 current。
+ExecStart=%h/srbs/envs/20261116-c512e80/bin/python -I -B -u %h/srbs/source-manager/run_source_publisher.py
+UMask=0077
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

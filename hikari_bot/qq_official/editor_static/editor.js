@@ -11,18 +11,18 @@ async function api(path, body) {
   return result;
 }
 function showLogin() { $('login').hidden = false; $('workspace').hidden = true; $('logout').hidden = true; }
-function canLeave() { return !dirty || window.confirm('这条文案还没有保存，放弃本地修改？'); }
+function canLeave() { return window.sourceEditor.canLeave() && (!dirty || window.confirm('这条文案还没有保存，放弃本地修改？')); }
 function statusTag(info) { return el('span', info.status || '已接入', 'tag ' + (info.status === '暂缓' || info.status === '已停用' ? 'deferred' : info.status === '部分接入' || info.status === '待接入' ? 'pending' : '')); }
 function matchingStates(id) { const term = $('search').value.trim().toLowerCase(); const f = data.features[id]; const whole = !term || [f.label, ...(f.commands || [])].join(' ').toLowerCase().includes(term); return Object.entries(data.states).filter(([k,s]) => s.feature === id && (whole || (k + s.label + s.draft.template).toLowerCase().includes(term))); }
 function renderNav() {
   $('features').replaceChildren();
   for (const [id, info] of Object.entries(data.features)) {
     const matches = matchingStates(id); if ($('search').value && !matches.length && !info.label.includes($('search').value)) continue;
-    const b = el('button', undefined, id === feature ? 'selected' : ''); b.append(el('span', info.label), statusTag(info)); b.onclick = () => { if (canLeave()) selectFeature(id); }; $('features').append(b);
+    const b = el('button', undefined, id === feature ? 'selected' : ''); b.dataset.feature=id; b.append(el('span', info.label), statusTag(info)); b.onclick = () => { if (canLeave()) selectFeature(id); }; $('features').append(b);
   }
 }
 function selectFeature(id, preferredKey) {
-  feature = id; dirty = false; const info = data.features[id]; $('feature-info').replaceChildren();
+  feature = id; dirty = false; window.sourceEditor.select(id); const info = data.features[id]; $('feature-info').replaceChildren();
   $('feature-info').append(el('h2', info.label));
   const grid = el('div', undefined, 'status-grid');
   for (const [heading, value] of [['与旧版的差异',info.differences],['原因',info.reason],['尚未接入',info.pending_work]]) { if (value) { const box = el('div'); box.append(el('h3',heading), el('p',value)); grid.append(box); } }
@@ -109,5 +109,5 @@ $('save').onclick=()=>mutate('save');$('publish').onclick=()=>mutate('publish');
 $('restore').onclick=()=>{spec=copy(data.states[key].default);dirty=true;fillEditor();};
 $('qq-preview').onclick=async()=>{if(dirty){notice('请先保存这条草稿，再发到 QQ 预览',true);return;}$('qq-preview').disabled=true;try{const result=await api('qq-preview',{key,revision:data.revision});qqRequest=result.id;$('qq-note').textContent=result.note;$('qq-status').disabled=false;}catch(error){notice(error.message,true);}finally{$('qq-preview').disabled=false;}};
 $('qq-status').onclick=async()=>{if(!qqRequest)return;try{const result=await api('qq-preview/'+qqRequest);$('qq-note').textContent=result.note;}catch(error){notice(error.message,true);}};
-window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
+window.addEventListener('beforeunload',event=>{if(dirty || window.sourceEditor.dirty()){event.preventDefault();event.returnValue='';}});
 (async()=>{try{await api('session');await load();}catch(error){showLogin();if(error.message!=='请先登录')notice(error.message,true);}})();
