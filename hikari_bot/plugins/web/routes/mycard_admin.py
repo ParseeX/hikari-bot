@@ -18,6 +18,7 @@ from hikari_bot.services.mycard_archive.art import card_art
 from hikari_bot.services.mycard_archive.manual_decks import ManualDecks, StaleManualDecks
 from hikari_bot.services.mycard_archive.presentation import deck_url
 from hikari_bot.services.mycard_archive.replay import Deck
+from hikari_bot.services.mycard_archive.sorting import sort_sections
 from hikari_bot.services.mycard_archive import account_admin
 from hikari_bot.services.mycard_archive.spectator import CredentialError
 
@@ -177,10 +178,17 @@ def player_decks(player: str = Query('', max_length=100)):
                                          **{key: json.dumps(saved[key]) for key in ('main', 'extra', 'side')}})
         observations.sort(key=lambda row: (row['observed_at'], row.get('match_id', '')))
         versions = library._versions(observations)
-        return {'player': player, 'versions': [
-            {'updated_at': version.updated_at, 'first_seen': version.first_seen,
-             **{key: list(getattr(version.deck, key)) for key in ('main', 'extra', 'side')}}
-            for version in reversed(versions)]}
+        card_catalog = catalog()
+        displayed_versions = []
+        for version in reversed(versions):
+            # 排序仅用于后台展示，不能改变归档原始卡序或版本判定。
+            main, extra, side = sort_sections(
+                version.deck.main, version.deck.extra, version.deck.side, catalog=card_catalog)
+            displayed_versions.append({
+                'updated_at': version.updated_at, 'first_seen': version.first_seen,
+                'main': list(main), 'extra': list(extra), 'side': list(side),
+            })
+        return {'player': player, 'versions': displayed_versions}
     except (OSError, ValueError, sqlite3.Error):
         raise HTTPException(503, '玩家卡组读取失败') from None
 
