@@ -94,6 +94,14 @@ class CardCatalog:
         with self.connect() as db:
             return self._info(db, self._by_id(db, value))
 
+    def alias_targets(self, keyword):
+        """只读取完整手动别名的目标，普通卡名片段不触发选择菜单。"""
+        with self.connect() as db:
+            rows = db.execute('SELECT DISTINCT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
+                              "WHERE n.source='manual:alias' AND n.normalized=? "
+                              'ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id', (normalize(keyword),)).fetchall()
+            return [self._info(db, row) for row in rows]
+
     def add_alias(self, code, alias):
         """只用精确卡密绑定别名；保留其他卡的同名别名，重复添加不产生副本。"""
         name = unicodedata.normalize('NFKC', alias).strip()

@@ -1,4 +1,4 @@
-"""Private C2C callback handles and event-bound delivery; no credential access."""
+"""群聊/私聊按钮绑定原用户与会话，使用事件额度回复，不读取凭据。"""
 from .output_templates import present, Output
 import asyncio
 from collections import OrderedDict
@@ -9,10 +9,11 @@ import re
 import secrets
 import time
 from nonebot.adapters.qq import Message, MessageSegment
-from nonebot.adapters.qq.event import C2CMessageCreateEvent, InteractionCreateEvent
+from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupMessageCreateEvent, GroupAtMessageCreateEvent, InteractionCreateEvent
 from nonebot.adapters.qq.models import MessageKeyboard
 from .preview import report
-COMMAND = re.compile('^(效果|卡图|卡价|卡密) ([0-9]{1,10})(?: ([0-9]{1,4}))?$')
+COMMAND = re.compile('^(效果|卡图|卡价|卡密|日版价格查询|共界计算) ([0-9]{1,10})(?: (.{1,80}))?$')
+PAGE_COMMAND = re.compile(r'^候选页 [A-Za-z0-9_-]{24} [0-9]{1,6}$')
 PREFIX = 'srbs:'
 TTL = 600
 ACK_SECONDS = 2.0
@@ -28,6 +29,23 @@ class Action:
     message_id: str = ''
     ready: bool = False
     claimed: bool = False
+    group: str = ''
+
+
+def supported_command(command):
+    if PAGE_COMMAND.fullmatch(command):
+        return True
+    match = COMMAND.fullmatch(command)
+    if not match or not 0 < int(match[2]) <= 2147483647:
+        return False
+    suffix = match[3]
+    if suffix is None:
+        return True
+    if match[1] == '卡图':
+        return bool(re.fullmatch(r'[0-9]{1,4}', suffix))
+    if match[1] in {'卡价', '日版价格查询'}:
+        return bool(re.fullmatch(r'[A-Za-z0-9+\-/]+(?: [A-Za-z0-9+\-/]+)?', suffix))
+    return False
 
 class CallbackBot:
 
@@ -42,9 +60,10 @@ class CallbackBot:
         if event is not self.source:
             raise ValueError('Reply context changed')
         user = event.get_user_id()
-        if not self.controller.config.allows('c2c', user):
+        group = event.group_openid if isinstance(event, GroupMessageCreateEvent) else ''
+        if not self.controller.config.allows('group_at' if group else 'c2c', user, group):
             raise ValueError('Reply user is not allowed')
-        prepared, handles = self.controller.prepare(message, str(self.bot.self_id), user)
+        prepared, handles = self.controller.prepare(message, str(self.bot.self_id), user, group)
         try:
             if self.interaction is None:
                 result = await self.bot.send(event, prepared)
@@ -52,10 +71,14 @@ class CallbackBot:
                 original = self.interaction
                 stamp = datetime.fromisoformat(original.timestamp.replace('Z', '+00:00'))
                 age = (self.controller.now() - stamp).total_seconds()
-                if not -1 <= age < 3600 or event._reply_seq >= 4:
+                if not -1 <= age < (300 if group else 3600) or event._reply_seq >= (5 if group else 4):
                     raise ValueError('Interaction reply is expired or exhausted')
                 event._reply_seq += 1
-                result = await self.bot.send_to_c2c(openid=original.user_openid, message=prepared, event_id=original.event_id or original.id, msg_seq=event._reply_seq)
+                arguments = dict(message=prepared, event_id=original.event_id or original.id, msg_seq=event._reply_seq)
+                if group:
+                    result = await self.bot.send_to_group(group_openid=group, **arguments)
+                else:
+                    result = await self.bot.send_to_c2c(openid=original.user_openid, **arguments)
             message_id = getattr(result, 'id', None)
             if message_id is None and isinstance(result, dict):
                 message_id = result.get('id')
@@ -98,7 +121,7 @@ class CallbackController:
     def wrap(self, bot, source):
         return CallbackBot(self, bot, source)
 
-    def prepare(self, message, app, user):
+    def prepare(self, message, app, user, group=''):
         if isinstance(message,Output) and message.mode=='markdown':
             message=MessageSegment.markdown(str(message))
         elif isinstance(message,Output):
@@ -113,11 +136,10 @@ class CallbackController:
                     for button in row['buttons']:
                         action = button['action']
                         command = action.get('data', '')
-                        match = COMMAND.fullmatch(command)
-                        if action.get('type') != 1 or not match or (not 0 < int(match[2]) <= 2147483647) or (match[3] is not None and match[1] != '卡图'):
+                        if action.get('type') != 1 or not supported_command(command):
                             raise ValueError('Unsupported callback action')
                         handle = PREFIX + secrets.token_urlsafe(18)
-                        self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL)
+                        self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL, group=group)
                         handles.append(handle)
                         button['action'] = {'type': 1, 'data': handle, 'permission': {'type': 0, 'specify_user_ids': [user]}, 'unsupport_tips': str(present('callback.unsupported', plain=True))}
                 segment.data['keyboard'] = MessageKeyboard.model_validate(keyboard)
@@ -129,7 +151,19 @@ class CallbackController:
             raise
 
     def trusted(self, bot, event):
-        return isinstance(event, InteractionCreateEvent) and event.type == 11 and (event.application_id == str(bot.self_id) == self.config.app_id) and (event.chat_type == 2) and (event.scene == 'c2c') and (not any([event.group_openid, event.group_member_openid, event.guild_id, event.channel_id])) and isinstance(event.user_openid, str) and self.config.allows('c2c', event.user_openid)
+        if (not isinstance(event, InteractionCreateEvent) or event.type != 11
+                or not event.application_id == str(bot.self_id) == self.config.app_id
+                or event.guild_id or event.channel_id):
+            return False
+        if event.chat_type == 2 and event.scene == 'c2c':
+            return (not event.group_openid and not event.group_member_openid
+                    and isinstance(event.user_openid, str) and bool(event.user_openid)
+                    and self.config.allows('c2c', event.user_openid))
+        if event.chat_type == 1 and event.scene == 'group':
+            return (not event.user_openid and isinstance(event.group_openid, str)
+                    and isinstance(event.group_member_openid, str) and bool(event.group_member_openid)
+                    and self.config.allows('group_at', event.group_member_openid, event.group_openid))
+        return False
 
     async def ack(self, bot, event, code, timeout=ACK_SECONDS):
         try:
@@ -141,6 +175,11 @@ class CallbackController:
             return False
 
     def source(self, event, command):
+        if event.chat_type == 1:
+            return GroupAtMessageCreateEvent.model_validate({
+                'id': 'callback:' + event.id, 'content': command, 'timestamp': event.timestamp,
+                'group_id': event.group_openid, 'group_openid': event.group_openid,
+                'author': {'id': event.group_member_openid, 'member_openid': event.group_member_openid, 'bot': False}})
         return C2CMessageCreateEvent.model_validate({'id': 'callback:' + event.id, 'content': command, 'timestamp': event.timestamp, 'author': {'id': event.user_openid, 'user_openid': event.user_openid}})
 
     async def hint(self, bot, event, text):
@@ -179,7 +218,10 @@ class CallbackController:
             return
         resolved = event.data.resolved
         action = self.actions.get(resolved.button_data)
-        valid = action is not None and action.ready and (action.app == event.application_id) and (action.user == event.user_openid) and (action.button_id == resolved.button_id) and (not resolved.message_id or resolved.message_id == action.message_id)
+        valid = (action is not None and action.ready and action.app == event.application_id
+                 and action.user == event.get_user_id() and action.group == (event.group_openid or '')
+                 and action.button_id == resolved.button_id
+                 and (not resolved.message_id or resolved.message_id == action.message_id))
         if not valid or action.claimed:
             await self.ack(bot, event, 3 if valid else 1)
             await self.hint(bot, event, present('callback.callbacks_2', {}))
@@ -198,9 +240,9 @@ class CallbackController:
         task.add_done_callback(self.tasks.discard)
 
     async def execute(self, bot, event, command):
-        source = self.source(event, command)
-        proxy = CallbackBot(self, bot, source, interaction=event)
         try:
+            source = self.source(event, command)
+            proxy = CallbackBot(self, bot, source, interaction=event)
             await asyncio.wait_for(self.processor(proxy, source), timeout=BUSINESS_SECONDS)
         except Exception as exc:
             report('callback_business_failed', exc)

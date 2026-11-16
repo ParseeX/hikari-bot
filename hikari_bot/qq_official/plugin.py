@@ -28,6 +28,8 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
         catalog = CardCatalog(config.catalog_path)
     queries = queries or Queries(catalog, image_loader=image_loader)
     results = ResultDelivery(pager)
+    from .alias_choices import AliasChoices
+    choices = AliasChoices(catalog)
     cards = CardActions(catalog, image_loader=image_loader, price_backend=price_backend, result_delivery=results)
     gate = EventGate()
     inflight = set()
@@ -102,6 +104,8 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
         if command != "继续":
             results.pending.pop(context(bot, event), None)
         try:
+            if await choices.handle(bot, event, command, argument):
+                return
             result = await asyncio.wait_for(queries.handle(request, command, argument), timeout=120)
             if result is not None:
                 cancel_price = getattr(price_backend, 'cancel', None)
@@ -139,7 +143,7 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
     @matcher.handle()
     async def handle(bot: Bot, event: MessageEvent):
         bot = NamedFileBot(bot)
-        await process(callbacks.wrap(bot,event) if isinstance(event, C2CMessageCreateEvent) else bot,event)
+        await process(callbacks.wrap(bot,event),event)
 
     interactions = on_notice(rule=Rule(lambda event: isinstance(event, InteractionCreateEvent)), priority=4, block=True)
 
