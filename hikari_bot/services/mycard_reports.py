@@ -24,6 +24,10 @@ async def history_report(user_id, month, year):
     wins = [record for record in valid_records if record['winner'] == user_id]
 
     result_message = wording('history.mycard_reports_e55ebb30', '玩家：{user_id}\n{value2}{month}月场次：{value4}\n{value5}{month_6}月胜率：{value7}%', {'user_id': user_id, 'value2': str(year - 2000) + '年' if year != current_year else '', 'month': month, 'value4': len(valid_records), 'value5': str(year - 2000) + '年' if year != current_year else '', 'month_6': month, 'value7': f'{(0 if len(valid_records) == 0 else len(wins) * 100.0 / len(valid_records)):.2f}'})
+    parts = {'summary': result_message, 'score': '', 'ranking': '', 'player': user_id,
+             'year': year, 'month': month, 'games': len(valid_records), 'wins': len(wins),
+             'win_rate': f'{(len(wins) * 100 / len(valid_records) if valid_records else 0):.2f}',
+             'score_value': '', 'rank_value': ''}
 
     if len(valid_records) > 0:
         try:
@@ -52,15 +56,19 @@ async def history_report(user_id, month, year):
                 spt = [r['pta'] if r['usernamea'] == user_id else r['ptb'] for r in settlement_records]
                 spt.append(spt_ex[-1])
                 spt.reverse()
-                result_message = result_message + wording('history.mycard_reports_d22d7508', '\n结算分数：{value1}', {'value1': f'{spt[-1]:.2f}'})
+                parts['score_value'] = f'{spt[-1]:.2f}'
+                parts['score'] = wording('history.mycard_reports_d22d7508', '\n结算分数：{value1}', {'value1': parts['score_value']})
             rank = await mycard_service.fetch_player_history_rank(user_id, year, month)
             if rank is not None:
-                result_message = result_message + wording('history.mycard_reports_e0970980', '\n结算排名：{rank}', {'rank': rank})
+                parts['rank_value'] = rank
+                parts['ranking'] = wording('history.mycard_reports_e0970980', '\n结算排名：{rank}', {'rank': rank})
         else:
-            result_message = result_message + wording('history.mycard_reports_da380fbd', '\n当前分数：{value1}', {'value1': f'{pt[-1]:.2f}'})
+            parts['score_value'] = f'{pt[-1]:.2f}'
+            parts['score'] = wording('history.mycard_reports_da380fbd', '\n当前分数：{value1}', {'value1': parts['score_value']})
             rank = await mycard_service.mycard_get_player_rank(user_id)
             if rank is not None:
-                result_message = result_message + wording('history.mycard_reports_77fb0a39', '\n当前排名：{rank}', {'rank': rank})
+                parts['rank_value'] = rank
+                parts['ranking'] = wording('history.mycard_reports_77fb0a39', '\n当前排名：{rank}', {'rank': rank})
 
         plt.figure(figsize=(8, 6))
 
@@ -88,9 +96,9 @@ async def history_report(user_id, month, year):
         buf.seek(0)  # 将文件指针移到开始位置
         plt.close()
 
-        return Result(wording('history.mycard_reports_body_2fe0148e', '{content}', {'content': result_message}), (buf.getvalue(),))
+        return Result(wording('history.mycard_reports_body_2fe0148e', '{content}', {'content': parts['summary'] + parts['score'] + parts['ranking'], **parts}), (buf.getvalue(),))
 
-    return Result(wording('history.mycard_reports_body_2fe0148e', '{content}', {'content': result_message}))
+    return Result(wording('history.mycard_reports_body_2fe0148e', '{content}', {'content': result_message, **parts}))
 
 
 async def winrate_report(user_id):

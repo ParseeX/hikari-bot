@@ -36,6 +36,7 @@ class Preview(BaseModel):
     model_config = ConfigDict(extra='forbid')
     key: str = Field(max_length=160)
     spec: dict
+    example: str | None = Field(default=None, max_length=80)
 
 
 class QQPreview(BaseModel):
@@ -158,9 +159,8 @@ def create_app(*, store=None, auth=None, origin='https://bot.xyk.one'):
         await require(request)
         try:
             spec = validate(body.key, body.spec)
-            with draft(body.key, spec):
-                value = present(body.key, SCHEMA['states'][body.key]['samples'])
-            return {'text': str(value), 'mode': value.mode}
+            from .editor_examples import render_example
+            return render_example(store, body.key, spec, body.example)
         except (ValueError, KeyError, TypeError):
             raise HTTPException(400, '预览失败，请检查变量和模板格式') from None
 

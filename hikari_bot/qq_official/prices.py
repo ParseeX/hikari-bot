@@ -1,5 +1,5 @@
 """Existing price semantics with isolated srbs sessions and version cache."""
-from .output_templates import present
+from .output_templates import present, Output
 from .price_outputs import format_comparison, rarity_prompt
 import asyncio
 from dataclasses import asdict
@@ -90,7 +90,7 @@ class PriceQueries:
             return present('price.prices_4', {})
         groups = group_rarities(versions)
         self.sessions[user_id] = (self.clock() + 180, name, groups, japanese)
-        return present('price.prompt',{'body':rarity_prompt(name, groups)})
+        return rarity_prompt(name, groups)
 
     async def choose(self, value, user_id):
         state = self.sessions.get(user_id)
@@ -112,7 +112,8 @@ class PriceQueries:
         self.sessions.pop(user_id, None)
         try:
             rows = await asyncio.wait_for(self.comparison.compare(name, groups[rarity], japanese=japanese), timeout=90)
-            return present('price.result',{'body':'\n\n'.join(format_comparison(name, rarity, rows, japanese=japanese))})
+            pages = format_comparison(name, rarity, rows, japanese=japanese)
+            return Output('\n\n'.join(pages), 'price.result', pages[0].mode) if pages else present('price.result', {'body': '', 'heading': '', 'versions': ''})
         except TimeoutError:
             return present('price.prices_9', {})
         except Exception:

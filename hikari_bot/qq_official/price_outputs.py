@@ -6,11 +6,15 @@ def rarity_prompt(name_jp,groups):
     for index,(rarity,versions) in enumerate(groups.items(),1):
         numbers='、'.join(dict.fromkeys(v.number or str(present('price.number_unknown')) for v in versions))
         lines.append(str(present('price.rarity_row',{'index':index,'rarity':rarity,'versions':numbers})))
-    return '\n'.join(lines)+'\n'+str(present('price.rarity_hint'))
+    hint = str(present('price.rarity_hint'))
+    return present('price.prompt', {'body': '\n'.join(lines)+'\n'+hint,
+        'heading': lines[0], 'options': '\n'.join(lines[1:]), 'hint': hint})
 
 def format_comparison(name_jp,rarity,rows,*,japanese=False):
     header=str(present('price.heading',{'name':name_jp,'rarity':rarity}))
-    pages=[];text=header
+    pages=[];text=header;blocks=[]
+    def page():
+        return present('price.result', {'body': text.rstrip(), 'heading': header, 'versions': ''.join(blocks).rstrip()})
     for row in rows:
         lines=[str(present('price.version',{'version':row.version.number or str(present('price.number_unknown'))}))]
         if row.jhs is None or row.jhs.error:
@@ -25,8 +29,10 @@ def format_comparison(name_jp,rarity,rows,*,japanese=False):
         elif not row.cardrush: lines.append(str(present('price.cardrush_missing')))
         else:
             lines.extend(str(present('price.cardrush',{'value':f'{record.price:,} 円'})) for record in row.cardrush)
-        block='\n'.join(lines)+'\n\n'
-        if len(text)+len(block)>2800 and text!=header: pages.append(text.rstrip());text=header
+        block=present('price.version_block', {'version': lines[0], 'domestic': lines[1], 'buyback': '\n'.join(lines[2:])})
+        if len(text)+len(block)>2800 and text!=header:
+            pages.append(page());text=header;blocks=[]
         text+=block
-    if text!=header: pages.append(text.rstrip())
+        blocks.append(str(block))
+    if text!=header: pages.append(page())
     return pages

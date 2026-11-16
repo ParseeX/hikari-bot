@@ -61,13 +61,13 @@ async def run(directory):
     if text.strip().removeprefix('/').split(maxsplit=1)[0] == 'bm':
         match = re.fullmatch(r'/?bm\s+(BV[A-Za-z0-9]{10})(?:\s+([1-9]\d{0,2}))?\s*', text.strip())
         if not match:
-            rows.append({'kind': 'text', 'text': '请发送正确的 BV 号：bm BV号 [分集]'})
+            rows.append({'kind': 'text', 'code': 'audio_usage'})
         else:
             parser = BilibiliParser()
             index = int(match[2] or '1') - 1
             _, url = await parser.extract_download_urls(bvid=match[1], page_index=index)
             if not url:
-                rows.append({'kind': 'text', 'text': '未找到可下载的音频'})
+                rows.append({'kind': 'text', 'code': 'audio_missing'})
             else:
                 path = await parser.downloader.download_audio(url, audio_name=f'{match[1]}-{index}.mp3', ext_headers=parser.headers)
                 append([Voice(path=path)])
@@ -84,13 +84,13 @@ async def run(directory):
                 except Exception:
                     if not rows:
                         raise
-                    rows.append({"kind": "text", "text": "部分媒体下载或渲染失败；已保留可用内容。"})
+                    rows.append({"kind": "text", "code": "partial"})
                 if not rows:
-                    rows.append({'kind': 'text', 'text': '解析未得到可发送内容；可能超过媒体大小/时长限制，请直接打开原链接。'})
+                    rows.append({'kind': 'text', 'code': 'empty_result'})
                 (directory / "result.json").write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
                 return
     (directory / "result.json").write_text(json.dumps([
-        {"kind": "text", "text": "此链接暂无可用解析器，请直接打开原链接。"}], ensure_ascii=False), encoding="utf-8")
+        {"kind": "text", "code": "unsupported"}], ensure_ascii=False), encoding="utf-8")
 
 
 if __name__ == "__main__":

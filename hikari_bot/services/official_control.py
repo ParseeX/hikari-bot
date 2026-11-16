@@ -65,7 +65,9 @@ async def execute(action, argument):
             if process.returncode is None:
                 process.kill()
                 await process.wait()
-        return Result(wording('operations.official_control_body_10ce9a2a', '{content}', {'content': wording('operations.official_control_cc3a7716', '采集后台版本：\n', {}) + output.decode(errors='replace') if process.returncode == 0 else wording('operations.official_control_72e408c2', '后台版本查询失败。', {})}))
+        heading = wording('operations.official_control_cc3a7716', '采集后台版本：\n', {}) if process.returncode == 0 else ''
+        version = output.decode(errors='replace') if process.returncode == 0 else wording('operations.official_control_72e408c2', '后台版本查询失败。', {})
+        return Result(wording('operations.official_control_body_10ce9a2a', '{content}', {'content': heading + version, 'heading': heading, 'version': version}))
     if action == 'logs':
         from hikari_bot.core.logger import log_read
         lines = await log_read()
@@ -74,7 +76,9 @@ async def execute(action, argument):
     if action in {'watch_add', 'watch_remove'}:
         return Result(wording('opponent.official_control_body_2c8cff84', '{content}', {'content': await mycard.change_account(argument, add=action == 'watch_add')}))
     if action == 'watch_list':
-        return Result(wording('opponent.official_control_body_9e80905d', '{content}', {'content': wording('opponent.official_control_066f0abe', '关注账号：\n', {}) + ('\n'.join(sorted(mycard.watched_accounts().accounts)) or '暂无')}))
+        heading = wording('opponent.official_control_066f0abe', '关注账号：\n', {})
+        accounts = '\n'.join(sorted(mycard.watched_accounts().accounts)) or wording('opponent.accounts_empty', '暂无')
+        return Result(wording('opponent.official_control_body_9e80905d', '{content}', {'content': heading + accounts, 'heading': heading, 'accounts': accounts}))
     if action == 'notify_toggle':
         from hikari_bot.core.feature_flags import get_notify_enabled, set_notify_enabled
         enabled = not await get_notify_enabled()
@@ -102,7 +106,8 @@ async def execute(action, argument):
         library = DeckLibrary(settings.mycard_archive_dir / 'archive.sqlite3')
         version = await asyncio.to_thread(library.latest, argument)
         if version is None:
-            return Result(wording('archive.official_control_body_24bc0c79', '{content}', {'content': argument + wording('archive.official_control_f4b6ec05', '：暂无卡组', {})}))
+            note = wording('archive.official_control_f4b6ec05', '：暂无卡组', {})
+            return Result(wording('archive.official_control_body_24bc0c79', '{content}', {'content': argument + note, 'player': argument, 'note': note}))
         image = await player_image(argument, version, library.path.with_name('deck-rules.json'))
         return Result(images=(image,))
     if action in {'mensa', 'mensa_toggle'}:
@@ -116,7 +121,9 @@ async def execute(action, argument):
                 scheduler.add_job(scheduled_mensa_check, 'interval', minutes=3, id='mensa_tokyo_monitor', misfire_grace_time=1800)
             return Result(wording('mensa.official_control_4c311c99', 'MENSA监控已{value1}。', {'value1': '开启' if enabled else '关闭'}))
         slots = await fetch_tokyo_slots()
-        return Result(wording('mensa.official_control_body_2a069fb6', '{content}', {'content': wording('mensa.official_control_cff1f1ea', 'MENSA东京考场检查结果\n', {}) + ('\n'.join(f"{row['datetime']} - {row['status']}" for row in slots) or '暂无可报名场次')}))
+        heading = wording('mensa.official_control_cff1f1ea', 'MENSA东京考场检查结果\n', {})
+        rows = '\n'.join(wording('mensa.slot', '{datetime} - {status}', row) for row in slots) or wording('mensa.empty', '暂无可报名场次')
+        return Result(wording('mensa.official_control_body_2a069fb6', '{content}', {'content': heading + rows, 'heading': heading, 'slots': rows}))
     if action.startswith('price_'):
         from hikari_bot.plugins.monitors.cardrush import report_workflow
         from hikari_bot.features.cardrush.reporting.text import parse_date_arg

@@ -378,7 +378,8 @@ def test_catalog_covers_wired_keys_and_every_feature_has_status():
                 key = node.args[0].value
                 assert key in SCHEMA['states'], (path, key)
                 if node.func.id != 'present':
-                    assert ast.literal_eval(node.args[1]) == SCHEMA['states'][key]['template'], (path, key)
+                    definition = SCHEMA['states'][key]
+                    assert ast.literal_eval(node.args[1]) in {definition['template'], definition.get('legacy_template')}, (path, key)
 
 
 def test_notice_defaults_do_not_change_onebot_and_can_render_at_official_boundary(setup):

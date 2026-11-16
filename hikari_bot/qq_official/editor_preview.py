@@ -5,7 +5,8 @@ import time
 from datetime import datetime,timezone
 from nonebot.adapters.qq import Message,MessageSegment
 from nonebot.adapters.qq.event import C2CMessageCreateEvent
-from .output_templates import Store,SCHEMA,draft,present
+from .output_templates import Store,OVERRIDE,draft,present
+from .editor_examples import render_example
 from .card_actions import card_message,image_navigation
 from .preview import build_preview,CARD_ID,report
 
@@ -60,9 +61,11 @@ class PreviewSession:
                 message=image_navigation(info,user,0,len(ids),prices=True)
                 return [Message(MessageSegment.file_image(data)),self.labeled(message,'草稿预览 · 真实卡库/卡图；未发布')]
             return [self.labeled(message,'草稿预览 · 真实卡库；未发布')]
-        spec=SCHEMA['states'][key];content=present(key,spec['samples'])
+        spec=(OVERRIDE.get() or {}).get(key) or self.store.state()['states'][key]['draft']
+        example=render_example(self.store,key,spec)
+        content=example['context']
         if len(content)>1400: raise ValueError('Preview too long')
-        segment=MessageSegment.markdown(str(content)) if content.mode=='markdown' else MessageSegment.text(str(content))
+        segment=MessageSegment.markdown(content) if example['context_mode']=='markdown' else MessageSegment.text(content)
         return [self.labeled(Message(segment),'草稿预览 · 示例数据，非实时报价；未发布')]
 
     @staticmethod

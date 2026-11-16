@@ -35,7 +35,10 @@ class Notifications:
                 await asyncio.sleep(1)
                 status, result = await asyncio.to_thread(self.bus.response, key)
                 if status not in {'pending', 'processing'}:
-                    return Result(present('notifications.notifications_body_83c09af2', {'content': present('notifications.notifications_72f0156e', {}) + status + ('\n' + result.text if result else '') + present('notifications.notifications_f88d4bc1', {})}))
+                    prefix, suffix = present('notifications.notifications_72f0156e', {}), present('notifications.notifications_f88d4bc1', {})
+                    detail = '\n' + result.text if result else ''
+                    return Result(present('notifications.notifications_body_83c09af2', {'content': prefix + status + detail + suffix,
+                        'prefix': prefix, 'status': status, 'detail': detail, 'suffix': suffix}))
             return Result(present('notifications.notifications_3e362d30', {}))
         enabled = command == '开启通知'
         await asyncio.to_thread(self.bus.allow_topic, target, 'mycard', enabled)
@@ -88,7 +91,9 @@ class Notifications:
             if isinstance(error, ActionFailed) and (error.status_code in {401,403,429} or code == 22009):
                 await asyncio.to_thread(self.bus.set_setting, job['target'], 'pause_until', int(self.bus.clock() + 3600))
             detail = type(error).__name__ + (f' code={code}' if isinstance(code, int) else '')
-            await asyncio.to_thread(self.bus.finish, job['id'], 'failed', Result(present('notifications.notifications_body_e4127616', {'content': present('notifications.notifications_6a23ccee', {}) + detail + present('notifications.notifications_66cd9456', {})})))
+            prefix, suffix = present('notifications.notifications_6a23ccee', {}), present('notifications.notifications_66cd9456', {})
+            await asyncio.to_thread(self.bus.finish, job['id'], 'failed', Result(present('notifications.notifications_body_e4127616',
+                {'content': prefix + detail + suffix, 'prefix': prefix, 'error': detail, 'suffix': suffix})))
 
     async def run(self):
         while True:

@@ -15,6 +15,13 @@ MAX_BYTES = 100 * 1024 * 1024
 MAX_PARTS = 40
 WORKER = Path(__file__).with_name("link_worker.py")
 LINK = re.compile(r"https?://|\bBV[A-Za-z0-9]{10}\b", re.I)
+WORKER_MESSAGES = {
+    'audio_usage': '请发送正确的 BV 号：bm BV号 [分集]',
+    'audio_missing': '未找到可下载的音频',
+    'partial': '部分媒体下载或渲染失败；已保留可用内容。',
+    'empty_result': '解析未得到可发送内容；可能超过媒体大小/时长限制，请直接打开原链接。',
+    'unsupported': '此链接暂无可用解析器，请直接打开原链接。',
+}
 
 
 def load_result(directory):
@@ -29,10 +36,13 @@ def load_result(directory):
     parts, size = [], 0
     for row in rows:
         if row["kind"] == "text":
+            if row.get('code') in WORKER_MESSAGES:
+                parts.append(wording('links.' + row['code'], WORKER_MESSAGES[row['code']]))
+                continue
             value = row["text"]
             if not isinstance(value, str) or len(value) > 16000:
                 raise ValueError("解析文字过长")
-            parts.append(value)
+            parts.append(wording('links.parsed_text', '{parsed_text}', {'parsed_text': value}))
             continue
         path = (directory / row["path"]).resolve()
         if not path.is_relative_to(directory) or not path.is_file():

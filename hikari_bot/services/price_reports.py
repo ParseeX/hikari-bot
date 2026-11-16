@@ -47,7 +47,9 @@ class PriceReports:
             self.sessions[key] = (now + 180, candidates)
             while len(self.sessions) > 128:
                 self.sessions.popitem(last=False)
-            lines = '\n'.join(f'{i}. {item.name}  {(item.model_number or "").split("-")[0]}-{rarity_jp_to_en(item.rarity or "")}  {item.price:,}円' for i, item in enumerate(candidates, 1))
+            lines = '\n'.join(wording('price_history.candidate', '{index}. {name}  {box}-{rarity}  {price}円',
+                {'index': i, 'name': item.name, 'box': (item.model_number or '').split('-')[0],
+                 'rarity': rarity_jp_to_en(item.rarity or ''), 'price': f'{item.price:,}'}) for i, item in enumerate(candidates, 1))
             return Result(wording('price_history.price_reports_47b24a67', '找到 {value1} 条结果，请回复编号：\n{lines}', {'value1': len(candidates), 'lines': lines}))
         if key not in self.sessions:
             return None

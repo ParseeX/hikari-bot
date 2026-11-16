@@ -34,7 +34,8 @@ class AdminQueries:
                 if result:
                     return result
                 if status not in {'pending', 'processing'}:
-                    return Result(present('operations.admin_body_1a447932', {'content': present('operations.admin_992515ed', {}) + status + present('operations.admin_b16086d4', {})}))
+                    prefix, suffix = present('operations.admin_992515ed', {}), present('operations.admin_b16086d4', {})
+                    return Result(present('operations.admin_body_1a447932', {'content': prefix + status + suffix, 'prefix': prefix, 'status': status, 'suffix': suffix}))
                 await asyncio.sleep(1)
             return Result(present('operations.admin_a7371c0b', {}))
         if argument:

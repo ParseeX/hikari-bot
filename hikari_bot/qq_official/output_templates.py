@@ -62,6 +62,17 @@ def default(key):
     return {'template':d['template'],'mode':d.get('mode','text'),'visible':list(d['fields']),
             'rows':deepcopy(d.get('rows',[])),'labels':deepcopy(d.get('buttons',{}))}
 
+
+def upgrade_spec(key, spec):
+    """只展开旧版默认外壳；自定义文案、格式、按钮和存储文件不覆盖。"""
+    definition = SCHEMA['states'][key]
+    spec = deepcopy(spec)
+    legacy = definition.get('legacy_template')
+    if legacy and spec.get('template') == legacy:
+        spec['template'] = definition['template']
+        spec['visible'] = list(dict.fromkeys([*spec['visible'], *definition['fields']]))
+    return spec
+
 class Store:
     def __init__(self,home=None):
         self.home=Path(home) if home else HOME
@@ -92,8 +103,8 @@ class Store:
         result={'revision':data['revision'],'features':deepcopy(SCHEMA['features']),'states':{},'session':{}}
         for key,d in SCHEMA['states'].items():
             f=data['features'].get(d['feature'],{})
-            result['states'][key]={**d,'active':f.get('active',{}).get(key,default(key)),
-                'draft':f.get('draft',{}).get(key,f.get('active',{}).get(key,default(key))),
+            result['states'][key]={**d,'active':upgrade_spec(key,f.get('active',{}).get(key,default(key))),
+                'draft':upgrade_spec(key,f.get('draft',{}).get(key,f.get('active',{}).get(key,default(key)))),
                 'has_draft':key in f.get('draft',{}),'can_rollback':bool(f.get('previous'))}
         session=self.queue/'session.json'
         if session.exists(): result['session']=json.loads(session.read_text())
@@ -140,7 +151,7 @@ class Store:
     def active(self,key):
         try:
             group=self.load()['features'].get(SCHEMA['states'][key]['feature'],{})
-            return validate(key,group.get('active',{}).get(key,default(key)))
+            return validate(key,upgrade_spec(key,group.get('active',{}).get(key,default(key))))
         except (OSError,ValueError,KeyError,TypeError): return default(key)
 
     def preview(self,key,request_id,revision):
@@ -169,9 +180,14 @@ class Output(str):
 def present(key,values=None,*,plain=False):
     overrides=OVERRIDE.get()
     spec=overrides.get(key) if overrides and key in overrides else Store().active(key)
-    values=values or {}
+    values=dict(values or {})
+    definition = SCHEMA['states'][key]
+    for name, source in definition.get('aliases', {}).items():
+        values.setdefault(name, values.get(source, ''))
     cooked={name:(str(values.get(name,'')) if name in spec['visible'] else '') for name in SCHEMA['states'][key]['fields']}
-    if spec['mode']=='markdown' and not plain:
+    root = definition.get('preview_root') if definition.get('fragment') else None
+    root_spec = (overrides.get(root) if overrides and root in overrides else Store().active(root)) if root else spec
+    if root_spec['mode']=='markdown' and not plain:
         cooked={k:(v if k in SCHEMA['states'][key].get('blocks',[]) else escape(v)) for k,v in cooked.items()}
     return Output(spec['template'].format_map(cooked),key,'text' if plain else spec['mode'])
 

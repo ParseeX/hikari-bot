@@ -16,7 +16,8 @@ HISTORY = re.compile(r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))
 def binding_help(command=None):
     prompt = (present('binding.business_76230727', {'command': command}) if command
               else present('binding.business_9123be18', {}))
-    return Result(present('binding.business_body_96c257d5', {'content': prompt + present('binding.business_8dfa0c30', {})}))
+    note = present('binding.business_8dfa0c30', {})
+    return Result(present('binding.business_body_96c257d5', {'content': prompt + note, 'prompt': prompt, 'migration_note': note}))
 
 
 class Queries:
@@ -101,7 +102,8 @@ class Queries:
                     return Result(images=(await self.deck_renderer.card_list(cards),))
                 except ValueError:
                     return Result(present('calculation.business_be309d04', {}))
-            return Result(present('calculation.business_body_82946755', {'content': present('calculation.business_2a9842bc', {}) + "\n".join(map(str, cards))}))
+            heading, codes = present('calculation.business_2a9842bc', {}), "\n".join(map(str, cards))
+            return Result(present('calculation.business_body_82946755', {'content': heading + codes, 'heading': heading, 'card_ids': codes}))
         if command in {"首胜查询", "首赢查询", "查分"}:
             if not argument and self.state:
                 argument = await asyncio.to_thread(self.state.binding, request.actor) or ""
@@ -139,7 +141,8 @@ class Queries:
                 return Result(present('ruling.business_b834c123', {}))
             if self.ruling is None:
                 return Result(present('ruling.business_a3c7e067', {}))
-            return Result(present('ruling.business_body_4783ee60', {'content': await self.ruling(argument) + present('ruling.business_ed09c431', {})}))
+            answer, note = await self.ruling(argument), present('ruling.business_ed09c431', {})
+            return Result(present('ruling.business_body_4783ee60', {'content': answer + note, 'answer': answer, 'note': note}))
         if command in {"生成卡组图片", "卡组图片", "卡组", "卡组PDF"}:
             if not self.deck_renderer:
                 return Result(present('deck.business_bdca74be', {}))

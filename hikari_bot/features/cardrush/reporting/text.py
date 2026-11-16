@@ -75,5 +75,7 @@ def format_daily_report(
                 header_parts.append(wording('price_daily.page_number', '（{current}/{pages}）', {'current': current, 'pages': total_pages}))
             lines = ["".join(header_parts)]
             lines.extend(_card_line(change, kind) for change in page)
-            messages.append(wording('price_daily.page', '{content}', {'content': '\n'.join(lines)}))
+            messages.append(wording('price_daily.page', '{content}', {'content': '\n'.join(lines),
+                'summary': summary, 'section': header_parts[1], 'page_number': ''.join(header_parts[2:]),
+                'rows': '\n'.join(lines[1:])}))
     return messages

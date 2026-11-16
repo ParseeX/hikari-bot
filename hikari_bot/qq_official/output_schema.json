@@ -12,8 +12,8 @@
       "differences": "OpenID 与旧 QQ 号不同。其他用户需重新绑定；不同群的成员身份可能不同，需分别绑定。不授予管理员权。",
       "qq": "本人已核验关联的私聊与群绑定曾验证；其他用户重新绑定需自行验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "绑定成功、用法、未绑定提示与查询绑定结果。历史/查分缺少用户名时共用这里的未绑定提示。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -21,7 +21,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "官方使用 OpenID，不能直接认定为旧 QQ 身份；群成员身份也可能按群隔离。",
+      "pending_work": ""
     },
     "history": {
       "label": "MyCard 历史",
@@ -35,8 +37,8 @@
       "differences": "普通文字与单张图保持同一条图文消息，图片在上由 QQ 客户端布局；选择 Markdown 后文字与上传图片分开发送。",
       "qq": "普通图文历史曾在私聊验证；本轮网页改文案后的 QQ 渲染由用户验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "统计摘要、当前/结算分数、当前/结算排名均可改字样与顺序。预览覆盖本月、已结算、无对局和缺排名；曲线数据不修改。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -49,7 +51,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "普通图文的上下布局由 QQ 客户端决定；当前代码尚未把上传图片内嵌进 Markdown。",
+      "pending_work": ""
     },
     "score": {
       "label": "查分与首胜",
@@ -63,8 +67,8 @@
       "differences": "旧 QQ 绑定不会为其他人自动沿用；未绑定提示在“MyCard 绑定”编辑。",
       "qq": "新文案和全部分支待用户验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -77,7 +81,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "官方 OpenID 与原 QQ 数字身份不同，未核验的旧绑定不能自动继承。",
+      "pending_work": ""
     },
     "winrate": {
       "label": "MyCard 胜率",
@@ -90,8 +96,8 @@
       "differences": "身份规则与历史相同；普通单图合发，Markdown 与图片分开发送。",
       "qq": "全部分支及本轮自定义 Markdown 待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -104,7 +110,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "使用官方身份查询；普通图文由客户端排版，上传图片内嵌 Markdown 尚未接入。",
+      "pending_work": ""
     },
     "passcode": {
       "label": "卡密",
@@ -116,8 +124,8 @@
       "differences": "官方群可不 @ 发送指令，普通回复不 @ 用户；模糊候选列表仍未新增。",
       "qq": "群内不 @ 查询、回复不 @ 已验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -125,7 +133,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "沿用原查询逻辑；官方群能否收到非 @ 消息取决于群主的消息范围设置。",
+      "pending_work": ""
     },
     "effect": {
       "label": "卡片效果",
@@ -138,8 +148,8 @@
       "differences": "文案和发送格式不再按群聊/私聊区分。按钮目前只在私聊短 Markdown 回复接入；群聊、普通文字和长文分页不附带按钮。分页额度因会话场景不同，可能需发送“继续”；Markdown 跨页可能拆开语法。效果查询被明确拒绝时只提示失败，不改为另一套文案或普通文字。",
       "qq": "试点 Markdown/按钮已有验收；自定义模板和群 Markdown 待验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "只编辑一条“效果回复”，对所有会话生效。{body} 提供原版完整纯文本排版，也可用卡名、类型、效果等细分变量；原始卡库不在此修改。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -147,7 +157,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "文案和格式已经统一；群按钮尚未接入，长文受每条消息长度及回复额度限制。",
+      "pending_work": "群聊按钮。"
     },
     "art": {
       "label": "卡图",
@@ -160,8 +172,8 @@
       "differences": "群聊与私聊共用卡图页码和操作提示；图片与导航分条。只有已接入的私聊 Markdown 附带按钮，群聊/普通文字可输入相同提示中的下一张命令。原合并转发外观未恢复。",
       "qq": "群内不 @ 卡图及分页已验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -169,7 +181,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "原合并转发无法由当前官方发送路径复现；图片、导航与私聊按钮使用不同发送步骤。",
+      "pending_work": "群聊按钮；原合并转发外观。"
     },
     "daily_card": {
       "label": "每日一卡",
@@ -181,8 +195,8 @@
       "differences": "身份种子由数字 QQ 号变成平台身份，因此当天抽到的卡可能不同。",
       "qq": "新入口完整命令待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "无卡图、未配置等提示；正常结果是图片，不包含可编辑文字。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -190,7 +204,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "每日随机结果的种子使用平台身份，不能继续使用未知的原 QQ 号。",
+      "pending_work": ""
     },
     "calculation": {
       "label": "共界计算",
@@ -202,8 +218,8 @@
       "differences": "缺图时明确失败，不生成缺卡结果；服务缺失时返回卡号文本。",
       "qq": "正常结果及媒体失败分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -211,7 +227,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "使用原图片服务；完整性检查避免发出缺卡图片。",
+      "pending_work": ""
     },
     "price": {
       "label": "卡价",
@@ -225,8 +243,8 @@
       "differences": "版本/罕贵需要文字或编号选择，独立版本按钮未实现；长结果分页。",
       "qq": "已有私聊查询验证；所有选择及自定义 Markdown 分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -234,7 +252,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "沿用文字选项流程；独立版本按钮尚未接入，长结果受消息长度限制。",
+      "pending_work": "独立版本选择按钮。"
     },
     "price_history": {
       "label": "卡价历史曲线",
@@ -248,8 +268,8 @@
       "differences": "普通图文按 QQ 布局；Markdown 文字与上传图片分开发送。",
       "qq": "全部曲线/候选选择分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -257,7 +277,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "QQ 决定普通图文布局；上传图片内嵌 Markdown 尚未接入。",
+      "pending_work": ""
     },
     "price_daily": {
       "label": "卡价日报",
@@ -271,8 +293,8 @@
       "differences": "多页文字拆发；原合并转发外观未恢复。",
       "qq": "手动日报与下一次真实定时推送全链路待验收。",
       "remaining": "两个日报网页别名在官方入口仍返回明确未迁移提示。",
-      "coverage": "文字日报标题、小节、每张卡片行、分页及定时图片说明；图片内部报表排版不在此编辑。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -280,7 +302,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "官方入口使用分页消息；原网页别名和合并转发外观尚未完成对应接入。",
+      "pending_work": "两个日报网页别名在官方入口仍返回明确未迁移提示。"
     },
     "subscriptions": {
       "label": "MyCard 订阅",
@@ -294,8 +318,8 @@
       "differences": "未核验旧目标暂停，不猜身份；群订阅尚未启用；投递受官方权限和频控限制。",
       "qq": "主动测试消息曾在私聊看到，真实订阅开局/首赢链路待验收。",
       "remaining": "群订阅、未核验旧订阅迁移。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -308,7 +332,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "旧群/用户与 OpenID 不能猜测关联，群订阅还缺目标授权和投递验证。",
+      "pending_work": "群订阅、未核验旧订阅迁移。"
     },
     "notifications": {
       "label": "主动通知",
@@ -323,8 +349,8 @@
       "differences": "API 接受不代表客户端收到；官方权限、主动额度和本地限流都可能阻止发送。 选择 Markdown 且含上传媒体时拆成多条，会额外消耗发送额度；失败不会自动重发。",
       "qq": "普通主动测试消息已可见；真实订阅事件、日报及其他通知仍分项待验收。",
       "remaining": "不同群主动通知的完整权限与真实客户端验收。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -332,7 +358,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "主动消息受官方授权、额度和接收状态限制，接口成功不能保证客户端已显示。",
+      "pending_work": "未获主动发送权限的群通知。"
     },
     "opponent": {
       "label": "对手提醒与关注账号",
@@ -346,8 +374,8 @@
       "differences": "仅独立授权管理员私聊管理；旧目标不自动迁移；卡组为已收录版本，未必为本局使用。",
       "qq": "模拟对手提醒的文字、图片已可见；真实新开局触发仍待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "账号管理提示、对手链接/图片/缺失通知均可编辑；图内卡组排版不在此编辑。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -359,7 +387,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "管理身份独立授权；只能使用已归档卡组数据，不能把历史卡组当成本局确认卡组。",
+      "pending_work": ""
     },
     "ruling": {
       "label": "裁定查询",
@@ -371,8 +401,8 @@
       "differences": "长结果需要“继续”；模型生成的裁定正文作为动态内容，不能预先枚举为固定文案。",
       "qq": "正常查询及超时分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -380,7 +410,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "裁定正文由检索/模型生成；长结果受消息长度及被动回复额度限制。",
+      "pending_work": ""
     },
     "deck": {
       "label": "卡组图片与 PDF",
@@ -394,8 +426,8 @@
       "differences": "PDF 每类主卡最多 20 种，超出明确提示；图片缺卡时拒绝不完整输出；附件不等于 QQ 群文件库。",
       "qq": "PDF 下载并打开已验证；所有卡组图片和异常分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "输入校验、生成失败及容量提示；图片/PDF 内的排版与绘制文字不由此编辑。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -403,7 +435,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "沿用现有 PDF 表格容量并执行完整性检查；官方附件发送不等同于管理群文件库。",
+      "pending_work": ""
     },
     "archive": {
       "label": "卡组库与归档文件",
@@ -416,8 +450,8 @@
       "differences": "仅管理员；跨进程文件上限 25 MiB 为本地保护限制，附件不进入群文件库。",
       "qq": "图片桥接已有验证；ZIP 和全部命令待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "查询用法、暂无卡组与大小限制；卡组图片内文字不由此编辑。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -429,7 +463,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "保持原管理权限和跨进程传输保护，避免超大文件占用服务。",
+      "pending_work": ""
     },
     "front_decks": {
       "label": "前排卡组信息",
@@ -441,8 +477,8 @@
       "differences": "原前 100 名合并转发未还原，网页只是替代，不是同等聊天体验。",
       "qq": "QQ 已看到网页回复。",
       "remaining": "聊天内完整列表与接近原合并转发的展示。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -450,7 +486,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "聊天列表与原合并转发样式尚未接入，当前仅提供网页替代。",
+      "pending_work": "聊天内完整列表与接近原合并转发的展示。"
     },
     "links": {
       "label": "链接与视频解析",
@@ -466,8 +504,8 @@
       "differences": "合并节点展开；旧 Cookie 不迁移。文件受本地体积、时长和超时限制；解析开关只管理管理员当前私聊。",
       "qq": "3 秒测试视频曾可播放；真实 B 站大视频的下载到播放全链路未通过验收。",
       "remaining": "YouTube 音频下载组件、旧群解析开关及需登录站点配置。",
-      "coverage": "固定错误、超时、开关提示；第三方插件生成的正文是动态内容，图片/视频内部不能在这里编辑。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "此字段是第三方解析器已经生成的内容，当前只能添加前后文字和选择发送格式，不能重排第三方内部字段；程序自身的用法、下载失败等提示已另列可编辑。B 站视频仍不先发送预览卡片。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -475,7 +513,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "继续使用隔离的第三方解析器，未迁移旧登录凭据；下载组件、体积和超时限制仍生效。",
+      "pending_work": "YouTube 音频下载组件、旧群解析开关及需登录站点配置。"
     },
     "translation": {
       "label": "翻译",
@@ -490,8 +530,8 @@
       "differences": "不直接加载只支持 OneBot 的命令注册；长内容需分段。译文是动态结果。",
       "qq": "完整翻译链路及全部语言待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -499,7 +539,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "复用翻译客户端而不加载 OneBot 专用事件；译文来自翻译服务。",
+      "pending_work": ""
     },
     "operations": {
       "label": "状态、日志与数据维护",
@@ -517,8 +559,8 @@
       "differences": "仅核验管理员私聊；日志脱敏；多页图片按官方回复额度拆分；官方进程不重复采集。",
       "qq": "状态等部分管理回复已验证；更新、图报和检查等待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -526,7 +568,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "保持独立管理员与单一采集进程，并对输出日志脱敏。",
+      "pending_work": ""
     },
     "monitor": {
       "label": "MyCard 采集管理",
@@ -540,8 +584,8 @@
       "differences": "切换旧通知总开关不会绕过官方个人开关和平台限制。",
       "qq": "管理拒绝与只读状态有验证；写操作和实际采集周期未新增客户端测试。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -553,7 +597,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "后台总开关与官方接收者开关分离，任何一层拒绝都不能绕过。",
+      "pending_work": ""
     },
     "maintenance": {
       "label": "重载与重启",
@@ -569,8 +615,8 @@
       "differences": "不再执行聊天 git pull；增加确认步骤，避免覆盖发布目录。整机重启默认未配置。",
       "qq": "未为验收实际重启服务器；维护指令待用户验证。",
       "remaining": "整机重启按当前配置保持未启用。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -582,7 +628,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "发布目录受保护；服务器重启需要显式配置及确认流程。",
+      "pending_work": "整机重启按当前配置保持未启用。"
     },
     "power": {
       "label": "NAS 电源控制",
@@ -595,8 +643,8 @@
       "differences": "官方 OpenID 必须单独授予管理权；不继承旧数字 QQ 或群管理员身份。",
       "qq": "权限拒绝已验证；未实际执行 NAS 电源操作。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -608,7 +656,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "官方身份与旧 QQ 身份不同，管理权限必须单独核验。",
+      "pending_work": ""
     },
     "mensa": {
       "label": "MENSA 查询与监控",
@@ -623,8 +673,8 @@
       "differences": "只有核验管理员私聊可用；通知仍受接收开关和投递限制。",
       "qq": "真实查询、监控触发待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -636,7 +686,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "保持原管理员边界，提醒仍走官方消息通道。",
+      "pending_work": ""
     },
     "document": {
       "label": "文档下载",
@@ -648,8 +700,8 @@
       "differences": "仅管理员，跨入口文件保护上限 25 MiB；文件不等于群文件库。",
       "qq": "未下载真实内容，完整 PDF 生成发送待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -661,7 +713,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "保留管理员权限和跨入口文件大小保护；普通附件不是群文件库操作。",
+      "pending_work": ""
     },
     "broadcast": {
       "label": "群广播",
@@ -673,8 +727,8 @@
       "differences": "普通邀请入群不等于允许广播；不向猜测的旧群目标发送。",
       "qq": "未对真实群执行广播。",
       "remaining": "真实群目标主动发送权限及客户端验收。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -686,7 +740,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "邀请入群不等于同意主动广播；必须单独确认目标及投递授权。",
+      "pending_work": "未获主动发送权限的群广播。"
     },
     "members": {
       "label": "群成员查询",
@@ -698,8 +754,8 @@
       "differences": "返回 OpenID 而非原 QQ 号；当前应用实际调用曾被平台拒绝（11253）。",
       "qq": "平台接口未通过，不能声称已恢复。",
       "remaining": "当前应用的接口授权或官方能力变化，需重新核验。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -711,7 +767,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "平台返回 OpenID，当前应用的群成员接口调用曾被拒绝；无法靠本地文案设置解决。",
+      "pending_work": "官方群成员完整列表；当前接口或应用权限不满足原功能。"
     },
     "common": {
       "label": "帮助与通用查询",
@@ -724,8 +782,8 @@
       "differences": "纯闲聊不触发指令；群主需在 QQ 设置机器人可获取群内全部消息。",
       "qq": "群内免 @ 指令、普通回复不 @ 已验证；新群由用户验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -733,7 +791,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "普通闲聊不作为指令处理；全量群消息由 QQ 群主设置控制。",
+      "pending_work": ""
     },
     "paging": {
       "label": "分页与发送反馈",
@@ -745,10 +805,12 @@
       "differences": "需手动回复继续；断线重启会丢失内存中的续页。Markdown 跨页可能拆开语法，QQ 渲染需检查。",
       "qq": "群卡图分页已验证；长文及所有失败分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
-      "related": []
+      "related": [],
+      "reason": "官方回复额度有限，当前续页保存在进程内存中；Markdown 按长度分页。",
+      "pending_work": ""
     },
     "preview": {
       "label": "格式与草稿预览",
@@ -761,8 +823,8 @@
       "differences": "网页只近似预览；这里修改文字不会改变 QQ 权限。后台不会自动发送测试消息。",
       "qq": "原试点有客户端验证；新网页保存后的效果由用户在 QQ 验证。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -770,7 +832,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "网页只做近似渲染，QQ 实际解析和接口权限需要在客户端确认。",
+      "pending_work": ""
     },
     "callback": {
       "label": "按钮交互反馈",
@@ -782,8 +846,8 @@
       "differences": "网页可改按钮标签/排列，不可新增动作或扩大权限；群按钮仍未作为已验证能力开放。",
       "qq": "C2C 原按钮试点已验证；编辑后效果待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -791,7 +855,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "只允许编辑既有按钮的展示，避免改变按钮动作或权限；群按钮尚未接入。",
+      "pending_work": "群聊按钮交互。"
     },
     "tags": {
       "label": "MyCard 标签",
@@ -805,8 +871,8 @@
       "differences": "旧代码仅注册命令、没有处理器，不是已经可用的功能被移除。",
       "qq": "不宣称恢复。",
       "remaining": "标签业务实现。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -814,7 +880,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "旧项目只有命令注册，没有可迁移的业务处理器。",
+      "pending_work": "标签业务实现。"
     },
     "attachments": {
       "label": "附件输入",
@@ -826,8 +894,8 @@
       "differences": "尚未下载/导入附件；不改旧数据。",
       "qq": "附件导入未验收。",
       "remaining": "附件导入工作流及验证。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -835,7 +903,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "附件导入流程尚未实现，也尚未完成实际收发验证。",
+      "pending_work": "附件导入工作流及验证。"
     },
     "ai": {
       "label": "本地模型聊天",
@@ -848,8 +918,8 @@
       "differences": "没有迁移或放宽旧群 AI 权限。",
       "qq": "不宣称恢复。",
       "remaining": "原聊天模块与官方群授权。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -861,7 +931,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "原聊天模块及其官方群授权流程尚未迁移。",
+      "pending_work": "原聊天模块与官方群授权。"
     },
     "price_reset": {
       "label": "重置卡价数据库",
@@ -873,8 +945,8 @@
       "differences": "涉及删除共享数据，需要独立备份维护流程，不作为普通聊天命令恢复。",
       "qq": "没有执行删除。",
       "remaining": "保持受控维护，不开放聊天直接删除。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -886,7 +958,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "这是共享数据的破坏性操作，需受控维护和备份流程。",
+      "pending_work": "保持受控维护，不开放聊天直接删除。"
     },
     "whitelist": {
       "label": "旧白名单管理",
@@ -900,8 +974,8 @@
       "differences": "邀请成功的群直接可用；权限由官方邀请规则及独立管理员配置管理。",
       "qq": "当前已配置群已接通；新邀请群由用户验收。",
       "remaining": "不计划恢复旧白名单命令。",
-      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
       "related": [
         {
@@ -913,7 +987,9 @@
           "feature": "paging",
           "key": "paging.request_failed"
         }
-      ]
+      ],
+      "reason": "按用户要求采用邀请入群即可使用，管理员权限单独管理。",
+      "pending_work": ""
     },
     "tournament": {
       "label": "比赛功能",
@@ -932,7 +1008,9 @@
       "coverage": "仅可编辑官方入口的暂缓提示，修改提示不会使比赛功能可用。",
       "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
       "updated": "2026-11-16",
-      "related": []
+      "related": [],
+      "reason": "用户明确要求本阶段暂不处理比赛业务。",
+      "pending_work": "整个比赛业务暂缓。"
     },
     "background": {
       "label": "后台抓取与其他服务",
@@ -947,10 +1025,12 @@
       "differences": "官方新消息尚未纳入原 OneBot usage_stats。网站/缓存/数据库不是聊天文案。",
       "qq": "原后台仍运行；未把全部定时周期重新验收。",
       "remaining": "官方 usage_stats 适配；其他后台服务按原部署运行。",
-      "coverage": "此入口仅显示迁移状态，没有可编辑聊天文案。",
-      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
+      "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
       "updated": "2026-11-16",
-      "related": []
+      "related": [],
+      "reason": "原统计基于 OneBot 事件，官方事件统计尚未适配；后台数据服务沿用原部署。",
+      "pending_work": "官方 usage_stats 适配；其他后台服务按原部署运行。"
     }
   },
   "states": {
@@ -970,10 +1050,10 @@
       },
       "samples": {
         "name": "灰流うらら",
-        "official": "示例值",
-        "types": "示例值",
-        "pendulum": "示例值",
-        "effect": "示例值",
+        "official": "青眼の白龍",
+        "types": "[怪兽|通常] 龙/光 [★8] 3000/2500",
+        "pendulum": "",
+        "effect": "以高攻击力著称的传说之龙。",
         "body": "灰流丽（灰流うらら）\n[怪兽|效果|调整]\n完整效果示例。"
       },
       "mode": "markdown",
@@ -990,7 +1070,8 @@
       "blocks": [
         "pendulum"
       ],
-      "fragment": false
+      "fragment": false,
+      "category": "main"
     },
     "art.page": {
       "feature": "art",
@@ -1027,7 +1108,8 @@
       ],
       "blocks": [],
       "fragment": false,
-      "note": "群聊和私聊共用此页码文案及格式，跟在卡图后发送。只有已接入的私聊 Markdown 附带按钮，其他场景可输入文案中的下一张命令。"
+      "note": "群聊和私聊共用此页码文案及格式，跟在卡图后发送。只有已接入的私聊 Markdown 附带按钮，其他场景可输入文案中的下一张命令。",
+      "category": "main"
     },
     "preview.card": {
       "feature": "preview",
@@ -1042,10 +1124,10 @@
       },
       "samples": {
         "name": "灰流うらら",
-        "official": "示例值",
-        "types": "示例值",
-        "pendulum": "示例值",
-        "effect": "示例值"
+        "official": "青眼の白龍",
+        "types": "[怪兽|通常] 龙/光 [★8] 3000/2500",
+        "pendulum": "",
+        "effect": "以高攻击力著称的传说之龙。"
       },
       "mode": "markdown",
       "buttons": {
@@ -1061,39 +1143,141 @@
       "blocks": [
         "pendulum"
       ],
-      "fragment": false
+      "fragment": false,
+      "category": "main"
     },
     "price.prompt": {
       "feature": "price",
       "label": "罕贵/版本列表整体",
-      "template": "{body}",
+      "template": "{heading}\n{options}\n{hint}",
       "fields": {
-        "body": "完整罕贵与版本选择列表"
+        "body": "完整罕贵与版本选择列表",
+        "heading": "罕贵选择标题",
+        "options": "罕贵/版本选项列表",
+        "hint": "如何选择及取消的提示"
       },
       "samples": {
-        "body": "【灰流うらら】请选择罕贵：\n1. UR（RC04-JP009）\n2. SR（RC03-JP010）\n回复编号或罕贵名称；回复“取消”结束。"
+        "body": "【灰流うらら】请选择罕贵：\n1. UR（RC04-JP009）\n2. SR（RC03-JP010）\n回复编号或罕贵名称；回复“取消”结束。",
+        "heading": "3",
+        "options": "3",
+        "hint": "3"
       },
       "mode": "text",
       "buttons": {},
       "rows": [],
-      "blocks": [],
-      "fragment": false
+      "blocks": [
+        "heading",
+        "options",
+        "hint"
+      ],
+      "fragment": false,
+      "legacy_template": "{body}",
+      "aliases": {},
+      "parts": {
+        "heading": {
+          "label": "标题",
+          "items": [
+            {
+              "key": "price.rarity_header",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "options": {
+          "label": "每个罕贵选项",
+          "items": [
+            {
+              "key": "price.rarity_row",
+              "values": {}
+            },
+            {
+              "key": "price.rarity_row",
+              "values": {
+                "index": "2",
+                "rarity": "SR",
+                "versions": "ALIN-JP001"
+              }
+            }
+          ],
+          "separator": "\n"
+        },
+        "hint": {
+          "label": "操作提示",
+          "items": [
+            {
+              "key": "price.rarity_hint",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "hidden_fields": [
+        "body"
+      ],
+      "category": "main",
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。"
     },
     "price.result": {
       "feature": "price",
       "label": "卡价结果整体",
-      "template": "{body}",
+      "template": "{heading}{versions}",
       "fields": {
-        "body": "完整价格结果（保留币种与品相语义）"
+        "body": "完整价格结果（保留币种与品相语义）",
+        "heading": "卡名及罕贵标题",
+        "versions": "各版本的报价段落"
       },
       "samples": {
-        "body": "【灰流うらら｜UR】\nRC04-JP009\n集换社最低价：12.34 元\n集换价：18.00 元\nCardrush 买取价：1,200 円"
+        "body": "【灰流うらら｜UR】\nRC04-JP009\n集换社最低价：12.34 元\n集换价：18.00 元\nCardrush 买取价：1,200 円",
+        "heading": "3",
+        "versions": "QCCP-JP001、QCCP-JP002"
       },
       "mode": "text",
       "buttons": {},
       "rows": [],
-      "blocks": [],
-      "fragment": false
+      "blocks": [
+        "heading",
+        "versions"
+      ],
+      "fragment": false,
+      "legacy_template": "{body}",
+      "aliases": {},
+      "parts": {
+        "heading": {
+          "label": "标题",
+          "items": [
+            {
+              "key": "price.heading",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "versions": {
+          "label": "每个版本的报价",
+          "items": [
+            {
+              "key": "price.version_block",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "hidden_fields": [
+        "body"
+      ],
+      "category": "main",
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "related_states": [
+        "price.japanese",
+        "price.japanese_unavailable",
+        "price.jhs_unavailable",
+        "price.cardrush_unavailable",
+        "price.cardrush_missing",
+        "price.number_unknown"
+      ]
     },
     "price.heading": {
       "feature": "price",
@@ -1111,7 +1295,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "part"
     },
     "price.version": {
       "feature": "price",
@@ -1127,7 +1313,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "part"
     },
     "price.jhs": {
       "feature": "price",
@@ -1138,14 +1326,16 @@
         "market": "带人民币单位的参考价/无数据"
       },
       "samples": {
-        "minimum": "12.34 元",
-        "market": "18.00 元"
+        "minimum": "12.50 元",
+        "market": "13.20 元"
       },
       "mode": "text",
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "part"
     },
     "price.japanese": {
       "feature": "price",
@@ -1161,7 +1351,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "part"
     },
     "price.cardrush": {
       "feature": "price",
@@ -1171,13 +1363,15 @@
         "value": "带日元单位的收取价/无数据"
       },
       "samples": {
-        "value": "1,200 円"
+        "value": "1,500 円"
       },
       "mode": "text",
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "part"
     },
     "price.rarity_header": {
       "feature": "price",
@@ -1193,7 +1387,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.prompt",
+      "category": "part"
     },
     "price.rarity_row": {
       "feature": "price",
@@ -1207,13 +1403,15 @@
       "samples": {
         "index": "1",
         "rarity": "UR",
-        "versions": "RC04-JP009、RC03-JP010"
+        "versions": "QCCP-JP001、QCCP-JP002"
       },
       "mode": "text",
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.prompt",
+      "category": "part"
     },
     "price.rarity_hint": {
       "feature": "price",
@@ -1225,7 +1423,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.prompt",
+      "category": "part"
     },
     "common.help": {
       "feature": "common",
@@ -1237,7 +1437,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "main"
     },
     "common.commands_1": {
       "feature": "common",
@@ -1249,7 +1450,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "main"
     },
     "common.commands_2": {
       "feature": "common",
@@ -1265,7 +1467,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "main"
     },
     "common.commands_3": {
       "feature": "common",
@@ -1281,7 +1484,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "common.commands_4": {
       "feature": "common",
@@ -1293,7 +1497,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "common.commands_5": {
       "feature": "common",
@@ -1305,7 +1510,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "common.commands_6": {
       "feature": "common",
@@ -1317,7 +1523,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "common.commands_7": {
       "feature": "common",
@@ -1329,7 +1536,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_1": {
       "feature": "price",
@@ -1341,7 +1549,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_2": {
       "feature": "price",
@@ -1353,7 +1562,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_3": {
       "feature": "price",
@@ -1365,7 +1575,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_4": {
       "feature": "price",
@@ -1377,7 +1588,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_5": {
       "feature": "price",
@@ -1389,7 +1601,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_6": {
       "feature": "price",
@@ -1401,7 +1614,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_7": {
       "feature": "price",
@@ -1413,7 +1627,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_8": {
       "feature": "price",
@@ -1429,7 +1644,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_9": {
       "feature": "price",
@@ -1441,7 +1657,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.prices_10": {
       "feature": "price",
@@ -1453,7 +1670,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "callback.callbacks_1": {
       "feature": "callback",
@@ -1465,7 +1683,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "callback.callbacks_2": {
       "feature": "callback",
@@ -1477,7 +1696,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "callback.callbacks_3": {
       "feature": "callback",
@@ -1489,7 +1709,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "art.card_actions_1": {
       "feature": "art",
@@ -1505,7 +1726,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "art.card_actions_2": {
       "feature": "art",
@@ -1517,7 +1739,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "art.card_actions_3": {
       "feature": "art",
@@ -1529,7 +1752,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "art.card_actions_4": {
       "feature": "art",
@@ -1541,7 +1765,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "art.card_actions_5": {
       "feature": "art",
@@ -1553,7 +1778,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "art.card_actions_6": {
       "feature": "art",
@@ -1565,7 +1791,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "art.card_actions_7": {
       "feature": "art",
@@ -1577,7 +1804,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "paging.delivery_1": {
       "feature": "paging",
@@ -1589,7 +1817,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "preview.preview_1": {
       "feature": "preview",
@@ -1601,7 +1830,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "paging.continue": {
       "feature": "paging",
@@ -1613,7 +1843,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "category": "part"
     },
     "paging.markdown_failed": {
       "feature": "paging",
@@ -1631,7 +1862,8 @@
       },
       "mode": "text",
       "fragment": true,
-      "format_note": "这条错误提示固定使用普通文字，以免重复请求刚被拒绝的 Markdown；不能单独选择 Markdown。错误码不代表已确认具体原因。若回复额度已耗尽或网络异常，错误提示本身也可能无法送达。"
+      "format_note": "这条错误提示固定使用普通文字，以免重复请求刚被拒绝的 Markdown；不能单独选择 Markdown。错误码不代表已确认具体原因。若回复额度已耗尽或网络异常，错误提示本身也可能无法送达。",
+      "category": "error"
     },
     "paging.rejected": {
       "feature": "paging",
@@ -1650,7 +1882,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "category": "error"
     },
     "art.failed": {
       "feature": "art",
@@ -1666,7 +1899,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "price.jhs_unavailable": {
       "feature": "price",
@@ -1678,7 +1912,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "error"
     },
     "price.japanese_unavailable": {
       "feature": "price",
@@ -1690,7 +1926,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "error"
     },
     "price.number_unknown": {
       "feature": "price",
@@ -1702,7 +1940,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "category": "part"
     },
     "price.cardrush_unavailable": {
       "feature": "price",
@@ -1714,7 +1953,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "error"
     },
     "price.cardrush_missing": {
       "feature": "price",
@@ -1726,7 +1967,9 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": true
+      "fragment": true,
+      "preview_root": "price.result",
+      "category": "error"
     },
     "preview.long": {
       "feature": "preview",
@@ -1742,7 +1985,8 @@
       "buttons": {},
       "rows": [],
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "main"
     },
     "common.passcode": {
       "feature": "passcode",
@@ -1758,7 +2002,8 @@
       "rows": [],
       "buttons": {},
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "main"
     },
     "common.passcode_missing": {
       "feature": "passcode",
@@ -1770,7 +2015,8 @@
       "rows": [],
       "buttons": {},
       "blocks": [],
-      "fragment": false
+      "fragment": false,
+      "category": "error"
     },
     "binding.business_76230727": {
       "feature": "binding",
@@ -1780,12 +2026,14 @@
         "command": "当前命令"
       },
       "samples": {
-        "command": "示例值"
+        "command": "历史"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "binding.business_body_96c257d5",
+      "category": "part"
     },
     "binding.business_9123be18": {
       "feature": "binding",
@@ -1796,7 +2044,8 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "category": "part"
     },
     "binding.business_8dfa0c30": {
       "feature": "binding",
@@ -1807,7 +2056,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "binding.business_body_96c257d5",
+      "category": "part"
     },
     "subscriptions.business_e6359e07": {
       "feature": "subscriptions",
@@ -1818,7 +2069,8 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "category": "part"
     },
     "subscriptions.business_1e88c9da": {
       "feature": "subscriptions",
@@ -1829,7 +2081,8 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "category": "error"
     },
     "business.business_c6e045fb": {
       "feature": "subscriptions",
@@ -1840,7 +2093,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "business.business_6b580d7a": {
       "feature": "subscriptions",
@@ -1851,7 +2105,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "calculation.business_2a9842bc": {
       "feature": "calculation",
@@ -1862,7 +2117,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "calculation.business_body_82946755",
+      "category": "part"
     },
     "score.business_53cba006": {
       "feature": "score",
@@ -1870,16 +2127,17 @@
       "template": "{argument}{value2}完成今日首赢！",
       "fields": {
         "argument": "用户输入的内容",
-        "value2": "程序填入的数据 2"
+        "value2": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "argument": "示例值",
-        "value2": "示例值"
+        "argument": "示例玩家A",
+        "value2": "已"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "ruling.business_ed09c431": {
       "feature": "ruling",
@@ -1890,7 +2148,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "ruling.business_body_4783ee60",
+      "category": "part"
     },
     "attachments.business_38bd1f82": {
       "feature": "attachments",
@@ -1901,7 +2161,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "business.business_9d5e49e4": {
       "feature": "binding",
@@ -1912,7 +2173,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "binding.business_758d5462": {
       "feature": "binding",
@@ -1923,7 +2185,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "business.business_8390b6d1": {
       "feature": "subscriptions",
@@ -1934,7 +2197,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "business.business_fd456534": {
       "feature": "subscriptions",
@@ -1945,7 +2209,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "subscriptions.business_2a804369": {
       "feature": "subscriptions",
@@ -1956,7 +2221,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "daily_card.business_489fa409": {
       "feature": "daily_card",
@@ -1967,7 +2233,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "daily_card.business_68880f3d": {
       "feature": "daily_card",
@@ -1978,7 +2245,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "calculation.business_1d688354": {
       "feature": "calculation",
@@ -1989,7 +2257,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "calculation.business_4fde7d2f": {
       "feature": "calculation",
@@ -2000,7 +2269,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "calculation.business_7502167d": {
       "feature": "calculation",
@@ -2011,7 +2281,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "calculation.business_03a7ca05": {
       "feature": "calculation",
@@ -2022,7 +2293,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "score.business_f71c3bbc": {
       "feature": "score",
@@ -2034,14 +2306,15 @@
         "value3": "当前排名"
       },
       "samples": {
-        "argument": "示例值",
-        "value2": "示例值",
-        "value3": "示例值"
+        "argument": "示例玩家A",
+        "value2": "1523.45",
+        "value3": "86"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "score.business_b98c4ab7": {
       "feature": "score",
@@ -2052,7 +2325,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "winrate.business_1175a83f": {
       "feature": "history",
@@ -2063,7 +2337,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "ruling.business_b834c123": {
       "feature": "ruling",
@@ -2074,7 +2349,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "ruling.business_a3c7e067": {
       "feature": "ruling",
@@ -2085,7 +2361,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "deck.business_bdca74be": {
       "feature": "deck",
@@ -2096,7 +2373,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "links.business_ba9cbce5": {
       "feature": "links",
@@ -2107,7 +2385,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "translation.business_f10cf063": {
       "feature": "translation",
@@ -2118,7 +2397,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "binding.business_60feb2f4": {
       "feature": "binding",
@@ -2129,7 +2409,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "binding.business_fde84002": {
       "feature": "binding",
@@ -2140,7 +2421,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "binding.business_4c0fc3fa": {
       "feature": "binding",
@@ -2150,12 +2432,13 @@
         "player": "MyCard 用户名"
       },
       "samples": {
-        "player": "示例值"
+        "player": "示例玩家A"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "links.business_d2ee8c4a": {
       "feature": "links",
@@ -2166,7 +2449,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "calculation.business_be309d04": {
       "feature": "calculation",
@@ -2177,77 +2461,230 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "binding.business_body_96c257d5": {
       "feature": "binding",
       "label": "未绑定时的完整提示",
-      "template": "{content}",
+      "template": "{prompt}{migration_note}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "prompt": "提供用户名和绑定用法",
+        "migration_note": "旧绑定迁移说明"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "prompt": "3",
+        "migration_note": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/business.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "prompt": {
+          "label": "用户名与绑定用法",
+          "items": [
+            {
+              "key": "binding.business_76230727",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "migration_note": {
+          "label": "旧绑定说明",
+          "items": [
+            {
+              "key": "binding.business_8dfa0c30",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "prompt",
+        "migration_note"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "error"
     },
     "calculation.business_body_82946755": {
       "feature": "calculation",
       "label": "缺少图片服务时的计算结果",
-      "template": "{content}",
+      "template": "{heading}{card_ids}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "heading": "计算结果标题",
+        "card_ids": "结果卡密列表"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "card_ids": "14558127\n89631139",
+        "heading": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/business.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "heading": {
+          "label": "标题",
+          "items": [
+            {
+              "key": "calculation.business_2a9842bc",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "heading"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "error"
     },
     "ruling.business_body_4783ee60": {
       "feature": "ruling",
       "label": "裁定结果与说明",
-      "template": "{content}",
+      "template": "{answer}{note}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "answer": "检索到的裁定原文",
+        "note": "回复末尾说明"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "answer": "问：伤害步骤能否发动这个效果？\n答：请以该卡官方数据库条目及当前裁定为准。\n来源：官方卡片数据库（此处为格式示例）",
+        "note": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/business.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "note": {
+          "label": "裁定提示",
+          "items": [
+            {
+              "key": "ruling.business_ed09c431",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "note"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "translation.business_body_1fa58867": {
       "feature": "translation",
       "label": "翻译结果",
-      "template": "{content}",
+      "template": "{translation}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "translation": "翻译接口返回的译文"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "translation": "这是一本书。"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/business.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "可修改此回复的文字和布局。翻译接口返回的译文是实际运行的数据，不是固定文案；这里使用脱敏示例，不能改写原始数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "translation": "content"
+      },
+      "parts": {},
+      "blocks": [],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "subscriptions.business_body_098ef8d9": {
       "feature": "subscriptions",
       "label": "订阅状态完整回复",
-      "template": "{content}",
+      "template": "{subscriptions}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "subscriptions": "逐行列表（点下面的关联项修改每行格式）"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "subscriptions": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/business.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "subscriptions": "content"
+      },
+      "parts": {
+        "subscriptions": {
+          "label": "列表每行",
+          "items": [
+            {
+              "key": "subscriptions.row",
+              "values": {}
+            },
+            {
+              "key": "subscriptions.row",
+              "values": {
+                "player": "示例玩家B",
+                "name": "示例成员B",
+                "openid": "group-member-openid-b"
+              }
+            }
+          ],
+          "separator": "\n",
+          "alternatives": [
+            "subscriptions.empty"
+          ]
+        }
+      },
+      "blocks": [
+        "subscriptions"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main",
+      "examples": [
+        {
+          "id": "list",
+          "label": "有列表记录"
+        },
+        {
+          "id": "empty",
+          "label": "没有记录",
+          "parts": {
+            "subscriptions": [
+              {
+                "key": "subscriptions.empty",
+                "values": {}
+              }
+            ]
+          }
+        }
+      ]
     },
     "operations.admin_69f09f3b": {
       "feature": "operations",
@@ -2258,7 +2695,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "operations.admin_b1fd8b02": {
       "feature": "operations",
@@ -2269,7 +2707,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "operations.admin_768af6cc": {
       "feature": "operations",
@@ -2280,7 +2719,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_a7371c0b": {
       "feature": "operations",
@@ -2291,7 +2731,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_fc9b04d5": {
       "feature": "operations",
@@ -2302,7 +2743,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_759478ab": {
       "feature": "operations",
@@ -2313,7 +2755,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_9a9d0430": {
       "feature": "operations",
@@ -2324,22 +2767,24 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_6049a7a1": {
       "feature": "operations",
       "label": "NAS 未接受请求（HTTP {value1}）。",
       "template": "NAS 未接受请求（HTTP {value1}）。",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_de29891b": {
       "feature": "operations",
@@ -2350,7 +2795,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_9e69e81d": {
       "feature": "operations",
@@ -2361,7 +2807,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.admin_992515ed": {
       "feature": "operations",
@@ -2372,7 +2819,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "operations.admin_body_1a447932",
+      "category": "part"
     },
     "operations.admin_b16086d4": {
       "feature": "operations",
@@ -2383,21 +2832,61 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "operations.admin_body_1a447932",
+      "category": "part"
     },
     "operations.admin_body_1a447932": {
       "feature": "operations",
       "label": "后台操作未完成",
-      "template": "{content}",
+      "template": "{prefix}{status}{suffix}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "prefix": "状态前的提示",
+        "status": "后台任务状态",
+        "suffix": "状态后的说明"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "status": "failed",
+        "prefix": "3",
+        "suffix": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/admin.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "prefix": {
+          "label": "开头提示",
+          "items": [
+            {
+              "key": "operations.admin_992515ed",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "suffix": {
+          "label": "后续说明",
+          "items": [
+            {
+              "key": "operations.admin_b16086d4",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "prefix",
+        "suffix"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "error"
     },
     "management.management_e1b0483c": {
       "feature": "operations",
@@ -2408,7 +2897,8 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "category": "part"
     },
     "management.management_7bb85b29": {
       "feature": "operations",
@@ -2419,7 +2909,8 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "category": "part"
     },
     "management.management_b3519626": {
       "feature": "operations",
@@ -2430,13 +2921,14 @@
         "code": "一次性确认码"
       },
       "samples": {
-        "detail": "示例值",
-        "code": "示例值"
+        "detail": "重新加载官方服务",
+        "code": "304003"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "management.management_d3590a67": {
       "feature": "operations",
@@ -2447,22 +2939,24 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "links.management_23c1c8c8": {
       "feature": "links",
       "label": "当前官方私聊的链接解析已{value1}。旧群设置未改变。",
       "template": "当前官方私聊的链接解析已{value1}。旧群设置未改变。",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "whitelist.management_50fb5ef8": {
       "feature": "whitelist",
@@ -2473,7 +2967,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "ai.management_88f6db5b": {
       "feature": "ai",
@@ -2484,7 +2979,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_reset.management_56b8abba": {
       "feature": "price_reset",
@@ -2495,22 +2991,24 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "broadcast.management_bf9d7553": {
       "feature": "broadcast",
       "label": "已为{value1}个已核验群排队；这不代表客户端已收到。",
       "template": "已为{value1}个已核验群排队；这不代表客户端已收到。",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "maintenance.management_80bad791": {
       "feature": "maintenance",
@@ -2521,7 +3019,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "management.management_d87a1132": {
       "feature": "operations",
@@ -2532,7 +3031,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "management.management_5e6b5000": {
       "feature": "operations",
@@ -2543,7 +3043,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "links.management_cb370695": {
       "feature": "links",
@@ -2554,7 +3055,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "broadcast.management_ae2f939d": {
       "feature": "broadcast",
@@ -2565,7 +3067,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "broadcast.management_d095c789": {
       "feature": "broadcast",
@@ -2576,7 +3079,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "members.management_6a5e8eec": {
       "feature": "members",
@@ -2587,22 +3091,24 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "members.management_6a13324f": {
       "feature": "members",
       "label": "用法：成员列表 群序号（1—{value1}）。返回官方群成员 OpenID，不返回原数字 QQ 号。",
       "template": "用法：成员列表 群序号（1—{value1}）。返回官方群成员 OpenID，不返回原数字 QQ 号。",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "members.management_eb435656": {
       "feature": "members",
@@ -2613,7 +3119,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "maintenance.management_1c3ad00e": {
       "feature": "maintenance",
@@ -2624,7 +3131,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "maintenance.management_dec6ad65": {
       "feature": "maintenance",
@@ -2635,35 +3143,102 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "members.management_body_b0942c38": {
       "feature": "members",
       "label": "成员列表完整回复",
-      "template": "{content}",
+      "template": "{members}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "members": "逐行列表（点下面的关联项修改每行格式）"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "members": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/management.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "members": "content"
+      },
+      "parts": {
+        "members": {
+          "label": "列表每行",
+          "items": [
+            {
+              "key": "members.row",
+              "values": {}
+            },
+            {
+              "key": "members.row",
+              "values": {
+                "player": "示例玩家B",
+                "name": "示例成员B",
+                "openid": "group-member-openid-b"
+              }
+            }
+          ],
+          "separator": "\n",
+          "alternatives": [
+            "members.empty"
+          ]
+        }
+      },
+      "blocks": [
+        "members"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main",
+      "examples": [
+        {
+          "id": "list",
+          "label": "有列表记录"
+        },
+        {
+          "id": "empty",
+          "label": "没有记录",
+          "parts": {
+            "members": [
+              {
+                "key": "members.empty",
+                "values": {}
+              }
+            ]
+          }
+        }
+      ]
     },
     "broadcast.management_body_0f380231": {
       "feature": "broadcast",
       "label": "实际发送的广播内容",
-      "template": "{content}",
+      "template": "{message}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "message": "管理员输入的广播正文"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "message": "今晚 20:00 进行例行维护，预计 5 分钟。"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/management.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "可修改此回复的文字和布局。管理员输入的广播正文是实际运行的数据，不是固定文案；这里使用脱敏示例，不能改写原始数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "message": "content"
+      },
+      "parts": {},
+      "blocks": [],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "notifications.notifications_c712e9a8": {
       "feature": "notifications",
@@ -2674,7 +3249,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "notifications.notifications_a5f2b484": {
       "feature": "notifications",
@@ -2685,7 +3261,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "notifications.notifications_dccaa328": {
       "feature": "notifications",
@@ -2696,28 +3273,30 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "notifications.notifications_8aa32ad1": {
       "feature": "notifications",
       "label": "主动投递总开关：{value1}",
       "template": "主动投递总开关：{value1}\n采集后台：{value2}\n本会话通知：{value3}\n队列状态：{counts}\napi_accepted 只表示接口接受，不代表客户端已验收。",
       "fields": {
-        "value1": "程序填入的数据 1",
-        "value2": "程序填入的数据 2",
-        "value3": "程序填入的数据 3",
-        "counts": "程序填入的数据 4"
+        "value1": "返回状态或统计值（示例：3）",
+        "value2": "返回状态或统计值（示例：3）",
+        "value3": "返回状态或统计值（示例：3）",
+        "counts": "返回状态或统计值（示例：待发送 1，已完成 12）"
       },
       "samples": {
-        "value1": "示例值",
-        "value2": "示例值",
-        "value3": "示例值",
-        "counts": "示例值"
+        "value1": "开",
+        "value2": "在线",
+        "value3": "mycard",
+        "counts": "待发送 1，已完成 12"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "notifications.notifications_3e362d30": {
       "feature": "notifications",
@@ -2728,7 +3307,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "notifications.notifications_41c5bd83": {
       "feature": "notifications",
@@ -2739,7 +3319,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "notifications.notifications_72f0156e": {
       "feature": "notifications",
@@ -2750,7 +3331,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "notifications.notifications_body_83c09af2",
+      "category": "part"
     },
     "notifications.notifications_f88d4bc1": {
       "feature": "notifications",
@@ -2761,7 +3344,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "notifications.notifications_body_83c09af2",
+      "category": "part"
     },
     "notifications.notifications_badbb88c": {
       "feature": "notifications",
@@ -2772,7 +3357,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "notifications.notifications_6a23ccee": {
       "feature": "notifications",
@@ -2783,7 +3369,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "notifications.notifications_body_e4127616",
+      "category": "part"
     },
     "notifications.notifications_66cd9456": {
       "feature": "notifications",
@@ -2794,35 +3382,115 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "notifications.notifications_body_e4127616",
+      "category": "part"
     },
     "notifications.notifications_body_83c09af2": {
       "feature": "notifications",
       "label": "主动通知测试结果",
-      "template": "{content}",
+      "template": "{prefix}{status}{detail}{suffix}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "prefix": "测试通知标题",
+        "status": "投递状态",
+        "detail": "返回说明",
+        "suffix": "客户端验收提醒"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "status": "api_accepted",
+        "detail": "\n接口已接收，请在 QQ 检查是否收到。",
+        "prefix": "3",
+        "suffix": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "prefix": {
+          "label": "标题",
+          "items": [
+            {
+              "key": "notifications.notifications_72f0156e",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "suffix": {
+          "label": "验收提醒",
+          "items": [
+            {
+              "key": "notifications.notifications_f88d4bc1",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "prefix",
+        "suffix"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "notifications.notifications_body_e4127616": {
       "feature": "notifications",
       "label": "主动投递失败说明",
-      "template": "{content}",
+      "template": "{prefix}{error}{suffix}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "prefix": "失败标题",
+        "error": "脱敏后的错误类型和错误码",
+        "suffix": "重试限制说明"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "error": "ActionFailed code=304003",
+        "prefix": "3",
+        "suffix": "3"
       },
       "mode": "text",
       "source": "hikari_bot/qq_official/notifications.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "prefix": {
+          "label": "失败标题",
+          "items": [
+            {
+              "key": "notifications.notifications_6a23ccee",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "suffix": {
+          "label": "重试说明",
+          "items": [
+            {
+              "key": "notifications.notifications_66cd9456",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "prefix",
+        "suffix"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "error"
     },
     "tags.availability_851cbe6a": {
       "feature": "tags",
@@ -2833,7 +3501,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "subscriptions.availability_b101c73e": {
       "feature": "subscriptions",
@@ -2844,7 +3513,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.availability_7c8ef09b": {
       "feature": "operations",
@@ -2855,7 +3525,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "tournament.availability_5d4f9f57": {
       "feature": "tournament",
@@ -2877,7 +3548,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "front_decks.availability_1ddd1afd": {
       "feature": "front_decks",
@@ -2888,7 +3560,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "unavailable.availability_8434d50c": {
       "feature": "links",
@@ -2899,7 +3572,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "paging.plugin_e278b7fd": {
       "feature": "paging",
@@ -2910,7 +3584,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/plugin.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "paging.results_23325cb3": {
       "feature": "paging",
@@ -2921,7 +3596,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/results.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "preview.editor_preview_bff7dcc4": {
       "feature": "preview",
@@ -2932,11 +3608,12 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/editor_preview.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "history.mycard_reports_e55ebb30": {
       "feature": "history",
-      "label": "统计概况段落（玩家、场次、胜率）",
+      "label": "统计摘要：玩家、场次和胜率",
       "template": "玩家：{user_id}\n{value2}{month}月场次：{value4}\n{value5}{month_6}月胜率：{value7}%",
       "fields": {
         "user_id": "MyCard 用户名",
@@ -2948,39 +3625,43 @@
         "value7": "月胜率（两位小数）"
       },
       "samples": {
-        "user_id": "示例玩家",
+        "user_id": "示例玩家A",
         "value2": "",
         "month": "11",
-        "value4": "42",
+        "value4": "128",
         "value5": "",
         "month_6": "11",
-        "value7": "57.14"
+        "value7": "62.50"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "history.mycard_reports_body_2fe0148e",
+      "category": "part"
     },
     "winrate.mycard_reports_93c4a902": {
       "feature": "winrate",
-      "label": "玩家：{user_id}",
+      "label": "玩家、总场次、总胜率与月份数",
       "template": "玩家：{user_id}\n总场次：{total_games}\n总胜率：{overall_rate}%\n有对局的月份：{value4}个",
       "fields": {
         "user_id": "MyCard 用户名",
         "total_games": "总场次",
         "overall_rate": "总胜率（保留小数）",
-        "value4": "程序填入的数据 4"
+        "value4": "有对局的月份数"
       },
       "samples": {
-        "user_id": "示例值",
-        "total_games": "示例值",
-        "overall_rate": "示例值",
-        "value4": "示例值"
+        "user_id": "示例玩家A",
+        "total_games": "542",
+        "overall_rate": "61.25",
+        "value4": "6"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "winrate.mycard_reports_body_2fe0148e",
+      "category": "part"
     },
     "history.mycard_reports_b98c4ab7": {
       "feature": "history",
@@ -2991,22 +3672,25 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "history.mycard_reports_da380fbd": {
       "feature": "history",
-      "label": "当前分数：{value1}",
+      "label": "本月当前分数",
       "template": "\n当前分数：{value1}",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "本月当前分数（程序填写）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "1523.45"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "history.mycard_reports_body_2fe0148e",
+      "category": "part"
     },
     "winrate.mycard_reports_b98c4ab7": {
       "feature": "winrate",
@@ -3017,7 +3701,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "winrate.mycard_reports_1687ad0c": {
       "feature": "winrate",
@@ -3027,57 +3712,64 @@
         "user_id": "MyCard 用户名"
       },
       "samples": {
-        "user_id": "示例值"
+        "user_id": "示例玩家A"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "history.mycard_reports_d22d7508": {
       "feature": "history",
-      "label": "结算分数：{value1}",
+      "label": "已结算月份的分数",
       "template": "\n结算分数：{value1}",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "已结算月份的分数（程序填写）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "1488.20"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "history.mycard_reports_body_2fe0148e",
+      "category": "part"
     },
     "history.mycard_reports_e0970980": {
       "feature": "history",
-      "label": "结算排名：{rank}",
+      "label": "已结算月份的排名",
       "template": "\n结算排名：{rank}",
       "fields": {
-        "rank": "排名"
+        "rank": "已结算月份的排名（程序填写）"
       },
       "samples": {
-        "rank": "示例值"
+        "rank": "102"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "history.mycard_reports_body_2fe0148e",
+      "category": "part"
     },
     "history.mycard_reports_77fb0a39": {
       "feature": "history",
-      "label": "当前排名：{rank}",
+      "label": "本月当前排名",
       "template": "\n当前排名：{rank}",
       "fields": {
-        "rank": "排名"
+        "rank": "本月当前排名（程序填写）"
       },
       "samples": {
-        "rank": "示例值"
+        "rank": "86"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "history.mycard_reports_body_2fe0148e",
+      "category": "part"
     },
     "history.mycard_reports_9e89da13": {
       "feature": "history",
@@ -3088,75 +3780,263 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "history.mycard_reports_body_2fe0148e": {
       "feature": "history",
       "label": "完整回复 · 历史统计与分数排名",
-      "template": "{content}",
+      "template": "{summary}{score}{ranking}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "summary": "玩家、场次和胜率段落",
+        "score": "当前或结算分数段落（无记录时不显示）",
+        "ranking": "当前或结算排名段落（缺排名时不显示）",
+        "player": "MyCard 用户名",
+        "year": "查询年份",
+        "month": "查询月份",
+        "games": "有效场次",
+        "wins": "胜场",
+        "win_rate": "胜率数值，不含百分号",
+        "score_value": "分数数值；没有时为空",
+        "rank_value": "排名数值；没有时为空"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "player": "示例玩家A",
+        "year": "2026",
+        "month": "11",
+        "games": "128",
+        "wins": "80",
+        "win_rate": "62.50",
+        "score_value": "1523.45",
+        "rank_value": "86",
+        "summary": "3",
+        "score": "3",
+        "ranking": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "summary": {
+          "label": "统计摘要",
+          "items": [
+            {
+              "key": "history.mycard_reports_e55ebb30",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "score": {
+          "label": "分数",
+          "items": [
+            {
+              "key": "history.mycard_reports_da380fbd",
+              "values": {}
+            }
+          ],
+          "separator": "",
+          "alternatives": [
+            "history.mycard_reports_d22d7508"
+          ]
+        },
+        "ranking": {
+          "label": "排名",
+          "items": [
+            {
+              "key": "history.mycard_reports_77fb0a39",
+              "values": {}
+            }
+          ],
+          "separator": "",
+          "alternatives": [
+            "history.mycard_reports_e0970980"
+          ]
+        }
+      },
+      "blocks": [
+        "summary",
+        "score",
+        "ranking"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main",
+      "examples": [
+        {
+          "id": "current",
+          "label": "本月有对局：当前分数和排名"
+        },
+        {
+          "id": "settled",
+          "label": "往月已结算：结算分数和排名",
+          "parts": {
+            "score": [
+              {
+                "key": "history.mycard_reports_d22d7508",
+                "values": {}
+              }
+            ],
+            "ranking": [
+              {
+                "key": "history.mycard_reports_e0970980",
+                "values": {}
+              }
+            ],
+            "summary": [
+              {
+                "key": "history.mycard_reports_e55ebb30",
+                "values": {
+                  "month": "10",
+                  "month_6": "10"
+                }
+              }
+            ]
+          },
+          "values": {
+            "month": "10",
+            "score_value": "1488.20",
+            "rank_value": "102"
+          }
+        },
+        {
+          "id": "empty",
+          "label": "该月无对局：不显示分数和排名",
+          "parts": {
+            "score": [],
+            "ranking": [],
+            "summary": [
+              {
+                "key": "history.mycard_reports_e55ebb30",
+                "values": {
+                  "value4": "0",
+                  "value7": "0.00"
+                }
+              }
+            ]
+          },
+          "values": {
+            "games": "0",
+            "wins": "0",
+            "win_rate": "0.00",
+            "score_value": "",
+            "rank_value": ""
+          }
+        },
+        {
+          "id": "no_rank",
+          "label": "有分数但暂无排名",
+          "parts": {
+            "ranking": []
+          },
+          "values": {
+            "rank_value": ""
+          }
+        }
+      ],
+      "media_note": "实际有对局的历史回复还附带分数曲线图；本页预览文字，不修改统计或重新生成曲线。"
     },
     "winrate.mycard_reports_body_2fe0148e": {
       "feature": "winrate",
       "label": "完整回复 · 胜率统计",
-      "template": "{content}",
+      "template": "{summary}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "summary": "胜率统计正文"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "summary": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/mycard_reports.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "summary": "content"
+      },
+      "parts": {
+        "summary": {
+          "label": "胜率统计正文",
+          "items": [
+            {
+              "key": "winrate.mycard_reports_93c4a902",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "summary"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "price_history.price_reports_8de07ef2": {
       "feature": "price_history",
-      "label": "{value1}  {box}-{value3}",
+      "label": "卡名、版本和当前买取价",
       "template": "{value1}  {box}-{value3}\n当前买取价：{value4}円（共 {value5} 条记录）",
       "fields": {
-        "value1": "程序填入的数据 1",
-        "box": "程序填入的数据 2",
-        "value3": "程序填入的数据 3",
-        "value4": "程序填入的数据 4",
-        "value5": "程序填入的数据 5"
+        "value1": "卡名",
+        "box": "系列编号",
+        "value3": "罕贵",
+        "value4": "当前买取价（日元数值）",
+        "value5": "历史记录条数"
       },
       "samples": {
-        "value1": "示例值",
-        "box": "示例值",
-        "value3": "示例值",
-        "value4": "示例值",
-        "value5": "示例值"
+        "value1": "青眼白龙",
+        "box": "QCCP",
+        "value3": "UR",
+        "value4": "1,500",
+        "value5": "30"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "price_history.price_reports_body_372ea08c",
+      "category": "part"
     },
     "price_history.price_reports_47b24a67": {
       "feature": "price_history",
       "label": "找到 {value1} 条结果，请回复编号：",
       "template": "找到 {value1} 条结果，请回复编号：\n{lines}",
       "fields": {
-        "value1": "程序填入的数据 1",
-        "lines": "程序填入的数据 2"
+        "value1": "返回状态或统计值（示例：3）",
+        "lines": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值",
-        "lines": "示例值"
+        "value1": "3",
+        "lines": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "parts": {
+        "lines": {
+          "label": "每个选择项",
+          "items": [
+            {
+              "key": "price_history.candidate",
+              "values": {}
+            }
+          ],
+          "separator": "\n"
+        }
+      },
+      "blocks": [
+        "lines"
+      ],
+      "category": "main"
     },
     "price_history.price_reports_f3bd1277": {
       "feature": "price_history",
@@ -3167,7 +4047,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_history.price_reports_4ce37f7d": {
       "feature": "price_history",
@@ -3178,7 +4059,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_history.price_reports_3c320fec": {
       "feature": "price_history",
@@ -3189,7 +4071,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_history.price_reports_9c855e85": {
       "feature": "price_history",
@@ -3200,7 +4083,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_history.price_reports_4c833bfa": {
       "feature": "price_history",
@@ -3210,12 +4094,13 @@
         "name": "卡名"
       },
       "samples": {
-        "name": "示例值"
+        "name": "青眼白龙"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_history.price_reports_96e6379b": {
       "feature": "price_history",
@@ -3226,50 +4111,102 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_history.price_reports_13b68db8": {
       "feature": "price_history",
       "label": "请输入 1-{value1} 之间的编号：",
       "template": "请输入 1-{value1} 之间的编号：",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "price_history.price_reports_body_372ea08c": {
       "feature": "price_history",
       "label": "完整回复 · 卡价曲线说明",
-      "template": "{content}",
+      "template": "{caption}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "caption": "卡价曲线说明"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "caption": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/price_reports.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "caption": "content"
+      },
+      "parts": {
+        "caption": {
+          "label": "卡价曲线说明",
+          "items": [
+            {
+              "key": "price_history.price_reports_8de07ef2",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "caption"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "price_daily.price_reports_body_d0bac120": {
       "feature": "price_daily",
       "label": "日报日期错误",
-      "template": "{content}",
+      "template": "{error}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "error": "日期错误说明"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "error": "无"
       },
       "mode": "text",
       "source": "hikari_bot/services/price_reports.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "error": "content"
+      },
+      "parts": {
+        "error": {
+          "label": "日期错误说明",
+          "items": [
+            {
+              "key": "price_daily.date_format",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "error"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "error"
     },
     "deck.deck_renderer_450514f2": {
       "feature": "deck",
@@ -3280,7 +4217,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/deck_renderer.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "deck.deck_renderer_ba674ff5": {
       "feature": "deck",
@@ -3291,7 +4229,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/deck_renderer.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "deck.deck_renderer_34515d37": {
       "feature": "deck",
@@ -3302,7 +4241,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/deck_renderer.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "deck.deck_renderer_a5c6282f": {
       "feature": "deck",
@@ -3313,7 +4253,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/deck_renderer.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "deck.deck_renderer_2cb5b7cd": {
       "feature": "deck",
@@ -3323,12 +4264,13 @@
         "missing": "缺失的卡片种数"
       },
       "samples": {
-        "missing": "示例值"
+        "missing": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/deck_renderer.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "deck.deck_renderer_448fcc0a": {
       "feature": "deck",
@@ -3339,7 +4281,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/deck_renderer.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "deck.deck_renderer_d15843c0": {
       "feature": "deck",
@@ -3350,7 +4293,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/deck_renderer.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "links.link_parser_89428994": {
       "feature": "links",
@@ -3361,7 +4305,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/link_parser.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "links.link_parser_ecde216f": {
       "feature": "links",
@@ -3372,7 +4317,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/link_parser.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "links.link_parser_abcdf26a": {
       "feature": "links",
@@ -3383,7 +4329,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/link_parser.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "links.link_parser_1479679f": {
       "feature": "links",
@@ -3394,7 +4341,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/link_parser.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "translation.translation_457fa801": {
       "feature": "translation",
@@ -3405,7 +4353,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/translation.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "translation.translation_fa654225": {
       "feature": "translation",
@@ -3416,7 +4365,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/translation.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.official_control_84463ef9": {
       "feature": "operations",
@@ -3427,7 +4377,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.official_control_142870b9": {
       "feature": "operations",
@@ -3438,7 +4389,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.official_control_ba82ffb6": {
       "feature": "operations",
@@ -3449,26 +4401,28 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.official_control_5d81d1f3": {
       "feature": "operations",
       "label": "服务器状态：",
       "template": "服务器状态：\n启动时间：{started}\n运行时长：{uptime}\nMyCard监控：{value3}",
       "fields": {
-        "started": "程序填入的数据 1",
-        "uptime": "程序填入的数据 2",
-        "value3": "程序填入的数据 3"
+        "started": "返回状态或统计值（示例：2026-11-16 09:00:00）",
+        "uptime": "返回状态或统计值（示例：4小时30分钟）",
+        "value3": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "started": "示例值",
-        "uptime": "示例值",
-        "value3": "示例值"
+        "started": "2026-11-16 09:00:00",
+        "uptime": "4小时30分钟",
+        "value3": "在线"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "operations.official_control_cc3a7716": {
       "feature": "operations",
@@ -3479,7 +4433,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/official_control.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "operations.official_control_body_10ce9a2a",
+      "category": "part"
     },
     "operations.official_control_72e408c2": {
       "feature": "operations",
@@ -3490,7 +4446,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "opponent.official_control_066f0abe": {
       "feature": "opponent",
@@ -3501,22 +4458,25 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/official_control.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "opponent.official_control_body_9e80905d",
+      "category": "part"
     },
     "monitor.official_control_77a64c61": {
       "feature": "monitor",
       "label": "已{value1}MyCard对局通知。官方投递还受个人通知开关和平台权限限制。",
       "template": "已{value1}MyCard对局通知。官方投递还受个人通知开关和平台权限限制。",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "开启"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "mensa.official_control_cff1f1ea": {
       "feature": "mensa",
@@ -3527,7 +4487,9 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/official_control.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "mensa.official_control_body_2a069fb6",
+      "category": "part"
     },
     "operations.official_control_9544288c": {
       "feature": "operations",
@@ -3538,7 +4500,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "operations.official_control_5a6c2ca8": {
       "feature": "operations",
@@ -3549,22 +4512,24 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "monitor.official_control_7dcab0eb": {
       "feature": "monitor",
       "label": "规则有效，共 {value1} 条。规则在每场结束时重新读取。",
       "template": "规则有效，共 {value1} 条。规则在每场结束时重新读取。",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "3"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "operations.official_control_164cf219": {
       "feature": "operations",
@@ -3575,7 +4540,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "archive.official_control_eeca9ed5": {
       "feature": "archive",
@@ -3586,7 +4552,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "archive.official_control_f4b6ec05": {
       "feature": "archive",
@@ -3597,22 +4564,25 @@
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/official_control.py",
-      "note": "组合回复中的文字段落；随完整回复一起发送。"
+      "note": "组合回复中的文字段落；随完整回复一起发送。",
+      "preview_root": "archive.official_control_body_24bc0c79",
+      "category": "part"
     },
     "mensa.official_control_4c311c99": {
       "feature": "mensa",
       "label": "MENSA监控已{value1}。",
       "template": "MENSA监控已{value1}。",
       "fields": {
-        "value1": "程序填入的数据 1"
+        "value1": "返回状态或统计值（示例：3）"
       },
       "samples": {
-        "value1": "示例值"
+        "value1": "开启"
       },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "main"
     },
     "operations.official_control_34cd9ffb": {
       "feature": "operations",
@@ -3623,7 +4593,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.official_control_dcd4b8d4": {
       "feature": "operations",
@@ -3634,7 +4605,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "document.official_control_386122ad": {
       "feature": "document",
@@ -3645,7 +4617,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "document.official_control_617ffdd2": {
       "feature": "document",
@@ -3656,7 +4629,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "document.official_control_f5899163": {
       "feature": "document",
@@ -3667,7 +4641,8 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "document.official_control_c5b444c6": {
       "feature": "document",
@@ -3678,119 +4653,342 @@
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/official_control.py",
-      "note": "命中此场景时返回的回复。"
+      "note": "命中此场景时返回的回复。",
+      "category": "error"
     },
     "operations.official_control_body_10ce9a2a": {
       "feature": "operations",
       "label": "后台版本查询结果",
-      "template": "{content}",
+      "template": "{heading}{version}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "heading": "版本标题",
+        "version": "版本号、提交说明和时间"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "version": "abc1234 更新卡片资料\n2026-11-16 13:00:00 +0900",
+        "heading": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "heading": {
+          "label": "标题",
+          "items": [
+            {
+              "key": "operations.official_control_cc3a7716",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "heading"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "operations.official_control_body_dad20e18": {
       "feature": "operations",
       "label": "脱敏日志结果",
-      "template": "{content}",
+      "template": "{logs}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "logs": "已脱敏的日志行"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "logs": "2026-11-16 13:45:00 INFO 服务正常\n2026-11-16 13:45:01 INFO 查询完成"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "可修改此回复的文字和布局。已脱敏的日志行是实际运行的数据，不是固定文案；这里使用脱敏示例，不能改写原始数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "logs": "content"
+      },
+      "parts": {},
+      "blocks": [],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "opponent.official_control_body_2c8cff84": {
       "feature": "opponent",
       "label": "添加或删除关注账号的结果",
-      "template": "{content}",
+      "template": "{result}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "result": "账号操作结果"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "result": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "result": "content"
+      },
+      "parts": {
+        "result": {
+          "label": "账号操作结果",
+          "items": [
+            {
+              "key": "opponent.added",
+              "values": {}
+            }
+          ],
+          "separator": "",
+          "alternatives": [
+            "opponent.removed",
+            "opponent.exists",
+            "opponent.absent",
+            "opponent.save_failed",
+            "opponent.invalid_name"
+          ]
+        }
+      },
+      "blocks": [
+        "result"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "opponent.official_control_body_9e80905d": {
       "feature": "opponent",
       "label": "关注账号列表",
-      "template": "{content}",
+      "template": "{heading}{accounts}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "heading": "账号列表标题",
+        "accounts": "关注账号列表或空列表提示"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "accounts": "示例玩家A\n示例玩家B",
+        "heading": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "heading": {
+          "label": "标题",
+          "items": [
+            {
+              "key": "opponent.official_control_066f0abe",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "heading"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main",
+      "related_states": [
+        "opponent.accounts_empty"
+      ]
     },
     "mensa.official_control_body_2a069fb6": {
       "feature": "mensa",
       "label": "东京考场检查结果",
-      "template": "{content}",
+      "template": "{heading}{slots}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "heading": "检查结果标题",
+        "slots": "考场列表或空列表提示"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "heading": "3",
+        "slots": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "heading": {
+          "label": "标题",
+          "items": [
+            {
+              "key": "mensa.official_control_cff1f1ea",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "slots": {
+          "label": "考场每行",
+          "items": [
+            {
+              "key": "mensa.slot",
+              "values": {}
+            },
+            {
+              "key": "mensa.slot",
+              "values": {
+                "datetime": "2026-12-20 10:00"
+              }
+            }
+          ],
+          "separator": "\n",
+          "alternatives": [
+            "mensa.empty"
+          ]
+        }
+      },
+      "blocks": [
+        "heading",
+        "slots"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main",
+      "examples": [
+        {
+          "id": "open",
+          "label": "有可报名场次"
+        },
+        {
+          "id": "empty",
+          "label": "暂无场次",
+          "parts": {
+            "slots": [
+              {
+                "key": "mensa.empty",
+                "values": {}
+              }
+            ]
+          }
+        }
+      ]
     },
     "monitor.official_control_body_3339cd03": {
       "feature": "monitor",
       "label": "采集状态完整回复",
-      "template": "{content}",
+      "template": "{status}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "status": "采集状态各行"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "status": "403"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "完整格式在这里设置；各行内容在“采集状态各行说明”修改。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "status": "content"
+      },
+      "parts": {
+        "status": {
+          "label": "采集状态各行",
+          "items": [
+            {
+              "key": "monitor.status",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "status"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "archive.official_control_body_24bc0c79": {
       "feature": "archive",
       "label": "暂无卡组",
-      "template": "{content}",
+      "template": "{player}{note}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "player": "MyCard 用户名",
+        "note": "未收录卡组的提示"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "player": "示例玩家A",
+        "note": "3"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "note": {
+          "label": "提示",
+          "items": [
+            {
+              "key": "archive.official_control_f4b6ec05",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "note"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "error"
     },
     "operations.official_control_body_59e2346a": {
       "feature": "operations",
       "label": "Cardrush 连接检查结果",
-      "template": "{content}",
+      "template": "{diagnostic}",
       "fields": {
-        "content": "本场景的完整查询内容 / 已组合的段落"
+        "content": "本场景的完整查询内容 / 已组合的段落",
+        "diagnostic": "连接检查的诊断数据"
       },
       "samples": {
-        "content": "示例查询内容\n下一段示例内容"
+        "content": "3",
+        "diagnostic": "HTTP 200 · Cardrush 连接正常"
       },
       "mode": "text",
       "source": "hikari_bot/services/official_control.py",
-      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+      "note": "可修改此回复的文字和布局。连接检查的诊断数据是实际运行的数据，不是固定文案；这里使用脱敏示例，不能改写原始数据。",
+      "legacy_template": "{content}",
+      "aliases": {
+        "diagnostic": "content"
+      },
+      "parts": {},
+      "blocks": [],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main"
     },
     "opponent.usage": {
       "feature": "opponent",
@@ -3800,11 +4998,12 @@
         "command": "命令"
       },
       "samples": {
-        "command": "示例值"
+        "command": "历史"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "category": "error"
     },
     "opponent.removed": {
       "feature": "opponent",
@@ -3814,11 +5013,13 @@
         "name": "名称"
       },
       "samples": {
-        "name": "示例值"
+        "name": "青眼白龙"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "preview_root": "opponent.official_control_body_2c8cff84",
+      "category": "part"
     },
     "opponent.absent": {
       "feature": "opponent",
@@ -3828,11 +5029,13 @@
         "name": "名称"
       },
       "samples": {
-        "name": "示例值"
+        "name": "青眼白龙"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "preview_root": "opponent.official_control_body_2c8cff84",
+      "category": "part"
     },
     "opponent.save_failed": {
       "feature": "opponent",
@@ -3842,7 +5045,9 @@
       "samples": {},
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "preview_root": "opponent.official_control_body_2c8cff84",
+      "category": "part"
     },
     "opponent.added": {
       "feature": "opponent",
@@ -3852,11 +5057,13 @@
         "name": "名称"
       },
       "samples": {
-        "name": "示例值"
+        "name": "青眼白龙"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "preview_root": "opponent.official_control_body_2c8cff84",
+      "category": "part"
     },
     "opponent.exists": {
       "feature": "opponent",
@@ -3866,11 +5073,13 @@
         "name": "名称"
       },
       "samples": {
-        "name": "示例值"
+        "name": "青眼白龙"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "preview_root": "opponent.official_control_body_2c8cff84",
+      "category": "part"
     },
     "subscriptions.started": {
       "feature": "subscriptions",
@@ -3881,12 +5090,13 @@
         "opponent": "对手用户名"
       },
       "samples": {
-        "player": "示例值",
-        "opponent": "示例值"
+        "player": "示例玩家A",
+        "opponent": "示例玩家B"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "category": "main"
     },
     "subscriptions.firstwin": {
       "feature": "subscriptions",
@@ -3897,12 +5107,13 @@
         "delta": "分数变化"
       },
       "samples": {
-        "player": "示例值",
-        "delta": "示例值"
+        "player": "示例玩家A",
+        "delta": "+12.50"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/mycard.py"
+      "source": "hikari_bot/plugins/monitors/mycard.py",
+      "category": "main"
     },
     "price_daily.notification": {
       "feature": "price_daily",
@@ -3912,11 +5123,12 @@
         "date": "日期"
       },
       "samples": {
-        "date": "示例值"
+        "date": "2026-11-16"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/plugins/monitors/cardrush.py"
+      "source": "hikari_bot/plugins/monitors/cardrush.py",
+      "category": "main"
     },
     "opponent.deck_link": {
       "feature": "opponent",
@@ -3928,13 +5140,14 @@
         "link": "卡组链接"
       },
       "samples": {
-        "player": "示例值",
-        "opponent": "示例值",
-        "link": "示例值"
+        "player": "示例玩家A",
+        "opponent": "示例玩家B",
+        "link": "https://ygo.xyk.one/deck/example"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py",
+      "category": "main"
     },
     "opponent.no_deck": {
       "feature": "opponent",
@@ -3945,12 +5158,13 @@
         "opponent": "对手用户名"
       },
       "samples": {
-        "player": "示例值",
-        "opponent": "示例值"
+        "player": "示例玩家A",
+        "opponent": "示例玩家B"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py",
+      "category": "error"
     },
     "opponent.read_failed": {
       "feature": "opponent",
@@ -3961,12 +5175,13 @@
         "opponent": "对手用户名"
       },
       "samples": {
-        "player": "示例值",
-        "opponent": "示例值"
+        "player": "示例玩家A",
+        "opponent": "示例玩家B"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py",
+      "category": "error"
     },
     "opponent.image": {
       "feature": "opponent",
@@ -3977,12 +5192,13 @@
         "opponent": "对手用户名"
       },
       "samples": {
-        "player": "示例值",
-        "opponent": "示例值"
+        "player": "示例玩家A",
+        "opponent": "示例玩家B"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py",
+      "category": "main"
     },
     "opponent.image_failed": {
       "feature": "opponent",
@@ -3993,12 +5209,13 @@
         "opponent": "对手用户名"
       },
       "samples": {
-        "player": "示例值",
-        "opponent": "示例值"
+        "player": "示例玩家A",
+        "opponent": "示例玩家B"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py",
+      "category": "error"
     },
     "monitor.status": {
       "feature": "monitor",
@@ -4018,21 +5235,23 @@
         "error": "最近异常"
       },
       "samples": {
-        "rooms": "示例值",
-        "connected": "示例值",
-        "accounts": "示例值",
-        "active": "示例值",
-        "failed": "示例值",
-        "concurrency": "示例值",
-        "complete": "示例值",
-        "partial": "示例值",
-        "pending": "示例值",
-        "cooldown": "示例值",
-        "error": "示例值"
+        "rooms": "4",
+        "connected": "3",
+        "accounts": "5",
+        "active": "3",
+        "failed": "0",
+        "concurrency": "4",
+        "complete": "128",
+        "partial": "2",
+        "pending": "1",
+        "cooldown": "0",
+        "error": "无"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/services/mycard_archive/runtime.py"
+      "source": "hikari_bot/services/mycard_archive/runtime.py",
+      "preview_root": "monitor.official_control_body_3339cd03",
+      "category": "part"
     },
     "price_daily.change_row": {
       "feature": "price_daily",
@@ -4047,16 +5266,18 @@
         "new_price": "新价格"
       },
       "samples": {
-        "arrow": "示例值",
-        "name": "示例值",
-        "box": "示例值",
-        "rarity": "示例值",
-        "old_price": "示例值",
-        "new_price": "示例值"
+        "arrow": "↑",
+        "name": "青眼白龙",
+        "box": "QCCP",
+        "rarity": "UR",
+        "old_price": "1,200",
+        "new_price": "1,500円"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.summary": {
       "feature": "price_daily",
@@ -4070,15 +5291,17 @@
         "new": "新增数量"
       },
       "samples": {
-        "date": "示例值",
-        "total": "示例值",
-        "up": "示例值",
-        "down": "示例值",
-        "new": "示例值"
+        "date": "2026-11-16",
+        "total": "4",
+        "up": "2",
+        "down": "1",
+        "new": "1"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.new_row": {
       "feature": "price_daily",
@@ -4091,14 +5314,16 @@
         "price": "格式化价格"
       },
       "samples": {
-        "name": "示例值",
-        "box": "示例值",
-        "rarity": "示例值",
-        "price": "示例值"
+        "name": "青眼白龙",
+        "box": "QCCP",
+        "rarity": "UR",
+        "price": "1,500"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.date_format": {
       "feature": "price_daily",
@@ -4108,7 +5333,9 @@
       "samples": {},
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.price_reports_body_d0bac120",
+      "category": "part"
     },
     "price_daily.empty": {
       "feature": "price_daily",
@@ -4118,11 +5345,13 @@
         "date": "日期"
       },
       "samples": {
-        "date": "示例值"
+        "date": "2026-11-16"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.up": {
       "feature": "price_daily",
@@ -4132,7 +5361,9 @@
       "samples": {},
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.down": {
       "feature": "price_daily",
@@ -4142,7 +5373,9 @@
       "samples": {},
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.new": {
       "feature": "price_daily",
@@ -4152,7 +5385,9 @@
       "samples": {},
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.date_invalid": {
       "feature": "price_daily",
@@ -4163,12 +5398,13 @@
         "day": "日期"
       },
       "samples": {
-        "month": "示例值",
-        "day": "示例值"
+        "month": "11",
+        "day": "16"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "category": "error"
     },
     "price_daily.section": {
       "feature": "price_daily",
@@ -4179,26 +5415,106 @@
         "count": "数量"
       },
       "samples": {
-        "title": "示例值",
-        "count": "示例值"
+        "title": "📈 涨价",
+        "count": "2"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "price_daily.page": {
       "feature": "price_daily",
       "label": "完整回复 · 日报正文",
-      "template": "{content}",
+      "template": "{summary}{section}{page_number}\n{rows}",
       "fields": {
-        "content": "完整正文"
+        "content": "完整正文",
+        "summary": "日报汇总标题",
+        "section": "涨价、降价或新增分组标题",
+        "page_number": "多页时显示的页码",
+        "rows": "当前页每张卡的变动"
       },
       "samples": {
-        "content": "示例值"
+        "content": "3",
+        "summary": "3",
+        "section": "3",
+        "page_number": "3",
+        "rows": "3"
       },
       "fragment": false,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "legacy_template": "{content}",
+      "aliases": {},
+      "parts": {
+        "summary": {
+          "label": "汇总标题",
+          "items": [
+            {
+              "key": "price_daily.summary",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "section": {
+          "label": "分组标题",
+          "items": [
+            {
+              "key": "price_daily.section",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "page_number": {
+          "label": "页码",
+          "items": [
+            {
+              "key": "price_daily.page_number",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "rows": {
+          "label": "每张卡的变动",
+          "items": [
+            {
+              "key": "price_daily.change_row",
+              "values": {}
+            },
+            {
+              "key": "price_daily.change_row",
+              "values": {
+                "name": "灰流丽",
+                "old_price": "600",
+                "new_price": "800円"
+              }
+            }
+          ],
+          "separator": "\n"
+        }
+      },
+      "blocks": [
+        "summary",
+        "section",
+        "page_number",
+        "rows"
+      ],
+      "hidden_fields": [
+        "content"
+      ],
+      "category": "main",
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "related_states": [
+        "price_daily.up",
+        "price_daily.down",
+        "price_daily.new",
+        "price_daily.new_row",
+        "price_daily.empty"
+      ]
     },
     "price_daily.page_number": {
       "feature": "price_daily",
@@ -4209,12 +5525,14 @@
         "pages": "总页数"
       },
       "samples": {
-        "current": "示例值",
-        "pages": "示例值"
+        "current": "1",
+        "pages": "2"
       },
       "fragment": true,
       "mode": "text",
-      "source": "hikari_bot/features/cardrush/reporting/text.py"
+      "source": "hikari_bot/features/cardrush/reporting/text.py",
+      "preview_root": "price_daily.page",
+      "category": "part"
     },
     "subscriptions.row": {
       "feature": "subscriptions",
@@ -4225,11 +5543,13 @@
         "label": "状态"
       },
       "samples": {
-        "player": "示例值",
-        "label": "示例值"
+        "player": "示例玩家A",
+        "label": "已启用，受平台投递限制"
       },
       "fragment": true,
-      "mode": "text"
+      "mode": "text",
+      "preview_root": "subscriptions.business_body_098ef8d9",
+      "category": "part"
     },
     "subscriptions.empty": {
       "feature": "subscriptions",
@@ -4238,7 +5558,9 @@
       "fields": {},
       "samples": {},
       "fragment": true,
-      "mode": "text"
+      "mode": "text",
+      "preview_root": "subscriptions.business_body_098ef8d9",
+      "category": "error"
     },
     "paging.media_size": {
       "feature": "paging",
@@ -4247,7 +5569,8 @@
       "fields": {},
       "samples": {},
       "fragment": false,
-      "mode": "text"
+      "mode": "text",
+      "category": "error"
     },
     "paging.media_busy": {
       "feature": "paging",
@@ -4256,7 +5579,8 @@
       "fields": {},
       "samples": {},
       "fragment": false,
-      "mode": "text"
+      "mode": "text",
+      "category": "error"
     },
     "paging.request_failed": {
       "feature": "paging",
@@ -4265,7 +5589,8 @@
       "fields": {},
       "samples": {},
       "fragment": false,
-      "mode": "text"
+      "mode": "text",
+      "category": "error"
     },
     "operations.backend_failed": {
       "feature": "operations",
@@ -4274,7 +5599,8 @@
       "fields": {},
       "samples": {},
       "fragment": false,
-      "mode": "text"
+      "mode": "text",
+      "category": "error"
     },
     "members.row": {
       "feature": "members",
@@ -4286,12 +5612,14 @@
         "openid": "群成员 OpenID"
       },
       "samples": {
-        "name": "示例值",
-        "role": "示例值",
-        "openid": "示例值"
+        "name": "青眼白龙",
+        "role": "member",
+        "openid": "group-member-openid-a"
       },
       "fragment": true,
-      "mode": "text"
+      "mode": "text",
+      "preview_root": "members.management_body_b0942c38",
+      "category": "part"
     },
     "members.page_limit": {
       "feature": "members",
@@ -4300,7 +5628,8 @@
       "fields": {},
       "samples": {},
       "fragment": true,
-      "mode": "text"
+      "mode": "text",
+      "category": "part"
     },
     "members.empty": {
       "feature": "members",
@@ -4309,7 +5638,9 @@
       "fields": {},
       "samples": {},
       "fragment": true,
-      "mode": "text"
+      "mode": "text",
+      "preview_root": "members.management_body_b0942c38",
+      "category": "part"
     },
     "callback.unsupported": {
       "feature": "callback",
@@ -4320,7 +5651,8 @@
       "samples": {},
       "fragment": true,
       "mode": "text",
-      "max_length": 60
+      "max_length": 60,
+      "category": "error"
     },
     "opponent.invalid_name": {
       "feature": "opponent",
@@ -4329,7 +5661,9 @@
       "fields": {},
       "samples": {},
       "fragment": true,
-      "mode": "text"
+      "mode": "text",
+      "preview_root": "opponent.official_control_body_2c8cff84",
+      "category": "part"
     },
     "art.next_hint": {
       "feature": "art",
@@ -4342,7 +5676,8 @@
         "command": "卡图 14558127 1"
       },
       "mode": "text",
-      "fragment": true
+      "fragment": true,
+      "category": "part"
     },
     "art.last_hint": {
       "feature": "art",
@@ -4351,7 +5686,193 @@
       "fields": {},
       "samples": {},
       "mode": "text",
-      "fragment": true
+      "fragment": true,
+      "category": "part"
+    },
+    "opponent.accounts_empty": {
+      "feature": "opponent",
+      "label": "没有关注账号",
+      "template": "暂无",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "category": "error"
+    },
+    "mensa.slot": {
+      "feature": "mensa",
+      "label": "每个考场的时间与状态",
+      "template": "{datetime} - {status}",
+      "fields": {
+        "datetime": "报名时间",
+        "status": "报名状态"
+      },
+      "samples": {
+        "datetime": "2026-12-06 14:00",
+        "status": "可报名"
+      },
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "mensa.official_control_body_2a069fb6",
+      "category": "part"
+    },
+    "mensa.empty": {
+      "feature": "mensa",
+      "label": "没有可报名场次",
+      "template": "暂无可报名场次",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "mensa.official_control_body_2a069fb6",
+      "category": "error"
+    },
+    "price.version_block": {
+      "feature": "price",
+      "label": "单个卡片版本：国内报价与买取价",
+      "template": "{version}\n{domestic}\n{buyback}\n\n",
+      "fields": {
+        "version": "版本编号段落",
+        "domestic": "国内价格段落",
+        "buyback": "Cardrush 买取价段落"
+      },
+      "samples": {
+        "version": "QCCP-JP001",
+        "domestic": "3",
+        "buyback": "3"
+      },
+      "mode": "text",
+      "fragment": true,
+      "aliases": {},
+      "parts": {
+        "version": {
+          "label": "版本号",
+          "items": [
+            {
+              "key": "price.version",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "domestic": {
+          "label": "国内报价",
+          "items": [
+            {
+              "key": "price.jhs",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        },
+        "buyback": {
+          "label": "买取报价",
+          "items": [
+            {
+              "key": "price.cardrush",
+              "values": {}
+            }
+          ],
+          "separator": ""
+        }
+      },
+      "blocks": [
+        "version",
+        "domestic",
+        "buyback"
+      ],
+      "hidden_fields": [],
+      "category": "part",
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "preview_root": "price.result"
+    },
+    "price_history.candidate": {
+      "feature": "price_history",
+      "label": "卡价曲线的每个选择项",
+      "template": "{index}. {name}  {box}-{rarity}  {price}円",
+      "fields": {
+        "index": "选项序号",
+        "name": "卡名",
+        "box": "系列编号",
+        "rarity": "罕贵",
+        "price": "买取价（日元）"
+      },
+      "samples": {
+        "index": "1",
+        "name": "青眼白龙",
+        "box": "QCCP",
+        "rarity": "UR",
+        "price": "1,500"
+      },
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "price_history.price_reports_47b24a67",
+      "category": "part"
+    },
+    "links.audio_usage": {
+      "feature": "links",
+      "label": "请发送正确的 BV 号：bm BV号 [分集]",
+      "template": "请发送正确的 BV 号：bm BV号 [分集]",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
+    },
+    "links.audio_missing": {
+      "feature": "links",
+      "label": "未找到可下载的音频",
+      "template": "未找到可下载的音频",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
+    },
+    "links.partial": {
+      "feature": "links",
+      "label": "部分媒体下载或渲染失败；已保留可用内容。",
+      "template": "部分媒体下载或渲染失败；已保留可用内容。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
+    },
+    "links.empty_result": {
+      "feature": "links",
+      "label": "解析未得到可发送内容；可能超过媒体大小/时长限制，请直接打开原链接。",
+      "template": "解析未得到可发送内容；可能超过媒体大小/时长限制，请直接打开原链接。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
+    },
+    "links.unsupported": {
+      "feature": "links",
+      "label": "此链接暂无可用解析器，请直接打开原链接。",
+      "template": "此链接暂无可用解析器，请直接打开原链接。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
+    },
+    "links.parsed_text": {
+      "feature": "links",
+      "label": "解析器返回的文字",
+      "template": "{parsed_text}",
+      "fields": {
+        "parsed_text": "第三方解析结果（标题、作者或简介等原始数据）"
+      },
+      "samples": {
+        "parsed_text": "视频标题：游戏王新卡介绍\n作者：示例创作者\n简介：本期介绍新卡的效果与用法。"
+      },
+      "mode": "text",
+      "fragment": false,
+      "note": "此字段是第三方解析器已经生成的内容，当前只能添加前后文字和选择发送格式，不能重排第三方内部字段；程序自身的用法、下载失败等提示已另列可编辑。B 站视频仍不先发送预览卡片。",
+      "category": "main"
     }
   }
 }
