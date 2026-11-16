@@ -1044,7 +1044,7 @@
         "name": "卡名",
         "official": "日文名与已有读音",
         "reading": "假名读音独立段落（Markdown 使用引用，无读音则省略）",
-        "original": "日文卡名（无日文时使用英文名，不含读音）",
+        "original": "日文卡名引用（无日文时使用英文名，不含读音）",
         "types": "类型/属性/数值",
         "pendulum": "完整灵摆段落",
         "effect": "完整效果原文",
@@ -1053,8 +1053,8 @@
       "samples": {
         "name": "青眼白龙",
         "official": "青眼の白龍",
-        "reading": "> ブルーアイズ・ホワイト・ドラゴン\n\n",
-        "original": "青眼の白龍",
+        "reading": "> ブルーアイズ・ホワイト・ドラゴン\n",
+        "original": "> 青眼の白龍",
         "types": "[怪兽|通常] 龙/光 [★8] 3000/2500",
         "pendulum": "",
         "effect": "以高攻击力著称的传说之龙。",
@@ -1073,7 +1073,8 @@
       ],
       "blocks": [
         "pendulum",
-        "reading"
+        "reading",
+        "original"
       ],
       "fragment": false,
       "category": "main"

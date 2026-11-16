@@ -77,7 +77,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         info['cn_name'] = '[title](https://example.invalid)'
         info['text']['desc'] = '*literal* [x](url) <tag> _name_\\text\n完整末尾'
         rich, plain, content = card_message(info, 'only-user', images=True, prices=True)
-        self.assertIn('> はるうらら\n\n灰流うらら\n', content)
+        self.assertIn('> はるうらら\n> 灰流うらら\n\n', content)
         self.assertNotIn('## 效果', content)
         self.assertIn(escape_markdown(info['text']['desc']), content)
         self.assertNotIn('](https', content)
@@ -92,7 +92,10 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
             rich, _, content = card_message(info, 'only-user')
             self.assertNotIn('unused', content)
             self.assertNotIn('（）', content)
-            self.assertNotIn('> ', content)
+            if info.get('jp_name'):
+                self.assertIn('> 日本語\n\n', content)
+            else:
+                self.assertNotIn('> ', content)
             self.assertFalse(rich['keyboard'])
         rich, _, _ = card_message({'id': 0}, 'only-user', images=True, prices=True)
         self.assertFalse(rich['keyboard'])
@@ -103,7 +106,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         info = copy.deepcopy(INFO)
         info['jp_ruby'] = '*よみ*\nつづき'
         content = card_text(info)
-        self.assertIn('> \\*よみ\\*\n> つづき\n\n灰流うらら', content)
+        self.assertIn('> \\*よみ\\*\n> つづき\n> 灰流うらら\n\n', content)
         spec = default('effect.card')
         spec.update(template='{reading}{original}\n{effect}', mode='text')
         with draft('effect.card', spec):
