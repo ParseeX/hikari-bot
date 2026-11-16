@@ -71,7 +71,7 @@ def test_history_markdown_and_chart_are_one_verified_message(kind):
         payload = messages[0].json
         assert payload['msg_type'] == 2 and payload['msg_id'] == source.id and payload['msg_seq'] == 1
         assert ('/groups/' if kind.startswith('group') else '/users/') in messages[0].url.path
-        assert payload['markdown'] == {'content': '![历史曲线 #8px #4px](qqbot-media://image/v1/test-token)\n\n' + text,
+        assert payload['markdown'] == {'content': text + '\n\n![历史曲线 #8px #4px](qqbot-media://image/v1/test-token)',
                                        'force_verify_image_resource': True}
         assert not payload.get('media') and not payload.get('content')
         upload = client.adapter.request.call_args.args[0]

@@ -155,7 +155,7 @@ class MarkdownImage:
 
     async def send(self, bot, event):
         await send_images(bot, event, (self.image,),
-                          lambda parts: parts[0] + '\n\n' + self.text, history=True)
+                          lambda parts: self.text + '\n\n' + parts[0], history=True)
 
 
 GALLERY_MARKER = 'HIKARIGALLERYIMAGESPLACEHOLDER'
