@@ -102,6 +102,16 @@ class CardCatalog:
                               'ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id', (normalize(keyword),)).fetchall()
             return [self._info(db, row) for row in rows]
 
+    @staticmethod
+    def _is_card_name(db, key):
+        return db.execute("SELECT 1 FROM card_names WHERE source!='manual:alias' AND normalized=? LIMIT 1",
+                          (key,)).fetchone() is not None
+
+    def is_card_name(self, value):
+        """完整正式名称检查，不包含手动别名、片段或模糊匹配。"""
+        with self.connect() as db:
+            return self._is_card_name(db, normalize(value))
+
     def add_alias(self, code, alias):
         """只用精确卡密绑定别名；保留其他卡的同名别名，重复添加不产生副本。"""
         name = unicodedata.normalize('NFKC', alias).strip()
@@ -116,6 +126,8 @@ class CardCatalog:
             db.execute('PRAGMA foreign_keys=ON')
             with db:
                 db.execute('BEGIN IMMEDIATE')
+                if self._is_card_name(db, key):
+                    raise ValueError('不能将其他卡片的完整名称设置为别名。')
                 row = self._by_id(db, normalize(str(code)))
                 if row is None:
                     raise ValueError('未找到这个卡密，请使用准确的卡密添加别名。')
@@ -126,6 +138,36 @@ class CardCatalog:
                                (row['id'], 'und', 'manual:alias', name, key))
                 info = self._info(db, row)
             return info, not bool(existing)
+        finally:
+            db.close()
+
+    def delete_alias(self, target, alias):
+        """精确定位卡片，仅删除其完整手动别名；解析与删除在同一事务中。"""
+        key, alias_key = normalize(str(target)), normalize(alias)
+        if not key or not alias_key or len(key) > 200 or len(alias_key) > 128:
+            raise ValueError('请提供完整卡名或准确的卡密，以及要删除的别名。')
+        db = sqlite3.connect(self.path.resolve().as_uri() + '?mode=rw', uri=True, timeout=5)
+        db.row_factory = sqlite3.Row
+        try:
+            with db:
+                db.execute('BEGIN IMMEDIATE')
+                if key.isascii() and key.isdigit():
+                    row = self._by_id(db, key)
+                else:
+                    rows = db.execute('SELECT DISTINCT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
+                                      "WHERE n.source!='manual:alias' AND n.normalized=? ORDER BY c.id", (key,)).fetchall()
+                    if len(rows) > 1:
+                        cards = [self._info(db, candidate) for candidate in rows]
+                        raise ValueError('卡名对应多张卡，请使用卡密删除别名：\n' + '\n'.join(
+                            f"{card.get('cn_name') or card.get('jp_name') or card.get('en_name') or '未命名卡片'}：{card.get('passcode') or card['id']}"
+                            for card in cards))
+                    row = rows[0] if rows else None
+                if row is None:
+                    raise ValueError('未找到对应卡片，请使用完整卡名或准确的卡密删除别名。')
+                info = self._info(db, row)
+                deleted = db.execute("DELETE FROM card_names WHERE card_id=? "
+                                     "AND source='manual:alias' AND normalized=?", (row['id'], alias_key)).rowcount
+            return info, bool(deleted)
         finally:
             db.close()
 

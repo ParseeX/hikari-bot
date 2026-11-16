@@ -54,8 +54,9 @@ def test_alias_normalization_and_priority(catalog):
     catalog.add_alias('2000', 'ＢＥＷＤ')
     assert catalog.add_alias('2000', 'bewd')[1] is False
     assert catalog.search('be wd')['id'] == 2000
-    catalog.add_alias('2000', '青眼白龙')
-    assert catalog.search('青眼白龙')['id'] == 2000
+    with pytest.raises(ValueError, match='不能将其他卡片的完整名称设置为别名。'):
+        catalog.add_alias('2000', '青眼白龙')
+    assert catalog.search('青眼白龙')['id'] == 1234
 
 
 def test_catalog_sync_preserves_alias_and_current_identity(catalog):

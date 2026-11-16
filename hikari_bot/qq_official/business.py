@@ -45,6 +45,9 @@ class Queries:
         if command == '添加别名':
             from hikari_bot.services.card_aliases import add_alias_reply
             return Result(await add_alias_reply(self.catalog, argument))
+        if command == '删除别名':
+            from hikari_bot.services.card_aliases import delete_alias_reply
+            return Result(await delete_alias_reply(self.catalog, argument))
         if self.notifications:
             result = await self.notifications.handle(request, command, argument)
             if result is not None:

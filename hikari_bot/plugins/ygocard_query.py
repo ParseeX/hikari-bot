@@ -127,6 +127,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     await ygo_add_alias.finish(await add_alias_reply(card_service.catalog, args.extract_plain_text().strip()))
 
 
+ygo_delete_alias = on_cmd("删除别名", priority=5)
+@ygo_delete_alias.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    from hikari_bot.services.card_aliases import delete_alias_reply
+    await ygo_delete_alias.finish(await delete_alias_reply(card_service.catalog, args.extract_plain_text().strip()))
+
+
 # ── 数据库维护 ─────────────────────────────────────────────────────────────────────────
 # 用法：更新数据库
 
