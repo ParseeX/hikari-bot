@@ -304,3 +304,12 @@ NAS 另需受控的 `~/.config/srbs/nas-power.json`（只含 `base_url`、`timeo
 - 发布将源码以 [skip ci] 提交至原 main 并推送 origin，生成保留的独立发布目录，切换 current 并重启原后台、官方入口和编辑器；失败自动尝试恢复前版，遇到后来代码修改则停止覆盖并明确要求维护。进程中断的 running 请求标为待恢复，不自动重试。Git 推送失败会明确区分本地已发布与未推送。
 - 发布器不执行 git reset/clean/stash，不重置数据库；原文案文件与业务记录不随源码回退。后续 Codex 部署前需检查服务器经网页产生的 Git 提交并收回差异。
 - 首轮 Linux 专项 51 passed，包括临时真实 Git 仓库中的发布、推送、回退、失败恢复、草稿与数据保留，以及原文案回归。Windows 36 passed / 5 skipped（目录符号链接权限限制）；发布事务由 Linux 覆盖。浏览器用独立临时登录/草稿实际验证历史文件打开、函数跳转、保存、语法检查；没有发布测试业务代码或发送 QQ 消息。
+
+
+### 源码入口上线结果
+
+- 最终候选 `f45d60a`：Linux 专项 **52 passed**，增加远程仅文档更新可安全 fast-forward 后继续源码发布的覆盖；远程含代码变化或分叉仍拒绝覆盖。JavaScript 语法与 Git 差异检查通过。
+- 已推送 origin/main；官方 current 指向 `/home/xyk/srbs/releases/20261116-source-f45d60a`，原后台干净 fast-forward 至同一提交。新增用户服务 `hikari-source-publisher.service`，实际 ExecStart 固定到此管理发布目录，不随用户源码 current 指针变化。
+- 原 bot、官方入口、编辑器及发布器均在线；QQ 网关已重连，启动无 traceback。公网首页和 source.js 为 200，脚本与 Git 对象一致；未登录源码接口 401。线上读取历史源码与实际发布文件一致，50 个目录文件均存在；Git push --dry-run 通过。没有在生产队列提交测试源码，真实业务发布/回退由临时 Git 仓库测试覆盖，不能称作生产业务验收。
+- 原文案文件切换前后字节不变；源码发布队列为空。没有修改密码或现有业务权限配置，没有运行用户草稿或发送 QQ 测试消息。源码草稿/任务存储位于用户私有 `.local/share/srbs/source-editor`，业务库与文案库独立。
+- 部署前备份 `/home/xyk/srbs/deploy-backups/20261116-source-f45d60a` 保存旧指针、原后台 Git 归档、代码变更清单和文案快照，并记录发布器 unit 原先不存在。回退本次后台功能时先停止并禁用发布器，保存源码队列与后续用户编辑，切回 `20261116-copy-037d5ff`；按备份与部署后哈希核对后恢复原后台对应文件，再重启三服务。新 unit 可在留存后移除。不得回滚业务数据库或覆盖后续源码/文案修改。
