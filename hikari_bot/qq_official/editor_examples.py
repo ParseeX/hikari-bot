@@ -21,7 +21,8 @@ def render_example(store, key, spec, example=None):
 
     if selected is None and key != root and not includes(root, key):
         selected = next((e for e in examples if any(item.get('key') == key
-            for items in e.get('parts', {}).values() for item in items)), None)
+            for group in [e.get('parts', {}), *e.get('nested_parts', {}).values()]
+            for items in group.values() for item in items)), None)
     selected = selected or examples[0]
     values_by_key = {}
     rendered_by_key = {}
@@ -34,7 +35,8 @@ def render_example(store, key, spec, example=None):
         if name == root:
             values.update(selected.get('values', {}))
         for field, part in d.get('parts', {}).items():
-            items = selected.get('parts', {}).get(field, part['items']) if name == root else part['items']
+            choices = selected.get('parts', {}) if name == root else selected.get('nested_parts', {}).get(name, {})
+            items = choices.get(field, part['items'])
             values[field] = part.get('separator', '').join(str(render(item['key'], item.get('values'), depth+1)) for item in items)
         # 兼容用户已有的前后缀 + {content}，但新页面不再只显示整个黑盒。
         if d.get('legacy_template') in {'{content}', '{body}'}:

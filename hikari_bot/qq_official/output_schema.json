@@ -1277,6 +1277,82 @@
         "price.cardrush_unavailable",
         "price.cardrush_missing",
         "price.number_unknown"
+      ],
+      "examples": [
+        {
+          "id": "regular",
+          "label": "普通卡价：国内价格与买取价"
+        },
+        {
+          "id": "japanese",
+          "label": "日版价格",
+          "nested_parts": {
+            "price.version_block": {
+              "domestic": [
+                {
+                  "key": "price.japanese",
+                  "values": {}
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "domestic_unavailable",
+          "label": "国内价格不可用",
+          "nested_parts": {
+            "price.version_block": {
+              "domestic": [
+                {
+                  "key": "price.jhs_unavailable",
+                  "values": {}
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "japanese_unavailable",
+          "label": "日版价格不可用",
+          "nested_parts": {
+            "price.version_block": {
+              "domestic": [
+                {
+                  "key": "price.japanese_unavailable",
+                  "values": {}
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "buyback_unavailable",
+          "label": "买取价暂不可用",
+          "nested_parts": {
+            "price.version_block": {
+              "buyback": [
+                {
+                  "key": "price.cardrush_unavailable",
+                  "values": {}
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "buyback_missing",
+          "label": "暂无买取价",
+          "nested_parts": {
+            "price.version_block": {
+              "buyback": [
+                {
+                  "key": "price.cardrush_missing",
+                  "values": {}
+                }
+              ]
+            }
+          }
+        }
       ]
     },
     "price.heading": {
@@ -5422,7 +5498,26 @@
       "mode": "text",
       "source": "hikari_bot/features/cardrush/reporting/text.py",
       "preview_root": "price_daily.page",
-      "category": "part"
+      "category": "part",
+      "parts": {
+        "title": {
+          "label": "涨价、降价或新增标题",
+          "items": [
+            {
+              "key": "price_daily.up",
+              "values": {}
+            }
+          ],
+          "separator": "",
+          "alternatives": [
+            "price_daily.down",
+            "price_daily.new"
+          ]
+        }
+      },
+      "blocks": [
+        "title"
+      ]
     },
     "price_daily.page": {
       "feature": "price_daily",
@@ -5514,6 +5609,60 @@
         "price_daily.new",
         "price_daily.new_row",
         "price_daily.empty"
+      ],
+      "examples": [
+        {
+          "id": "up",
+          "label": "涨价日报示例"
+        },
+        {
+          "id": "down",
+          "label": "降价日报示例",
+          "nested_parts": {
+            "price_daily.section": {
+              "title": [
+                {
+                  "key": "price_daily.down",
+                  "values": {}
+                }
+              ]
+            }
+          },
+          "parts": {
+            "rows": [
+              {
+                "key": "price_daily.change_row",
+                "values": {
+                  "arrow": "↓",
+                  "old_price": "1,500",
+                  "new_price": "1,200円"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "new",
+          "label": "新增收购示例",
+          "nested_parts": {
+            "price_daily.section": {
+              "title": [
+                {
+                  "key": "price_daily.new",
+                  "values": {}
+                }
+              ]
+            }
+          },
+          "parts": {
+            "rows": [
+              {
+                "key": "price_daily.new_row",
+                "values": {}
+              }
+            ]
+          }
+        }
       ]
     },
     "price_daily.page_number": {
@@ -5763,7 +5912,12 @@
               "values": {}
             }
           ],
-          "separator": ""
+          "separator": "",
+          "alternatives": [
+            "price.japanese",
+            "price.jhs_unavailable",
+            "price.japanese_unavailable"
+          ]
         },
         "buyback": {
           "label": "买取报价",
@@ -5773,7 +5927,11 @@
               "values": {}
             }
           ],
-          "separator": ""
+          "separator": "",
+          "alternatives": [
+            "price.cardrush_unavailable",
+            "price.cardrush_missing"
+          ]
         }
       },
       "blocks": [

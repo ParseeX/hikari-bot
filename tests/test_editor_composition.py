@@ -150,3 +150,16 @@ def test_manual_qq_preview_uses_same_composed_example_without_sending(store):
     assert '当前排名：86' in markdown and '11月场次：128' in markdown
     assert markdown.index('当前排名') < markdown.index('玩家')
     assert not store.queue.exists()
+
+
+def test_nested_daily_heading_and_alternative_price_preview_are_composed(store):
+    spec = default('price_daily.down'); spec['template'] = '**跌价观察**'
+    root = default('price_daily.page'); root['mode'] = 'markdown'
+    store.mutate('save', 'price_daily', 'price_daily.page', root, 0)
+    result = render_example(store, 'price_daily.down', spec)
+    assert result['example'] == 'down' and not result['unrepresented']
+    assert '**跌价观察**' in result['context']
+    spec = default('price.japanese'); spec['template'] = '日版出品：{value}'
+    result = render_example(store, 'price.japanese', spec)
+    assert result['example'] == 'japanese' and not result['unrepresented']
+    assert '日版出品：' in result['context']
