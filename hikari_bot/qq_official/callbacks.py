@@ -119,7 +119,7 @@ class CallbackController:
                         handle = PREFIX + secrets.token_urlsafe(18)
                         self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL)
                         handles.append(handle)
-                        button['action'] = {'type': 1, 'data': handle, 'permission': {'type': 0, 'specify_user_ids': [user]}, 'unsupport_tips': '当前客户端不支持回调；可手动输入原查询命令'}
+                        button['action'] = {'type': 1, 'data': handle, 'permission': {'type': 0, 'specify_user_ids': [user]}, 'unsupport_tips': str(present('callback.unsupported', plain=True))}
                 segment.data['keyboard'] = MessageKeyboard.model_validate(keyboard)
             self.prune()
             return (prepared, handles)

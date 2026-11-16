@@ -1,4 +1,5 @@
 """官方命令调用共享查询；旧身份、管理权限与订阅不作推断。"""
+from .output_templates import present, render_outputs
 import asyncio
 from datetime import datetime
 import hashlib
@@ -13,9 +14,9 @@ HISTORY = re.compile(r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))
 
 
 def binding_help(command=None):
-    prompt = (f'请提供 MyCard 用户名，例如：{command} 用户名。' if command
-              else '你还未绑定 MyCard 用户名。')
-    return Result(prompt + '\n请发送「绑定 用户名」完成绑定后再查询。\n旧机器人绑定不会自动沿用，请重新绑定。')
+    prompt = (present('binding.business_76230727', {'command': command}) if command
+              else present('binding.business_9123be18', {}))
+    return Result(present('binding.business_body_96c257d5', {'content': prompt + present('binding.business_8dfa0c30', {})}))
 
 
 class Queries:
@@ -28,6 +29,7 @@ class Queries:
         self.admin = admin
         self.notifications = notifications
 
+    @render_outputs
     async def handle(self, request, command, argument):
         if self.notifications:
             result = await self.notifications.handle(request, command, argument)
@@ -44,62 +46,62 @@ class Queries:
         if command == '翻译' or re.fullmatch('[中繁英日韩法俄德]译[中繁英日韩法俄德]', command):
             from hikari_bot.services.translation import translate
             try:
-                return Result(await asyncio.wait_for(translate(command, argument), timeout=45))
+                return Result(present('translation.business_body_1fa58867', {'content': await asyncio.wait_for(translate(command, argument), timeout=45)}))
             except Exception:
-                return Result('翻译失败，请稍后再试。')
+                return Result(present('translation.business_f10cf063', {}))
         if command in {"绑定", "查询绑定", "绑定查询", "订阅", "退订", "订阅状态"}:
             if self.state is None:
-                return Result("官方入口独立状态库尚未配置，未修改旧记录。")
+                return Result(present('business.business_9d5e49e4', {}))
             if command == "绑定":
                 if not argument:
-                    return Result("请发送：绑定 MyCard用户名")
+                    return Result(present('binding.business_60feb2f4', {}))
                 await asyncio.to_thread(self.state.bind, request.actor, argument)
-                return Result("绑定成功")
+                return Result(present('binding.business_758d5462', {}))
             if command in {"查询绑定", "绑定查询"}:
                 if argument:
-                    return Result("官方入口只查询自己的绑定，不能从 MyCard 用户名反查旧 QQ 号。")
+                    return Result(present('binding.business_fde84002', {}))
                 player = await asyncio.to_thread(self.state.binding, request.actor)
-                return Result(f"你绑定的 MyCard 用户名为：{player}") if player else binding_help()
+                return Result(present('binding.business_4c0fc3fa', {'player': player})) if player else binding_help()
             if request.conversation.kind != "user":
-                return Result("群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。")
+                return Result(present('business.business_8390b6d1', {}))
             if command == "订阅状态":
                 rows = await asyncio.to_thread(self.state.subscriptions, request.conversation)
                 active = self.notifications and self.notifications.enabled and 'mycard' in await asyncio.to_thread(self.notifications.bus.topics, request.actor)
-                label = '已启用，受平台投递限制' if active else '暂停，等待开启通知或平台验证'
-                return Result("\n".join(f"{player}：{label}" for player, _ in rows) or "当前官方身份暂无订阅。")
+                label = present('subscriptions.business_e6359e07', {}) if active else present('subscriptions.business_1e88c9da', {})
+                return Result(present('subscriptions.business_body_098ef8d9', {'content': "\n".join(present('subscriptions.row', {'player': player, 'label': label}) for player, _ in rows) or present('subscriptions.empty')}))
             if not argument:
-                return Result("请提供 MyCard 用户名！")
+                return Result(present('business.business_fd456534', {}))
             method = self.state.subscribe if command == "订阅" else self.state.unsubscribe
             await asyncio.to_thread(method, request.conversation, argument)
             if command == '订阅' and self.notifications and self.notifications.enabled:
                 await asyncio.to_thread(self.notifications.bus.allow_topic, request.actor, 'mycard', True)
-                return Result('订阅成功！官方通知受平台权限及频控限制。')
-            return Result("已保存订阅，但通知暂停，需完成主动发送验证后启用。" if command == "订阅" else "已取消当前官方身份的这项订阅；旧 QQ 订阅保持不变。")
+                return Result(present('subscriptions.business_2a804369', {}))
+            return Result(present('business.business_c6e045fb', {}) if command == "订阅" else present('business.business_6b580d7a', {}))
         if command == "每日一卡":
             if self.catalog is None or self.image_loader is None:
-                return Result("每日一卡尚未配置卡片资料库或图片服务。")
+                return Result(present('daily_card.business_489fa409', {}))
             today = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y-%m-%d")
             seed = int.from_bytes(hashlib.sha256(f"{request.actor.key}_{today}".encode()).digest()[:8], "big")
             code = await asyncio.to_thread(self.catalog.random_id, seed)
             data = await self.image_loader(code)
-            return Result(images=(data,)) if data else Result("未找到每日卡片！")
+            return Result(images=(data,)) if data else Result(present('daily_card.business_68880f3d', {}))
         if command == "共界计算":
             if not argument:
-                return Result("用法：共界计算 卡名")
+                return Result(present('calculation.business_1d688354', {}))
             if self.catalog is None:
-                return Result("尚未配置卡片资料库。")
+                return Result(present('calculation.business_4fde7d2f', {}))
             info = await asyncio.to_thread(self.catalog.search, argument)
             if not info:
-                return Result("未找到对应卡片！")
+                return Result(present('calculation.business_7502167d', {}))
             cards = await asyncio.to_thread(self.catalog.metaltronus, info["id"])
             if not cards:
-                return Result("没有满足条件的卡片！")
+                return Result(present('calculation.business_03a7ca05', {}))
             if self.deck_renderer:
                 try:
                     return Result(images=(await self.deck_renderer.card_list(cards),))
                 except ValueError:
-                    return Result('部分卡图暂时无法获取，请稍后重试；未发送缺卡的计算结果。')
-            return Result("计算结果（图片生成器尚未配置）：\n" + "\n".join(map(str, cards)))
+                    return Result(present('calculation.business_be309d04', {}))
+            return Result(present('calculation.business_body_82946755', {'content': present('calculation.business_2a9842bc', {}) + "\n".join(map(str, cards))}))
         if command in {"首胜查询", "首赢查询", "查分"}:
             if not argument and self.state:
                 argument = await asyncio.to_thread(self.state.binding, request.actor) or ""
@@ -108,12 +110,12 @@ class Queries:
             if command == "查分":
                 info = await mycard.fetch_player_info(argument)
                 if not isinstance(info, dict) or "pt" not in info:
-                    return Result("查询失败，请稍后重试")
-                return Result(f"玩家：{argument}\n当前分数：{info['pt']}\n当前排名：{info.get('arena_rank', '暂无')}")
+                    return Result(present('score.business_b98c4ab7', {}))
+                return Result(present('score.business_f71c3bbc', {'argument': argument, 'value2': info['pt'], 'value3': info.get('arena_rank', '暂无')}))
             data = await mycard._api_get("arena/firstwin", {"username": argument})
             if not isinstance(data, dict) or "today" not in data:
-                return Result("查询失败，请稍后重试")
-            return Result(f"{argument}{'已' if str(data['today']) == '1' else '还未'}完成今日首赢！")
+                return Result(present('score.business_b98c4ab7', {}))
+            return Result(present('score.business_53cba006', {'argument': argument, 'value2': '已' if str(data['today']) == '1' else '还未'}))
         match = HISTORY.fullmatch(request.text.strip().removeprefix("/"))
         if match or command in {"胜率查询", "胜率统计"}:
             from hikari_bot.services.mycard_reports import history_report, winrate_report
@@ -130,26 +132,26 @@ class Queries:
             if year < 100:
                 year += 2000
             if (year, month) > (now.year, now.month):
-                return Result("不能查询未来月份。")
+                return Result(present('winrate.business_1175a83f', {}))
             return await history_report(player, month, year)
         if command == "裁定查询":
             if not argument:
-                return Result("请在“裁定查询”后输入需要裁定的内容。")
+                return Result(present('ruling.business_b834c123', {}))
             if self.ruling is None:
-                return Result("裁定服务尚未为官方入口配置。")
-            return Result(await self.ruling(argument) + "\n[非官方裁定，仅供参考]")
+                return Result(present('ruling.business_a3c7e067', {}))
+            return Result(present('ruling.business_body_4783ee60', {'content': await self.ruling(argument) + present('ruling.business_ed09c431', {})}))
         if command in {"生成卡组图片", "卡组图片", "卡组", "卡组PDF"}:
             if not self.deck_renderer:
-                return Result("官方入口的卡组媒体服务尚未配置，请使用 https://ygo.xyk.one/deck")
+                return Result(present('deck.business_bdca74be', {}))
             return await self.deck_renderer.render(command, argument)
         if self.links:
             from hikari_bot.services.link_parser import LINK
             if command == 'ym':
-                return Result('当前环境未启用 YouTube 音频下载组件；未将音频命令改成视频发送。')
+                return Result(present('links.business_ba9cbce5', {}))
             if command == 'bm' or LINK.search(request.text):
                 if self.notifications and not await asyncio.to_thread(self.notifications.bus.setting, request.actor.key, 'parser'):
-                    return Result('当前官方会话的链接解析已关闭。')
+                    return Result(present('links.business_d2ee8c4a', {}))
                 return await self.links.parse(request.text)
         if request.attachments:
-            return Result("已收到附件事件。当前可用文字或分享链接查询；附件导入尚未启用，未自动下载或写入旧数据。")
+            return Result(present('attachments.business_38bd1f82', {}))
         return None

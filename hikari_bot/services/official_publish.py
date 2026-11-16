@@ -9,6 +9,8 @@ from .official_bus import backend_bus
 from .platform import Identity, Result
 from .platform_state import PlatformState
 from .legacy_identity import LegacyRecords
+from .wording import NoticeText
+from hikari_bot.qq_official.output_templates import present, Output
 
 
 def subscription_targets(player=None):
@@ -32,11 +34,16 @@ async def publish(result, *, topic='admin', dedupe=None, targets=None, subscript
     bus = backend_bus()
     if bus is None:
         return
+    if isinstance(result.text, NoticeText):
+        result = Result(present(result.text.key, result.text.values), result.images, result.file, result.filename)
     if topic == 'admin':
         from hikari_bot.core.config import settings
         from .official_control import redact
         values = [value for key, value in vars(settings).items() if any(s in key for s in ('token','secret','password','cookie'))]
-        result = Result(redact(result.text, values), result.images, result.file, result.filename)
+        text = redact(result.text, values)
+        if isinstance(result.text, Output):
+            text = Output(text, result.text.key, result.text.mode)
+        result = Result(text, result.images, result.file, result.filename)
     if dedupe is None:
         digest = hashlib.sha256(result.text.encode() + b''.join(result.images)).hexdigest()
         dedupe = f'{int(time.time() // 60)}:{digest}'

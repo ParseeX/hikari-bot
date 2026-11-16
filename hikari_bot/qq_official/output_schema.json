@@ -1,37 +1,956 @@
 {
   "features": {
+    "binding": {
+      "label": "MyCard 绑定",
+      "commands": [
+        "绑定 用户名",
+        "查询绑定",
+        "绑定查询"
+      ],
+      "status": "已接入",
+      "implementation": "重新绑定默认查询用户名；成功只回复“绑定成功”。",
+      "differences": "OpenID 与旧 QQ 号不同。其他用户需重新绑定；不同群的成员身份可能不同，需分别绑定。不授予管理员权。",
+      "qq": "本人已核验关联的私聊与群绑定曾验证；其他用户重新绑定需自行验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "绑定成功、用法、未绑定提示与查询绑定结果。历史/查分缺少用户名时共用这里的未绑定提示。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "history": {
+      "label": "MyCard 历史",
+      "commands": [
+        "历史 [用户名]",
+        "11月历史 [用户名]",
+        "26年10月历史 [用户名]"
+      ],
+      "status": "已接入",
+      "implementation": "复用旧战绩过滤、月初分数、结算分数与趋势图。",
+      "differences": "普通文字与单张图保持同一条图文消息，图片在上由 QQ 客户端布局；选择 Markdown 后文字与上传图片分开发送。",
+      "qq": "普通图文历史曾在私聊验证；本轮网页改文案后的 QQ 渲染由用户验证。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "未绑定时的提示",
+          "feature": "binding",
+          "key": "binding.business_body_96c257d5"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "score": {
+      "label": "查分与首胜",
+      "commands": [
+        "查分 [用户名]",
+        "首胜查询 [用户名]",
+        "首赢查询 [用户名]"
+      ],
+      "status": "已接入",
+      "implementation": "读取 MyCard 公开分数、排名和今日首胜；缺少用户名时读取当前身份绑定。",
+      "differences": "旧 QQ 绑定不会为其他人自动沿用；未绑定提示在“MyCard 绑定”编辑。",
+      "qq": "新文案和全部分支待用户验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "未绑定时的提示",
+          "feature": "binding",
+          "key": "binding.business_body_96c257d5"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "winrate": {
+      "label": "MyCard 胜率",
+      "commands": [
+        "胜率查询 [用户名]",
+        "胜率统计 [用户名]"
+      ],
+      "status": "已接入",
+      "implementation": "复用原月度胜率与整体胜率统计及图片。",
+      "differences": "身份规则与历史相同；普通单图合发，Markdown 与图片分开发送。",
+      "qq": "全部分支及本轮自定义 Markdown 待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "未绑定时的提示",
+          "feature": "binding",
+          "key": "binding.business_body_96c257d5"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "passcode": {
+      "label": "卡密",
+      "commands": [
+        "卡密 卡名"
+      ],
+      "status": "已接入",
+      "implementation": "复用原卡片资料库与模糊搜索。",
+      "differences": "官方群可不 @ 发送指令，普通回复不 @ 用户；模糊候选列表仍未新增。",
+      "qq": "群内不 @ 查询、回复不 @ 已验证。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
     "effect": {
-      "label": "效果卡片",
-      "coverage": "卡名、日文名/读音、类型数值、灵摆与效果；保留完整原数据"
+      "label": "卡片效果",
+      "commands": [
+        "效果 卡名",
+        "卡片按钮：完整效果"
+      ],
+      "status": "已接入",
+      "implementation": "保留效果、灵摆及原官方试点 Markdown 和按钮。",
+      "differences": "按钮仍限已验证的 C2C 场景；群场景和长文会走普通文字及续读。",
+      "qq": "试点 Markdown/按钮已有验收；自定义模板和群 Markdown 待验证。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "效果卡片和兼容纯文本回复；卡片数据库的原始效果内容是变量，不在此改库。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
     },
     "art": {
-      "label": "卡图与查询反馈",
-      "coverage": "逐张卡图、页码、上一张/下一张与主按钮；图像来源不变"
+      "label": "卡图",
+      "commands": [
+        "卡图 卡名",
+        "卡图 卡密 页码"
+      ],
+      "status": "已接入",
+      "implementation": "逐张读取原卡图，保留上一张/下一张操作。",
+      "differences": "多张卡图分开发送，导航可能单独一条；原合并转发外观未恢复。",
+      "qq": "群内不 @ 卡图及分页已验证。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "daily_card": {
+      "label": "每日一卡",
+      "commands": [
+        "每日一卡"
+      ],
+      "status": "已接入",
+      "implementation": "按官方身份和日期稳定选择卡片，返回卡图。",
+      "differences": "身份种子由数字 QQ 号变成平台身份，因此当天抽到的卡可能不同。",
+      "qq": "新入口完整命令待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "无卡图、未配置等提示；正常结果是图片，不包含可编辑文字。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "calculation": {
+      "label": "共界计算",
+      "commands": [
+        "共界计算 卡名"
+      ],
+      "status": "已接入",
+      "implementation": "复用原筛选与卡片列表图片生成器。",
+      "differences": "缺图时明确失败，不生成缺卡结果；服务缺失时返回卡号文本。",
+      "qq": "正常结果及媒体失败分支待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
     },
     "price": {
-      "label": "卡价与版本",
-      "coverage": "罕贵/版本列表、人民币集换社价格、日元 Cardrush 收取价、日版与错误状态；匹配和品相规则不变"
+      "label": "卡价",
+      "commands": [
+        "卡价 卡名",
+        "卡价查询 卡名",
+        "日版卡价查询 卡名"
+      ],
+      "status": "已接入",
+      "implementation": "保留罕贵/版本选择、集换社和 Cardrush 价格展示。",
+      "differences": "版本/罕贵需要文字或编号选择，独立版本按钮未实现；长结果分页。",
+      "qq": "已有私聊查询验证；所有选择及自定义 Markdown 分支待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "price_history": {
+      "label": "卡价历史曲线",
+      "commands": [
+        "卡价曲线 卡名",
+        "历史卡价 卡名",
+        "卡价历史 卡名"
+      ],
+      "status": "已接入",
+      "implementation": "旧数据库只读查询，复用原曲线与选择规则。",
+      "differences": "普通图文按 QQ 布局；Markdown 文字与上传图片分开发送。",
+      "qq": "全部曲线/候选选择分支待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "price_daily": {
+      "label": "卡价日报",
+      "commands": [
+        "卡价日报 [月.日]",
+        "卡价日报网页",
+        "卡价日报HTML"
+      ],
+      "status": "部分接入",
+      "implementation": "文字日报与旧抓取数据共用；日报网页保留原入口能力。",
+      "differences": "多页文字拆发；原合并转发外观未恢复。",
+      "qq": "手动日报与下一次真实定时推送全链路待验收。",
+      "remaining": "两个日报网页别名在官方入口仍返回明确未迁移提示。",
+      "coverage": "文字日报标题、小节、每张卡片行、分页及定时图片说明；图片内部报表排版不在此编辑。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "subscriptions": {
+      "label": "MyCard 订阅",
+      "commands": [
+        "订阅 用户名",
+        "退订 用户名",
+        "订阅状态"
+      ],
+      "status": "部分接入",
+      "implementation": "保存当前官方私聊订阅；核验过的旧本人订阅可只读关联。",
+      "differences": "未核验旧目标暂停，不猜身份；群订阅尚未启用；投递受官方权限和频控限制。",
+      "qq": "主动测试消息曾在私聊看到，真实订阅开局/首赢链路待验收。",
+      "remaining": "群订阅、未核验旧订阅迁移。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "未绑定时的提示",
+          "feature": "binding",
+          "key": "binding.business_body_96c257d5"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "notifications": {
+      "label": "主动通知",
+      "commands": [
+        "开启通知",
+        "关闭通知",
+        "通知状态",
+        "测试通知"
+      ],
+      "status": "部分接入",
+      "implementation": "独立队列发送，去重、过期及失败状态可查；不重复启动抓取任务。",
+      "differences": "API 接受不代表客户端收到；官方权限、主动额度和本地限流都可能阻止发送。 选择 Markdown 且含上传媒体时拆成多条，会额外消耗发送额度；失败不会自动重发。",
+      "qq": "普通主动测试消息已可见；真实订阅事件、日报及其他通知仍分项待验收。",
+      "remaining": "不同群主动通知的完整权限与真实客户端验收。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "opponent": {
+      "label": "对手提醒与关注账号",
+      "commands": [
+        "添加账号 用户名",
+        "删除账号 用户名",
+        "关注账号"
+      ],
+      "status": "已接入",
+      "implementation": "原后台保存关注名单并生成对手卡组图片，通过官方队列通知管理员。",
+      "differences": "仅独立授权管理员私聊管理；旧目标不自动迁移；卡组为已收录版本，未必为本局使用。",
+      "qq": "模拟对手提醒的文字、图片已可见；真实新开局触发仍待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "账号管理提示、对手链接/图片/缺失通知均可编辑；图内卡组排版不在此编辑。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "ruling": {
+      "label": "裁定查询",
+      "commands": [
+        "裁定查询 内容"
+      ],
+      "status": "已接入",
+      "implementation": "调用原裁定服务，保留非官方裁定标记。",
+      "differences": "长结果需要“继续”；模型生成的裁定正文作为动态内容，不能预先枚举为固定文案。",
+      "qq": "正常查询及超时分支待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "deck": {
+      "label": "卡组图片与 PDF",
+      "commands": [
+        "卡组图片 分享链接",
+        "卡组 分享链接",
+        "卡组PDF 分享链接"
+      ],
+      "status": "已接入",
+      "implementation": "复用原卡组图片及 PDF 模板，支持分享链接和文本卡组。",
+      "differences": "PDF 每类主卡最多 20 种，超出明确提示；图片缺卡时拒绝不完整输出；附件不等于 QQ 群文件库。",
+      "qq": "PDF 下载并打开已验证；所有卡组图片和异常分支待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "输入校验、生成失败及容量提示；图片/PDF 内的排版与绘制文字不由此编辑。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "archive": {
+      "label": "卡组库与归档文件",
+      "commands": [
+        "卡组查询 用户名",
+        "MyCard文件 归档编号"
+      ],
+      "status": "已接入",
+      "implementation": "复用原后台归档、最新卡组图片和 ZIP 导出。",
+      "differences": "仅管理员；跨进程文件上限 25 MiB 为本地保护限制，附件不进入群文件库。",
+      "qq": "图片桥接已有验证；ZIP 和全部命令待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "查询用法、暂无卡组与大小限制；卡组图片内文字不由此编辑。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "front_decks": {
+      "label": "前排卡组信息",
+      "commands": [
+        "前排卡组信息"
+      ],
+      "status": "部分接入",
+      "implementation": "当前发送原卡组网页链接。",
+      "differences": "原前 100 名合并转发未还原，网页只是替代，不是同等聊天体验。",
+      "qq": "QQ 已看到网页回复。",
+      "remaining": "聊天内完整列表与接近原合并转发的展示。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "links": {
+      "label": "链接与视频解析",
+      "commands": [
+        "分享链接 / BV号",
+        "bm",
+        "ym",
+        "开启解析",
+        "关闭解析"
+      ],
+      "status": "部分接入",
+      "implementation": "隔离进程复用原解析器；保留 B 站直接发视频、不先发预览卡片和下载修复。",
+      "differences": "合并节点展开；旧 Cookie 不迁移。文件受本地体积、时长和超时限制；解析开关只管理管理员当前私聊。",
+      "qq": "3 秒测试视频曾可播放；真实 B 站大视频的下载到播放全链路未通过验收。",
+      "remaining": "YouTube 音频下载组件、旧群解析开关及需登录站点配置。",
+      "coverage": "固定错误、超时、开关提示；第三方插件生成的正文是动态内容，图片/视频内部不能在这里编辑。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "translation": {
+      "label": "翻译",
+      "commands": [
+        "翻译 内容",
+        "中译日 内容",
+        "日译中 内容",
+        "中译中 内容"
+      ],
+      "status": "已接入",
+      "implementation": "复用原翻译客户端，中译中仍先中译日再译回中文。",
+      "differences": "不直接加载只支持 OneBot 的命令注册；长内容需分段。译文是动态结果。",
+      "qq": "完整翻译链路及全部语言待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "operations": {
+      "label": "状态、日志与数据维护",
+      "commands": [
+        "状态",
+        "版本",
+        "日志",
+        "更新数据库",
+        "随机一卡",
+        "cardrush_test",
+        "卡价图报"
+      ],
+      "status": "已接入",
+      "implementation": "通过唯一旧后台执行，状态/版本/日志返回采集后台信息。",
+      "differences": "仅核验管理员私聊；日志脱敏；多页图片按官方回复额度拆分；官方进程不重复采集。",
+      "qq": "状态等部分管理回复已验证；更新、图报和检查等待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "monitor": {
+      "label": "MyCard 采集管理",
+      "commands": [
+        "MyCard采集状态",
+        "MyCard规则检查",
+        "切换通知"
+      ],
+      "status": "已接入",
+      "implementation": "仍由原后台拥有唯一采集和归档任务。",
+      "differences": "切换旧通知总开关不会绕过官方个人开关和平台限制。",
+      "qq": "管理拒绝与只读状态有验证；写操作和实际采集周期未新增客户端测试。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "maintenance": {
+      "label": "重载与重启",
+      "commands": [
+        "重载",
+        "重载插件",
+        "reload",
+        "重启服务器",
+        "确认操作 验证码"
+      ],
+      "status": "部分接入",
+      "implementation": "重载重启当前官方发布版，并使用一次性确认。",
+      "differences": "不再执行聊天 git pull；增加确认步骤，避免覆盖发布目录。整机重启默认未配置。",
+      "qq": "未为验收实际重启服务器；维护指令待用户验证。",
+      "remaining": "整机重启按当前配置保持未启用。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "power": {
+      "label": "NAS 电源控制",
+      "commands": [
+        "开机",
+        "关机"
+      ],
+      "status": "已接入",
+      "implementation": "保留管理员私聊边界与既有 NAS 电源服务。",
+      "differences": "官方 OpenID 必须单独授予管理权；不继承旧数字 QQ 或群管理员身份。",
+      "qq": "权限拒绝已验证；未实际执行 NAS 电源操作。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "mensa": {
+      "label": "MENSA 查询与监控",
+      "commands": [
+        "门萨",
+        "mensa",
+        "切换门萨",
+        "切换mensa"
+      ],
+      "status": "已接入",
+      "implementation": "原后台查询并维护原定时任务。",
+      "differences": "只有核验管理员私聊可用；通知仍受接收开关和投递限制。",
+      "qq": "真实查询、监控触发待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "document": {
+      "label": "文档下载",
+      "commands": [
+        "jm 数字ID"
+      ],
+      "status": "已接入",
+      "implementation": "桥接原受限下载，超时后禁止并发重复下载。",
+      "differences": "仅管理员，跨入口文件保护上限 25 MiB；文件不等于群文件库。",
+      "qq": "未下载真实内容，完整 PDF 生成发送待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "broadcast": {
+      "label": "群广播",
+      "commands": [
+        "广播 内容"
+      ],
+      "status": "部分接入",
+      "implementation": "仅对已核验且开启主动通知的群排队。",
+      "differences": "普通邀请入群不等于允许广播；不向猜测的旧群目标发送。",
+      "qq": "未对真实群执行广播。",
+      "remaining": "真实群目标主动发送权限及客户端验收。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "members": {
+      "label": "群成员查询",
+      "commands": [
+        "成员列表 群序号"
+      ],
+      "status": "部分接入",
+      "implementation": "适配器成员接口已接入并限制分页。",
+      "differences": "返回 OpenID 而非原 QQ 号；当前应用实际调用曾被平台拒绝（11253）。",
+      "qq": "平台接口未通过，不能声称已恢复。",
+      "remaining": "当前应用的接口授权或官方能力变化，需重新核验。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
     },
     "common": {
-      "label": "帮助与查询入口",
-      "coverage": "帮助、ping、卡密、卡组网页入口和查询错误"
+      "label": "帮助与通用查询",
+      "commands": [
+        "帮助",
+        "ping"
+      ],
+      "status": "已接入",
+      "implementation": "保留帮助、查询用法和通用失败提示。",
+      "differences": "纯闲聊不触发指令；群主需在 QQ 设置机器人可获取群内全部消息。",
+      "qq": "群内免 @ 指令、普通回复不 @ 已验证；新群由用户验证。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
     },
     "paging": {
-      "label": "长输出与续读",
-      "coverage": "完整长文本分页、继续提示、过期与平台拒绝提示"
+      "label": "分页与发送反馈",
+      "commands": [
+        "继续"
+      ],
+      "status": "已接入",
+      "implementation": "长文本/媒体按回复额度续发，缓存 10 分钟。",
+      "differences": "需手动回复继续；断线重启会丢失内存中的续页。Markdown 跨页可能拆开语法，QQ 渲染需检查。",
+      "qq": "群卡图分页已验证；长文及所有失败分支待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": []
     },
     "preview": {
-      "label": "格式预览",
-      "coverage": "原格式预览命令和其按钮"
+      "label": "格式与草稿预览",
+      "commands": [
+        "样式预览",
+        "输出预览"
+      ],
+      "status": "已接入",
+      "implementation": "保留既有试点 Markdown、按钮和手动 QQ 草稿预览会话。",
+      "differences": "网页只近似预览；这里修改文字不会改变 QQ 权限。后台不会自动发送测试消息。",
+      "qq": "原试点有客户端验证；新网页保存后的效果由用户在 QQ 验证。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
     },
     "callback": {
-      "label": "回调反馈",
-      "coverage": "过期、重复、ACK 失败提示；权限/动作和安全码不允许编辑"
+      "label": "按钮交互反馈",
+      "commands": [
+        "已有卡片按钮"
+      ],
+      "status": "已接入",
+      "implementation": "保留原试点按钮动作、一次性回调与超时校验。",
+      "differences": "网页可改按钮标签/排列，不可新增动作或扩大权限；群按钮仍未作为已验证能力开放。",
+      "qq": "C2C 原按钮试点已验证；编辑后效果待验收。",
+      "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
     },
-    "unsupported": {
-      "label": "尚未实现",
-      "coverage": "没有多候选选卡列表、独立版本选择按钮、群输出或主动推送；不伪造可编辑功能",
-      "unsupported": true
+    "tags": {
+      "label": "MyCard 标签",
+      "commands": [
+        "添加标签",
+        "删除标签",
+        "查看标签"
+      ],
+      "status": "待接入",
+      "implementation": "当前只返回明确未迁移提示。",
+      "differences": "旧代码仅注册命令、没有处理器，不是已经可用的功能被移除。",
+      "qq": "不宣称恢复。",
+      "remaining": "标签业务实现。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "attachments": {
+      "label": "附件输入",
+      "commands": [
+        "发送附件"
+      ],
+      "status": "待接入",
+      "implementation": "有明确附件事件提示；普通群附件不触发刷屏回复。",
+      "differences": "尚未下载/导入附件；不改旧数据。",
+      "qq": "附件导入未验收。",
+      "remaining": "附件导入工作流及验证。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "ai": {
+      "label": "本地模型聊天",
+      "commands": [
+        "切换AI权限",
+        "切换本地模型权限"
+      ],
+      "status": "待接入",
+      "implementation": "保持原模块未启用状态，仅提示。",
+      "differences": "没有迁移或放宽旧群 AI 权限。",
+      "qq": "不宣称恢复。",
+      "remaining": "原聊天模块与官方群授权。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "price_reset": {
+      "label": "重置卡价数据库",
+      "commands": [
+        "重置卡价数据库"
+      ],
+      "status": "待接入",
+      "implementation": "仅返回明确提示，不执行历史删除。",
+      "differences": "涉及删除共享数据，需要独立备份维护流程，不作为普通聊天命令恢复。",
+      "qq": "没有执行删除。",
+      "remaining": "保持受控维护，不开放聊天直接删除。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "whitelist": {
+      "label": "旧白名单管理",
+      "commands": [
+        "白名单",
+        "添加至白名单",
+        "清空白名单"
+      ],
+      "status": "已停用",
+      "implementation": "按用户要求停用旧白名单命令。",
+      "differences": "邀请成功的群直接可用；权限由官方邀请规则及独立管理员配置管理。",
+      "qq": "当前已配置群已接通；新邀请群由用户验收。",
+      "remaining": "不计划恢复旧白名单命令。",
+      "coverage": "可修改该功能的固定回复、错误提示与完整回复格式；实时查询数据通过变量填入。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": [
+        {
+          "label": "管理员权限和后台通信提示",
+          "feature": "operations"
+        },
+        {
+          "label": "查询失败、分页和媒体发送提示",
+          "feature": "paging",
+          "key": "paging.request_failed"
+        }
+      ]
+    },
+    "tournament": {
+      "label": "比赛功能",
+      "commands": [
+        "比赛查询",
+        "报名 / 签到 / 退赛",
+        "对阵信息",
+        "比赛卡组提交",
+        "环境统计"
+      ],
+      "status": "暂缓",
+      "implementation": "按用户要求不操作比赛业务，只保留原数据与入口供参考。",
+      "differences": "未迁移，不执行报名、签到或写入比赛数据。",
+      "qq": "没有做比赛迁移或真实验证。",
+      "remaining": "整个比赛业务暂缓。",
+      "coverage": "仅可编辑官方入口的暂缓提示，修改提示不会使比赛功能可用。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": []
+    },
+    "background": {
+      "label": "后台抓取与其他服务",
+      "commands": [
+        "定时抓取",
+        "图片缓存恢复",
+        "usage_stats",
+        "原 Web/API"
+      ],
+      "status": "部分接入",
+      "implementation": "旧后台继续负责已有任务；官方入口不重复启动。",
+      "differences": "官方新消息尚未纳入原 OneBot usage_stats。网站/缓存/数据库不是聊天文案。",
+      "qq": "原后台仍运行；未把全部定时周期重新验收。",
+      "remaining": "官方 usage_stats 适配；其他后台服务按原部署运行。",
+      "coverage": "此入口仅显示迁移状态，没有可编辑聊天文案。",
+      "tests": "已纳入模板校验与相关业务回归；自动测试不替代 QQ 客户端验收。",
+      "updated": "2026-11-16",
+      "related": []
     }
   },
   "states": {
@@ -800,7 +1719,7 @@
       "fragment": false
     },
     "common.passcode": {
-      "feature": "common",
+      "feature": "passcode",
       "label": "卡密结果",
       "template": "{code}",
       "mode": "text",
@@ -816,7 +1735,7 @@
       "fragment": false
     },
     "common.passcode_missing": {
-      "feature": "common",
+      "feature": "passcode",
       "label": "没有卡密",
       "template": "该卡暂无卡密。",
       "mode": "text",
@@ -828,7 +1747,7 @@
       "fragment": false
     },
     "common.effect_plain": {
-      "feature": "common",
+      "feature": "effect",
       "label": "兼容纯文本效果",
       "template": "{body}",
       "mode": "text",
@@ -842,6 +1761,2564 @@
       "buttons": {},
       "blocks": [],
       "fragment": false
+    },
+    "binding.business_76230727": {
+      "feature": "binding",
+      "label": "请提供 MyCard 用户名，例如：{command} 用户名。",
+      "template": "请提供 MyCard 用户名，例如：{command} 用户名。",
+      "fields": {
+        "command": "当前命令"
+      },
+      "samples": {
+        "command": "示例值"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "binding.business_9123be18": {
+      "feature": "binding",
+      "label": "你还未绑定 MyCard 用户名。",
+      "template": "你还未绑定 MyCard 用户名。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "binding.business_8dfa0c30": {
+      "feature": "binding",
+      "label": "请发送「绑定 用户名」完成绑定后再查询。",
+      "template": "\n请发送「绑定 用户名」完成绑定后再查询。\n旧机器人绑定不会自动沿用，请重新绑定。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "subscriptions.business_e6359e07": {
+      "feature": "subscriptions",
+      "label": "已启用，受平台投递限制",
+      "template": "已启用，受平台投递限制",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "subscriptions.business_1e88c9da": {
+      "feature": "subscriptions",
+      "label": "暂停，等待开启通知或平台验证",
+      "template": "暂停，等待开启通知或平台验证",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "business.business_c6e045fb": {
+      "feature": "subscriptions",
+      "label": "已保存订阅，但通知暂停，需完成主动发送验证后启用。",
+      "template": "已保存订阅，但通知暂停，需完成主动发送验证后启用。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "business.business_6b580d7a": {
+      "feature": "subscriptions",
+      "label": "已取消当前官方身份的这项订阅；旧 QQ 订阅保持不变。",
+      "template": "已取消当前官方身份的这项订阅；旧 QQ 订阅保持不变。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "calculation.business_2a9842bc": {
+      "feature": "calculation",
+      "label": "计算结果（图片生成器尚未配置）：",
+      "template": "计算结果（图片生成器尚未配置）：\n",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "score.business_53cba006": {
+      "feature": "score",
+      "label": "{argument}{value2}完成今日首赢！",
+      "template": "{argument}{value2}完成今日首赢！",
+      "fields": {
+        "argument": "用户输入的内容",
+        "value2": "程序填入的数据 2"
+      },
+      "samples": {
+        "argument": "示例值",
+        "value2": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "ruling.business_ed09c431": {
+      "feature": "ruling",
+      "label": "[非官方裁定，仅供参考]",
+      "template": "\n[非官方裁定，仅供参考]",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "attachments.business_38bd1f82": {
+      "feature": "attachments",
+      "label": "已收到附件事件。当前可用文字或分享链接查询；附件导入尚未启用，未自动下载或写入旧数据。",
+      "template": "已收到附件事件。当前可用文字或分享链接查询；附件导入尚未启用，未自动下载或写入旧数据。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "business.business_9d5e49e4": {
+      "feature": "binding",
+      "label": "官方入口独立状态库尚未配置，未修改旧记录。",
+      "template": "官方入口独立状态库尚未配置，未修改旧记录。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "binding.business_758d5462": {
+      "feature": "binding",
+      "label": "绑定成功",
+      "template": "绑定成功",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "business.business_8390b6d1": {
+      "feature": "subscriptions",
+      "label": "群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。",
+      "template": "群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "business.business_fd456534": {
+      "feature": "subscriptions",
+      "label": "请提供 MyCard 用户名！",
+      "template": "请提供 MyCard 用户名！",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "subscriptions.business_2a804369": {
+      "feature": "subscriptions",
+      "label": "订阅成功！官方通知受平台权限及频控限制。",
+      "template": "订阅成功！官方通知受平台权限及频控限制。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "daily_card.business_489fa409": {
+      "feature": "daily_card",
+      "label": "每日一卡尚未配置卡片资料库或图片服务。",
+      "template": "每日一卡尚未配置卡片资料库或图片服务。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "daily_card.business_68880f3d": {
+      "feature": "daily_card",
+      "label": "未找到每日卡片！",
+      "template": "未找到每日卡片！",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "calculation.business_1d688354": {
+      "feature": "calculation",
+      "label": "用法：共界计算 卡名",
+      "template": "用法：共界计算 卡名",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "calculation.business_4fde7d2f": {
+      "feature": "calculation",
+      "label": "尚未配置卡片资料库。",
+      "template": "尚未配置卡片资料库。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "calculation.business_7502167d": {
+      "feature": "calculation",
+      "label": "未找到对应卡片！",
+      "template": "未找到对应卡片！",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "calculation.business_03a7ca05": {
+      "feature": "calculation",
+      "label": "没有满足条件的卡片！",
+      "template": "没有满足条件的卡片！",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "score.business_f71c3bbc": {
+      "feature": "score",
+      "label": "玩家：{argument}",
+      "template": "玩家：{argument}\n当前分数：{value2}\n当前排名：{value3}",
+      "fields": {
+        "argument": "MyCard 用户名",
+        "value2": "当前分数",
+        "value3": "当前排名"
+      },
+      "samples": {
+        "argument": "示例值",
+        "value2": "示例值",
+        "value3": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "score.business_b98c4ab7": {
+      "feature": "score",
+      "label": "查询失败，请稍后重试",
+      "template": "查询失败，请稍后重试",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "winrate.business_1175a83f": {
+      "feature": "history",
+      "label": "不能查询未来月份。",
+      "template": "不能查询未来月份。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "ruling.business_b834c123": {
+      "feature": "ruling",
+      "label": "请在“裁定查询”后输入需要裁定的内容。",
+      "template": "请在“裁定查询”后输入需要裁定的内容。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "ruling.business_a3c7e067": {
+      "feature": "ruling",
+      "label": "裁定服务尚未为官方入口配置。",
+      "template": "裁定服务尚未为官方入口配置。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "deck.business_bdca74be": {
+      "feature": "deck",
+      "label": "官方入口的卡组媒体服务尚未配置，请使用 https://ygo.xyk.one/deck",
+      "template": "官方入口的卡组媒体服务尚未配置，请使用 https://ygo.xyk.one/deck",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.business_ba9cbce5": {
+      "feature": "links",
+      "label": "当前环境未启用 YouTube 音频下载组件；未将音频命令改成视频发送。",
+      "template": "当前环境未启用 YouTube 音频下载组件；未将音频命令改成视频发送。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "translation.business_f10cf063": {
+      "feature": "translation",
+      "label": "翻译失败，请稍后再试。",
+      "template": "翻译失败，请稍后再试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "binding.business_60feb2f4": {
+      "feature": "binding",
+      "label": "请发送：绑定 MyCard用户名",
+      "template": "请发送：绑定 MyCard用户名",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "binding.business_fde84002": {
+      "feature": "binding",
+      "label": "官方入口只查询自己的绑定，不能从 MyCard 用户名反查旧 QQ 号。",
+      "template": "官方入口只查询自己的绑定，不能从 MyCard 用户名反查旧 QQ 号。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "binding.business_4c0fc3fa": {
+      "feature": "binding",
+      "label": "你绑定的 MyCard 用户名为：{player}",
+      "template": "你绑定的 MyCard 用户名为：{player}",
+      "fields": {
+        "player": "MyCard 用户名"
+      },
+      "samples": {
+        "player": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.business_d2ee8c4a": {
+      "feature": "links",
+      "label": "当前官方会话的链接解析已关闭。",
+      "template": "当前官方会话的链接解析已关闭。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "calculation.business_be309d04": {
+      "feature": "calculation",
+      "label": "部分卡图暂时无法获取，请稍后重试；未发送缺卡的计算结果。",
+      "template": "部分卡图暂时无法获取，请稍后重试；未发送缺卡的计算结果。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "binding.business_body_96c257d5": {
+      "feature": "binding",
+      "label": "未绑定时的完整提示",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "calculation.business_body_82946755": {
+      "feature": "calculation",
+      "label": "缺少图片服务时的计算结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "ruling.business_body_4783ee60": {
+      "feature": "ruling",
+      "label": "裁定结果与说明",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "translation.business_body_1fa58867": {
+      "feature": "translation",
+      "label": "翻译结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "subscriptions.business_body_098ef8d9": {
+      "feature": "subscriptions",
+      "label": "订阅状态完整回复",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/business.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "operations.admin_69f09f3b": {
+      "feature": "operations",
+      "label": "已发送开机请求。",
+      "template": "已发送开机请求。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_b1fd8b02": {
+      "feature": "operations",
+      "label": "已发送关机请求。",
+      "template": "已发送关机请求。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_768af6cc": {
+      "feature": "operations",
+      "label": "权限不足：管理命令仅限单独核验的官方管理员私聊使用。",
+      "template": "权限不足：管理命令仅限单独核验的官方管理员私聊使用。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_a7371c0b": {
+      "feature": "operations",
+      "label": "后台尚未确认完成，请查询状态；不要重复提交写入命令。",
+      "template": "后台尚未确认完成，请查询状态；不要重复提交写入命令。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_fc9b04d5": {
+      "feature": "operations",
+      "label": "此命令不接受参数。",
+      "template": "此命令不接受参数。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_759478ab": {
+      "feature": "operations",
+      "label": "NAS 电源控制尚未配置。",
+      "template": "NAS 电源控制尚未配置。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_9a9d0430": {
+      "feature": "operations",
+      "label": "管理后台当前离线，未执行操作。",
+      "template": "管理后台当前离线，未执行操作。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_6049a7a1": {
+      "feature": "operations",
+      "label": "NAS 未接受请求（HTTP {value1}）。",
+      "template": "NAS 未接受请求（HTTP {value1}）。",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_de29891b": {
+      "feature": "operations",
+      "label": "无法连接 NAS 电源服务；未自动重试。",
+      "template": "无法连接 NAS 电源服务；未自动重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_9e69e81d": {
+      "feature": "operations",
+      "label": "NAS 电源服务返回异常；未自动重试。",
+      "template": "NAS 电源服务返回异常；未自动重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.admin_992515ed": {
+      "feature": "operations",
+      "label": "后台操作未完成（",
+      "template": "后台操作未完成（",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "operations.admin_b16086d4": {
+      "feature": "operations",
+      "label": "），未自动重试。",
+      "template": "），未自动重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "operations.admin_body_1a447932": {
+      "feature": "operations",
+      "label": "后台操作未完成",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/admin.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "management.management_e1b0483c": {
+      "feature": "operations",
+      "label": "重新启动当前官方发布版",
+      "template": "重新启动当前官方发布版",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "management.management_7bb85b29": {
+      "feature": "operations",
+      "label": "重启整台服务器，会中断全部服务",
+      "template": "重启整台服务器，会中断全部服务",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "management.management_b3519626": {
+      "feature": "operations",
+      "label": "{detail}。60秒内回复“确认操作 {code}”执行。不会拉取或覆盖代码。",
+      "template": "{detail}。60秒内回复“确认操作 {code}”执行。不会拉取或覆盖代码。",
+      "fields": {
+        "detail": "操作或错误说明",
+        "code": "一次性确认码"
+      },
+      "samples": {
+        "detail": "示例值",
+        "code": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "management.management_d3590a67": {
+      "feature": "operations",
+      "label": "权限不足：此操作仅允许已单独核验的官方管理员私聊执行。",
+      "template": "权限不足：此操作仅允许已单独核验的官方管理员私聊执行。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.management_23c1c8c8": {
+      "feature": "links",
+      "label": "当前官方私聊的链接解析已{value1}。旧群设置未改变。",
+      "template": "当前官方私聊的链接解析已{value1}。旧群设置未改变。",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "whitelist.management_50fb5ef8": {
+      "feature": "whitelist",
+      "label": "旧白名单管理命令已停用，不再迁移。群接入由官方机器人配置管理；此命令不修改群接入、管理员权限或旧记录。",
+      "template": "旧白名单管理命令已停用，不再迁移。群接入由官方机器人配置管理；此命令不修改群接入、管理员权限或旧记录。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "ai.management_88f6db5b": {
+      "feature": "ai",
+      "label": "原本地模型聊天模块当前未启用。尚未迁移官方群身份授权，未改变原权限开关。",
+      "template": "原本地模型聊天模块当前未启用。尚未迁移官方群身份授权，未改变原权限开关。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_reset.management_56b8abba": {
+      "feature": "price_reset",
+      "label": "重置会删除共享卡价历史；官方入口保留此提示，不执行删除。请通过受控维护流程备份后操作。",
+      "template": "重置会删除共享卡价历史；官方入口保留此提示，不执行删除。请通过受控维护流程备份后操作。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "broadcast.management_bf9d7553": {
+      "feature": "broadcast",
+      "label": "已为{value1}个已核验群排队；这不代表客户端已收到。",
+      "template": "已为{value1}个已核验群排队；这不代表客户端已收到。",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "maintenance.management_80bad791": {
+      "feature": "maintenance",
+      "label": "已确认，3秒后执行。官方会话将短暂断开。",
+      "template": "已确认，3秒后执行。官方会话将短暂断开。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "management.management_d87a1132": {
+      "feature": "operations",
+      "label": "该维护命令不接受参数。",
+      "template": "该维护命令不接受参数。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "management.management_5e6b5000": {
+      "feature": "operations",
+      "label": "该维护操作尚未配置；没有执行重启。",
+      "template": "该维护操作尚未配置；没有执行重启。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.management_cb370695": {
+      "feature": "links",
+      "label": "该命令只管理当前官方会话，请不要填写旧 QQ 群号。",
+      "template": "该命令只管理当前官方会话，请不要填写旧 QQ 群号。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "broadcast.management_ae2f939d": {
+      "feature": "broadcast",
+      "label": "用法：广播 内容",
+      "template": "用法：广播 内容",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "broadcast.management_d095c789": {
+      "feature": "broadcast",
+      "label": "当前没有完成群身份核验并开启主动通知的群；未广播。",
+      "template": "当前没有完成群身份核验并开启主动通知的群；未广播。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "members.management_6a5e8eec": {
+      "feature": "members",
+      "label": "当前没有已核验的官方群，尚不能查询成员。",
+      "template": "当前没有已核验的官方群，尚不能查询成员。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "members.management_6a13324f": {
+      "feature": "members",
+      "label": "用法：成员列表 群序号（1—{value1}）。返回官方群成员 OpenID，不返回原数字 QQ 号。",
+      "template": "用法：成员列表 群序号（1—{value1}）。返回官方群成员 OpenID，不返回原数字 QQ 号。",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "members.management_eb435656": {
+      "feature": "members",
+      "label": "当前适配器或连接不支持群成员查询。",
+      "template": "当前适配器或连接不支持群成员查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "maintenance.management_1c3ad00e": {
+      "feature": "maintenance",
+      "label": "确认码无效或已过期，未执行操作。",
+      "template": "确认码无效或已过期，未执行操作。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "maintenance.management_dec6ad65": {
+      "feature": "maintenance",
+      "label": "维护操作尚未配置。",
+      "template": "维护操作尚未配置。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "members.management_body_b0942c38": {
+      "feature": "members",
+      "label": "成员列表完整回复",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "broadcast.management_body_0f380231": {
+      "feature": "broadcast",
+      "label": "实际发送的广播内容",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/management.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "notifications.notifications_c712e9a8": {
+      "feature": "notifications",
+      "label": "已保存接收意愿，但主动投递总开关仍暂停，需先完成平台验证。",
+      "template": "已保存接收意愿，但主动投递总开关仍暂停，需先完成平台验证。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "notifications.notifications_a5f2b484": {
+      "feature": "notifications",
+      "label": "已关闭本会话通知，未删除旧订阅。",
+      "template": "已关闭本会话通知，未删除旧订阅。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "notifications.notifications_dccaa328": {
+      "feature": "notifications",
+      "label": "请在机器人私聊中发送该命令，不带参数。群主动推送需要单独核验。",
+      "template": "请在机器人私聊中发送该命令，不带参数。群主动推送需要单独核验。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "notifications.notifications_8aa32ad1": {
+      "feature": "notifications",
+      "label": "主动投递总开关：{value1}",
+      "template": "主动投递总开关：{value1}\n采集后台：{value2}\n本会话通知：{value3}\n队列状态：{counts}\napi_accepted 只表示接口接受，不代表客户端已验收。",
+      "fields": {
+        "value1": "程序填入的数据 1",
+        "value2": "程序填入的数据 2",
+        "value3": "程序填入的数据 3",
+        "counts": "程序填入的数据 4"
+      },
+      "samples": {
+        "value1": "示例值",
+        "value2": "示例值",
+        "value3": "示例值",
+        "counts": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "notifications.notifications_3e362d30": {
+      "feature": "notifications",
+      "label": "测试已排队，请稍后查看通知状态。",
+      "template": "测试已排队，请稍后查看通知状态。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "notifications.notifications_41c5bd83": {
+      "feature": "notifications",
+      "label": "已开启本会话通知；原私聊订阅通过已核验身份关联读取，群订阅不迁移。投递仍受官方权限及频控限制。",
+      "template": "已开启本会话通知；原私聊订阅通过已核验身份关联读取，群订阅不迁移。投递仍受官方权限及频控限制。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "notifications.notifications_72f0156e": {
+      "feature": "notifications",
+      "label": "主动通知测试结果：",
+      "template": "主动通知测试结果：",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "notifications.notifications_f88d4bc1": {
+      "feature": "notifications",
+      "label": "仍需以客户端看到测试消息为准。",
+      "template": "\n仍需以客户端看到测试消息为准。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "notifications.notifications_badbb88c": {
+      "feature": "notifications",
+      "label": "官方主动通知测试：此条未引用你的消息 ID。请确认客户端实际可见。",
+      "template": "官方主动通知测试：此条未引用你的消息 ID。请确认客户端实际可见。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "notifications.notifications_6a23ccee": {
+      "feature": "notifications",
+      "label": "投递失败：",
+      "template": "投递失败：",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "notifications.notifications_66cd9456": {
+      "feature": "notifications",
+      "label": "；未自动重试。",
+      "template": "；未自动重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "notifications.notifications_body_83c09af2": {
+      "feature": "notifications",
+      "label": "主动通知测试结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "notifications.notifications_body_e4127616": {
+      "feature": "notifications",
+      "label": "主动投递失败说明",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/qq_official/notifications.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "tags.availability_851cbe6a": {
+      "feature": "tags",
+      "label": "旧 QQ 身份尚未与官方 OpenID 核验关联，此功能暂未迁移；没有读取或覆盖你的旧绑定、标签。查询 MyCard 时可直接输入用户名。",
+      "template": "旧 QQ 身份尚未与官方 OpenID 核验关联，此功能暂未迁移；没有读取或覆盖你的旧绑定、标签。查询 MyCard 时可直接输入用户名。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/availability.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "subscriptions.availability_b101c73e": {
+      "feature": "subscriptions",
+      "label": "官方入口尚未启用通知投递。旧订阅没有导入，未核验关联的旧目标不会发送；本次未新增或取消任何订阅。",
+      "template": "官方入口尚未启用通知投递。旧订阅没有导入，未核验关联的旧目标不会发送；本次未新增或取消任何订阅。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/availability.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.availability_7c8ef09b": {
+      "feature": "operations",
+      "label": "此管理功能尚未在官方入口授权或启用。旧 QQ 管理员权限不会自动继承。",
+      "template": "此管理功能尚未在官方入口授权或启用。旧 QQ 管理员权限不会自动继承。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/availability.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "tournament.availability_5d4f9f57": {
+      "feature": "tournament",
+      "label": "比赛相关功能按管理员要求暂缓迁移；未执行报名、签到、退赛或写入比赛数据。",
+      "template": "比赛相关功能按管理员要求暂缓迁移；未执行报名、签到、退赛或写入比赛数据。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/availability.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.availability_4049e29c": {
+      "feature": "price_history",
+      "label": "该卡价历史/日报功能尚未完成官方入口迁移；卡价、卡价查询和日版卡价查询可继续使用。",
+      "template": "该卡价历史/日报功能尚未完成官方入口迁移；卡价、卡价查询和日版卡价查询可继续使用。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/availability.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "front_decks.availability_1ddd1afd": {
+      "feature": "front_decks",
+      "label": "前排卡组网页版：https://ygo.xyk.one/mc",
+      "template": "前排卡组网页版：https://ygo.xyk.one/mc\n官方入口尚未提供原合并转发外观。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/availability.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "unavailable.availability_8434d50c": {
+      "feature": "links",
+      "label": "该翻译或链接/视频解析功能尚未完成官方入口迁移；未下载、上传或发送预览卡片。",
+      "template": "该翻译或链接/视频解析功能尚未完成官方入口迁移；未下载、上传或发送预览卡片。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/availability.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "paging.plugin_e278b7fd": {
+      "feature": "paging",
+      "label": "上一条查询仍在处理中，请稍后再试。",
+      "template": "上一条查询仍在处理中，请稍后再试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/plugin.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "paging.results_23325cb3": {
+      "feature": "paging",
+      "label": "内容未完，请回复“继续”接收后续。",
+      "template": "内容未完，请回复“继续”接收后续。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/results.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "preview.editor_preview_bff7dcc4": {
+      "feature": "preview",
+      "label": "输出预览会话已打开。请在本机编辑器保存草稿后点击“发到 QQ 预览”。本次最多再发 3 条，60 分钟内有效；不会发布草稿。",
+      "template": "输出预览会话已打开。请在文案编辑器保存草稿后点击“发到 QQ 预览”。本次最多再发 3 条，60 分钟内有效；不会发布草稿。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/qq_official/editor_preview.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "history.mycard_reports_e55ebb30": {
+      "feature": "history",
+      "label": "统计概况段落（玩家、场次、胜率）",
+      "template": "玩家：{user_id}\n{value2}{month}月场次：{value4}\n{value5}{month_6}月胜率：{value7}%",
+      "fields": {
+        "user_id": "MyCard 用户名",
+        "value2": "非本年时的年份前缀",
+        "month": "查询月份",
+        "value4": "有效对局场次",
+        "value5": "非本年时的年份前缀",
+        "month_6": "查询月份",
+        "value7": "月胜率（两位小数）"
+      },
+      "samples": {
+        "user_id": "示例玩家",
+        "value2": "",
+        "month": "11",
+        "value4": "42",
+        "value5": "",
+        "month_6": "11",
+        "value7": "57.14"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "winrate.mycard_reports_93c4a902": {
+      "feature": "winrate",
+      "label": "玩家：{user_id}",
+      "template": "玩家：{user_id}\n总场次：{total_games}\n总胜率：{overall_rate}%\n有对局的月份：{value4}个",
+      "fields": {
+        "user_id": "MyCard 用户名",
+        "total_games": "总场次",
+        "overall_rate": "总胜率（保留小数）",
+        "value4": "程序填入的数据 4"
+      },
+      "samples": {
+        "user_id": "示例值",
+        "total_games": "示例值",
+        "overall_rate": "示例值",
+        "value4": "示例值"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "history.mycard_reports_b98c4ab7": {
+      "feature": "history",
+      "label": "查询失败，请稍后重试",
+      "template": "查询失败，请稍后重试",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "history.mycard_reports_da380fbd": {
+      "feature": "history",
+      "label": "当前分数：{value1}",
+      "template": "\n当前分数：{value1}",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "winrate.mycard_reports_b98c4ab7": {
+      "feature": "winrate",
+      "label": "查询失败，请稍后重试",
+      "template": "查询失败，请稍后重试",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "winrate.mycard_reports_1687ad0c": {
+      "feature": "winrate",
+      "label": "玩家 {user_id} 暂无对战记录",
+      "template": "玩家 {user_id} 暂无对战记录",
+      "fields": {
+        "user_id": "MyCard 用户名"
+      },
+      "samples": {
+        "user_id": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "history.mycard_reports_d22d7508": {
+      "feature": "history",
+      "label": "结算分数：{value1}",
+      "template": "\n结算分数：{value1}",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "history.mycard_reports_e0970980": {
+      "feature": "history",
+      "label": "结算排名：{rank}",
+      "template": "\n结算排名：{rank}",
+      "fields": {
+        "rank": "排名"
+      },
+      "samples": {
+        "rank": "示例值"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "history.mycard_reports_77fb0a39": {
+      "feature": "history",
+      "label": "当前排名：{rank}",
+      "template": "\n当前排名：{rank}",
+      "fields": {
+        "rank": "排名"
+      },
+      "samples": {
+        "rank": "示例值"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "history.mycard_reports_9e89da13": {
+      "feature": "history",
+      "label": "月初分数暂时无法获取，请稍后重试",
+      "template": "月初分数暂时无法获取，请稍后重试",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "history.mycard_reports_body_2fe0148e": {
+      "feature": "history",
+      "label": "完整回复 · 历史统计与分数排名",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "winrate.mycard_reports_body_2fe0148e": {
+      "feature": "winrate",
+      "label": "完整回复 · 胜率统计",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_reports.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "price_history.price_reports_8de07ef2": {
+      "feature": "price_history",
+      "label": "{value1}  {box}-{value3}",
+      "template": "{value1}  {box}-{value3}\n当前买取价：{value4}円（共 {value5} 条记录）",
+      "fields": {
+        "value1": "程序填入的数据 1",
+        "box": "程序填入的数据 2",
+        "value3": "程序填入的数据 3",
+        "value4": "程序填入的数据 4",
+        "value5": "程序填入的数据 5"
+      },
+      "samples": {
+        "value1": "示例值",
+        "box": "示例值",
+        "value3": "示例值",
+        "value4": "示例值",
+        "value5": "示例值"
+      },
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "price_history.price_reports_47b24a67": {
+      "feature": "price_history",
+      "label": "找到 {value1} 条结果，请回复编号：",
+      "template": "找到 {value1} 条结果，请回复编号：\n{lines}",
+      "fields": {
+        "value1": "程序填入的数据 1",
+        "lines": "程序填入的数据 2"
+      },
+      "samples": {
+        "value1": "示例值",
+        "lines": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_f3bd1277": {
+      "feature": "price_history",
+      "label": "已取消卡价曲线查询。",
+      "template": "已取消卡价曲线查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_4ce37f7d": {
+      "feature": "price_history",
+      "label": "暂无该卡片的历史价格记录。",
+      "template": "暂无该卡片的历史价格记录。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_3c320fec": {
+      "feature": "price_history",
+      "label": "绘制图表失败。",
+      "template": "绘制图表失败。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_9c855e85": {
+      "feature": "price_history",
+      "label": "请输入卡片名称！例如：卡价曲线 青眼白龙",
+      "template": "请输入卡片名称！例如：卡价曲线 青眼白龙",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_4c833bfa": {
+      "feature": "price_history",
+      "label": "暂无 {name} 的价格历史记录。",
+      "template": "暂无 {name} 的价格历史记录。",
+      "fields": {
+        "name": "卡名"
+      },
+      "samples": {
+        "name": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_96e6379b": {
+      "feature": "price_history",
+      "label": "找到超过10条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。",
+      "template": "找到超过10条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_13b68db8": {
+      "feature": "price_history",
+      "label": "请输入 1-{value1} 之间的编号：",
+      "template": "请输入 1-{value1} 之间的编号：",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "price_history.price_reports_body_372ea08c": {
+      "feature": "price_history",
+      "label": "完整回复 · 卡价曲线说明",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "price_daily.price_reports_body_d0bac120": {
+      "feature": "price_daily",
+      "label": "日报日期错误",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/price_reports.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "deck.deck_renderer_450514f2": {
+      "feature": "deck",
+      "label": "卡组内容过长。",
+      "template": "卡组内容过长。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/deck_renderer.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "deck.deck_renderer_ba674ff5": {
+      "feature": "deck",
+      "label": "卡组数量无效：主卡组最多60张，额外和副卡组各最多15张。",
+      "template": "卡组数量无效：主卡组最多60张，额外和副卡组各最多15张。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/deck_renderer.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "deck.deck_renderer_34515d37": {
+      "feature": "deck",
+      "label": "用法：卡组图片 卡组分享链接 [玩家ID 比赛名 卡组名 成绩]；卡组PDF 卡组分享链接",
+      "template": "用法：卡组图片 卡组分享链接 [玩家ID 比赛名 卡组名 成绩]；卡组PDF 卡组分享链接",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/deck_renderer.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "deck.deck_renderer_a5c6282f": {
+      "feature": "deck",
+      "label": "卡组包含资料库中不存在的卡密。",
+      "template": "卡组包含资料库中不存在的卡密。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/deck_renderer.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "deck.deck_renderer_2cb5b7cd": {
+      "feature": "deck",
+      "label": "有{missing}种卡片的图片暂时无法获取，请稍后重试；未发送缺卡的卡组图片。",
+      "template": "有{missing}种卡片的图片暂时无法获取，请稍后重试；未发送缺卡的卡组图片。",
+      "fields": {
+        "missing": "缺失的卡片种数"
+      },
+      "samples": {
+        "missing": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/deck_renderer.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "deck.deck_renderer_448fcc0a": {
+      "feature": "deck",
+      "label": "卡组链接无效。",
+      "template": "卡组链接无效。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/deck_renderer.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "deck.deck_renderer_d15843c0": {
+      "feature": "deck",
+      "label": "当前PDF模板每类最多20种主卡。此卡组超出模板容量，请使用卡组图片；未生成会漏卡或重叠的PDF。",
+      "template": "当前PDF模板每类最多20种主卡。此卡组超出模板容量，请使用卡组图片；未生成会漏卡或重叠的PDF。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/deck_renderer.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.link_parser_89428994": {
+      "feature": "links",
+      "label": "链接消息过长。",
+      "template": "链接消息过长。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/link_parser.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.link_parser_ecde216f": {
+      "feature": "links",
+      "label": "正在解析其他媒体，请稍后再试。",
+      "template": "正在解析其他媒体，请稍后再试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/link_parser.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.link_parser_abcdf26a": {
+      "feature": "links",
+      "label": "链接解析或下载失败；未自动重试。需要登录的平台须另行配置，旧 Cookie 未迁移。",
+      "template": "链接解析或下载失败；未自动重试。需要登录的平台须另行配置，旧 Cookie 未迁移。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/link_parser.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "links.link_parser_1479679f": {
+      "feature": "links",
+      "label": "链接解析超时；未自动重试，请稍后再试或直接打开原链接。",
+      "template": "链接解析超时；未自动重试，请稍后再试或直接打开原链接。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/link_parser.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "translation.translation_457fa801": {
+      "feature": "translation",
+      "label": "翻译/x译x [内容]；语言支持：中、繁、英、日、韩、法、俄、德",
+      "template": "翻译/x译x [内容]；语言支持：中、繁、英、日、韩、法、俄、德",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/translation.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "translation.translation_fa654225": {
+      "feature": "translation",
+      "label": "翻译内容过长，请分段发送。",
+      "template": "翻译内容过长，请分段发送。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/translation.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_84463ef9": {
+      "feature": "operations",
+      "label": "此操作暂不可用。",
+      "template": "此操作暂不可用。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_142870b9": {
+      "feature": "operations",
+      "label": "不支持的后台操作。",
+      "template": "不支持的后台操作。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_ba82ffb6": {
+      "feature": "operations",
+      "label": "参数无效。",
+      "template": "参数无效。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_5d81d1f3": {
+      "feature": "operations",
+      "label": "服务器状态：",
+      "template": "服务器状态：\n启动时间：{started}\n运行时长：{uptime}\nMyCard监控：{value3}",
+      "fields": {
+        "started": "程序填入的数据 1",
+        "uptime": "程序填入的数据 2",
+        "value3": "程序填入的数据 3"
+      },
+      "samples": {
+        "started": "示例值",
+        "uptime": "示例值",
+        "value3": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_cc3a7716": {
+      "feature": "operations",
+      "label": "采集后台版本：",
+      "template": "采集后台版本：\n",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "operations.official_control_72e408c2": {
+      "feature": "operations",
+      "label": "后台版本查询失败。",
+      "template": "后台版本查询失败。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "opponent.official_control_066f0abe": {
+      "feature": "opponent",
+      "label": "关注账号：",
+      "template": "关注账号：\n",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "monitor.official_control_77a64c61": {
+      "feature": "monitor",
+      "label": "已{value1}MyCard对局通知。官方投递还受个人通知开关和平台权限限制。",
+      "template": "已{value1}MyCard对局通知。官方投递还受个人通知开关和平台权限限制。",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "mensa.official_control_cff1f1ea": {
+      "feature": "mensa",
+      "label": "MENSA东京考场检查结果",
+      "template": "MENSA东京考场检查结果\n",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "operations.official_control_9544288c": {
+      "feature": "operations",
+      "label": "卡片资料库更新完成。",
+      "template": "卡片资料库更新完成。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_5a6c2ca8": {
+      "feature": "operations",
+      "label": "MyCard 归档未启用。",
+      "template": "MyCard 归档未启用。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "monitor.official_control_7dcab0eb": {
+      "feature": "monitor",
+      "label": "规则有效，共 {value1} 条。规则在每场结束时重新读取。",
+      "template": "规则有效，共 {value1} 条。规则在每场结束时重新读取。",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_164cf219": {
+      "feature": "operations",
+      "label": "归档超过25 MiB，本次不上传；原文件仍保留。",
+      "template": "归档超过25 MiB，本次不上传；原文件仍保留。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "archive.official_control_eeca9ed5": {
+      "feature": "archive",
+      "label": "用法：卡组查询 MyCard用户名",
+      "template": "用法：卡组查询 MyCard用户名",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "archive.official_control_f4b6ec05": {
+      "feature": "archive",
+      "label": "：暂无卡组",
+      "template": "：暂无卡组",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "组合回复中的文字段落；随完整回复一起发送。"
+    },
+    "mensa.official_control_4c311c99": {
+      "feature": "mensa",
+      "label": "MENSA监控已{value1}。",
+      "template": "MENSA监控已{value1}。",
+      "fields": {
+        "value1": "程序填入的数据 1"
+      },
+      "samples": {
+        "value1": "示例值"
+      },
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_34cd9ffb": {
+      "feature": "operations",
+      "label": "当天暂无卡价变动。",
+      "template": "当天暂无卡价变动。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_dcd4b8d4": {
+      "feature": "operations",
+      "label": "卡图暂时不可用。",
+      "template": "卡图暂时不可用。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "document.official_control_386122ad": {
+      "feature": "document",
+      "label": "请提供有效数字 ID。",
+      "template": "请提供有效数字 ID。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "document.official_control_617ffdd2": {
+      "feature": "document",
+      "label": "上一项下载仍在运行，本次未重复启动；稍后查询。",
+      "template": "上一项下载仍在运行，本次未重复启动；稍后查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "document.official_control_f5899163": {
+      "feature": "document",
+      "label": "未生成可发送的 PDF。",
+      "template": "未生成可发送的 PDF。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "document.official_control_c5b444c6": {
+      "feature": "document",
+      "label": "PDF 已生成，但超过当前跨入口传输上限25 MiB；原文件保留，未上传。",
+      "template": "PDF 已生成，但超过当前跨入口传输上限25 MiB；原文件保留，未上传。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "source": "hikari_bot/services/official_control.py",
+      "note": "命中此场景时返回的回复。"
+    },
+    "operations.official_control_body_10ce9a2a": {
+      "feature": "operations",
+      "label": "后台版本查询结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "operations.official_control_body_dad20e18": {
+      "feature": "operations",
+      "label": "脱敏日志结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "opponent.official_control_body_2c8cff84": {
+      "feature": "opponent",
+      "label": "添加或删除关注账号的结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "opponent.official_control_body_9e80905d": {
+      "feature": "opponent",
+      "label": "关注账号列表",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "mensa.official_control_body_2a069fb6": {
+      "feature": "mensa",
+      "label": "东京考场检查结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "monitor.official_control_body_3339cd03": {
+      "feature": "monitor",
+      "label": "采集状态完整回复",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "完整格式在这里设置；各行内容在“采集状态各行说明”修改。"
+    },
+    "archive.official_control_body_24bc0c79": {
+      "feature": "archive",
+      "label": "暂无卡组",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "operations.official_control_body_59e2346a": {
+      "feature": "operations",
+      "label": "Cardrush 连接检查结果",
+      "template": "{content}",
+      "fields": {
+        "content": "本场景的完整查询内容 / 已组合的段落"
+      },
+      "samples": {
+        "content": "示例查询内容\n下一段示例内容"
+      },
+      "mode": "text",
+      "source": "hikari_bot/services/official_control.py",
+      "note": "编辑整体格式。查询结果、日志、译文和第三方返回内容是实时数据；固定提示段落可在同功能的其他场景中编辑。"
+    },
+    "opponent.usage": {
+      "feature": "opponent",
+      "label": "用法：{command} MyCard用户名",
+      "template": "用法：{command} MyCard用户名",
+      "fields": {
+        "command": "命令"
+      },
+      "samples": {
+        "command": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "opponent.removed": {
+      "feature": "opponent",
+      "label": "已删除账号：{name}",
+      "template": "已删除账号：{name}",
+      "fields": {
+        "name": "名称"
+      },
+      "samples": {
+        "name": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "opponent.absent": {
+      "feature": "opponent",
+      "label": "账号不在名单中：{name}",
+      "template": "账号不在名单中：{name}",
+      "fields": {
+        "name": "名称"
+      },
+      "samples": {
+        "name": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "opponent.save_failed": {
+      "feature": "opponent",
+      "label": "账号名单暂时无法保存，请稍后重试",
+      "template": "账号名单暂时无法保存，请稍后重试",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "opponent.added": {
+      "feature": "opponent",
+      "label": "已添加账号：{name}",
+      "template": "已添加账号：{name}",
+      "fields": {
+        "name": "名称"
+      },
+      "samples": {
+        "name": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "opponent.exists": {
+      "feature": "opponent",
+      "label": "账号已在名单中：{name}",
+      "template": "账号已在名单中：{name}",
+      "fields": {
+        "name": "名称"
+      },
+      "samples": {
+        "name": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "subscriptions.started": {
+      "feature": "subscriptions",
+      "label": "关注玩家开始对局的通知",
+      "template": "您关注的{player}已开始对局，对手id：{opponent}。",
+      "fields": {
+        "player": "关注的玩家",
+        "opponent": "对手用户名"
+      },
+      "samples": {
+        "player": "示例值",
+        "opponent": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "subscriptions.firstwin": {
+      "feature": "subscriptions",
+      "label": "关注玩家取得首胜的通知",
+      "template": "您关注的{player}成功拿下首赢！pt变动：{delta}。",
+      "fields": {
+        "player": "关注的玩家",
+        "delta": "分数变化"
+      },
+      "samples": {
+        "player": "示例值",
+        "delta": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/mycard.py"
+    },
+    "price_daily.notification": {
+      "feature": "price_daily",
+      "label": "定时日报图片的说明",
+      "template": "【{date}】卡价日报",
+      "fields": {
+        "date": "日期"
+      },
+      "samples": {
+        "date": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/plugins/monitors/cardrush.py"
+    },
+    "opponent.deck_link": {
+      "feature": "opponent",
+      "label": "对手已收录卡组链接",
+      "template": "{player} vs {opponent}\n{opponent}：最新已收录卡组\n{link}",
+      "fields": {
+        "player": "关注的玩家",
+        "opponent": "对手用户名",
+        "link": "卡组链接"
+      },
+      "samples": {
+        "player": "示例值",
+        "opponent": "示例值",
+        "link": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+    },
+    "opponent.no_deck": {
+      "feature": "opponent",
+      "label": "对手暂无卡组",
+      "template": "{player} vs {opponent}\n{opponent}：暂无卡组",
+      "fields": {
+        "player": "关注的玩家",
+        "opponent": "对手用户名"
+      },
+      "samples": {
+        "player": "示例值",
+        "opponent": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+    },
+    "opponent.read_failed": {
+      "feature": "opponent",
+      "label": "对手卡组读取失败",
+      "template": "{player} vs {opponent}\n{opponent}：卡组暂时无法读取",
+      "fields": {
+        "player": "关注的玩家",
+        "opponent": "对手用户名"
+      },
+      "samples": {
+        "player": "示例值",
+        "opponent": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+    },
+    "opponent.image": {
+      "feature": "opponent",
+      "label": "对手卡组图片说明",
+      "template": "{player} vs {opponent}\n{opponent}：最新已收录卡组",
+      "fields": {
+        "player": "关注的玩家",
+        "opponent": "对手用户名"
+      },
+      "samples": {
+        "player": "示例值",
+        "opponent": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+    },
+    "opponent.image_failed": {
+      "feature": "opponent",
+      "label": "对手卡组图片生成失败",
+      "template": "{player} vs {opponent}\n{opponent}：卡组图片暂时无法生成",
+      "fields": {
+        "player": "关注的玩家",
+        "opponent": "对手用户名"
+      },
+      "samples": {
+        "player": "示例值",
+        "opponent": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_archive/opponent_watch.py"
+    },
+    "monitor.status": {
+      "feature": "monitor",
+      "label": "采集状态各行说明",
+      "template": "MyCard 采集：跟踪 {rooms} 场，已连接 {connected} 场\n凭据：{accounts} 份，占用 {active} 个账号，认证待恢复 {failed} 份\n调度：按采集权重优先，零权重空闲采集（上限 {concurrency} 场）\n完整结束 {complete} 场，不完整 {partial} 场\n待投递 {pending} 条\n入场冷却：{cooldown} 秒\n最近异常：{error}",
+      "fields": {
+        "rooms": "跟踪对局数",
+        "connected": "已连接对局数",
+        "accounts": "凭据数量",
+        "active": "已占用账号数",
+        "failed": "认证待恢复数量",
+        "concurrency": "并发上限",
+        "complete": "完整场数",
+        "partial": "不完整场数",
+        "pending": "待发条数",
+        "cooldown": "冷却秒数",
+        "error": "最近异常"
+      },
+      "samples": {
+        "rooms": "示例值",
+        "connected": "示例值",
+        "accounts": "示例值",
+        "active": "示例值",
+        "failed": "示例值",
+        "concurrency": "示例值",
+        "complete": "示例值",
+        "partial": "示例值",
+        "pending": "示例值",
+        "cooldown": "示例值",
+        "error": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/services/mycard_archive/runtime.py"
+    },
+    "price_daily.change_row": {
+      "feature": "price_daily",
+      "label": "{arrow} {name} {box}-{rarity}：{old_price}円 → {new_price}",
+      "template": "{arrow} {name} {box}-{rarity}：{old_price}円 → {new_price}",
+      "fields": {
+        "arrow": "变化箭头",
+        "name": "名称",
+        "box": "盒号",
+        "rarity": "稀有度",
+        "old_price": "原价格",
+        "new_price": "新价格"
+      },
+      "samples": {
+        "arrow": "示例值",
+        "name": "示例值",
+        "box": "示例值",
+        "rarity": "示例值",
+        "old_price": "示例值",
+        "new_price": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.summary": {
+      "feature": "price_daily",
+      "label": "【卡价日报 {date}】共 {total} 条变化（涨价 {up} / 降价 {down} / 新增 {new}）",
+      "template": "【卡价日报 {date}】共 {total} 条变化（涨价 {up} / 降价 {down} / 新增 {new}）",
+      "fields": {
+        "date": "日期",
+        "total": "合计",
+        "up": "涨价数量",
+        "down": "降价数量",
+        "new": "新增数量"
+      },
+      "samples": {
+        "date": "示例值",
+        "total": "示例值",
+        "up": "示例值",
+        "down": "示例值",
+        "new": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.new_row": {
+      "feature": "price_daily",
+      "label": "[新] {name} {box}-{rarity}：{price}円",
+      "template": "[新] {name} {box}-{rarity}：{price}円",
+      "fields": {
+        "name": "名称",
+        "box": "盒号",
+        "rarity": "稀有度",
+        "price": "格式化价格"
+      },
+      "samples": {
+        "name": "示例值",
+        "box": "示例值",
+        "rarity": "示例值",
+        "price": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.date_format": {
+      "feature": "price_daily",
+      "label": "日期格式不正确，请使用 M.D 格式，如 4.27",
+      "template": "日期格式不正确，请使用 M.D 格式，如 4.27",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.empty": {
+      "feature": "price_daily",
+      "label": "【卡价日报 {date}】",
+      "template": "【卡价日报 {date}】\n当日无价格变化记录。",
+      "fields": {
+        "date": "日期"
+      },
+      "samples": {
+        "date": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.up": {
+      "feature": "price_daily",
+      "label": "📈 涨价",
+      "template": "📈 涨价",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.down": {
+      "feature": "price_daily",
+      "label": "📉 降价/停收",
+      "template": "📉 降价/停收",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.new": {
+      "feature": "price_daily",
+      "label": "🆕 新增",
+      "template": "🆕 新增",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.date_invalid": {
+      "feature": "price_daily",
+      "label": "无效日期：{month}.{day}",
+      "template": "无效日期：{month}.{day}",
+      "fields": {
+        "month": "月份",
+        "day": "日期"
+      },
+      "samples": {
+        "month": "示例值",
+        "day": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.section": {
+      "feature": "price_daily",
+      "label": "{title}（{count} 条）",
+      "template": "\n{title}（{count} 条）",
+      "fields": {
+        "title": "小节标题",
+        "count": "数量"
+      },
+      "samples": {
+        "title": "示例值",
+        "count": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.page": {
+      "feature": "price_daily",
+      "label": "完整回复 · 日报正文",
+      "template": "{content}",
+      "fields": {
+        "content": "完整正文"
+      },
+      "samples": {
+        "content": "示例值"
+      },
+      "fragment": false,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "price_daily.page_number": {
+      "feature": "price_daily",
+      "label": "（{current}/{pages}）",
+      "template": "（{current}/{pages}）",
+      "fields": {
+        "current": "当前页",
+        "pages": "总页数"
+      },
+      "samples": {
+        "current": "示例值",
+        "pages": "示例值"
+      },
+      "fragment": true,
+      "mode": "text",
+      "source": "hikari_bot/features/cardrush/reporting/text.py"
+    },
+    "subscriptions.row": {
+      "feature": "subscriptions",
+      "label": "订阅状态每行",
+      "template": "{player}：{label}",
+      "fields": {
+        "player": "关注的玩家",
+        "label": "状态"
+      },
+      "samples": {
+        "player": "示例值",
+        "label": "示例值"
+      },
+      "fragment": true,
+      "mode": "text"
+    },
+    "subscriptions.empty": {
+      "feature": "subscriptions",
+      "label": "没有订阅",
+      "template": "当前官方身份暂无订阅。",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text"
+    },
+    "paging.media_size": {
+      "feature": "paging",
+      "label": "媒体体积超限",
+      "template": "媒体总大小超过100 MiB，请拆分内容或使用原链接。",
+      "fields": {},
+      "samples": {},
+      "fragment": false,
+      "mode": "text"
+    },
+    "paging.media_busy": {
+      "feature": "paging",
+      "label": "媒体队列忙",
+      "template": "当前待发送媒体较多，请稍后重新查询。",
+      "fields": {},
+      "samples": {},
+      "fragment": false,
+      "mode": "text"
+    },
+    "paging.request_failed": {
+      "feature": "paging",
+      "label": "查询或发送未完成",
+      "template": "查询或媒体发送未完成，请稍后重试。未自动重发；部分内容可能已送达。",
+      "fields": {},
+      "samples": {},
+      "fragment": false,
+      "mode": "text"
+    },
+    "operations.backend_failed": {
+      "feature": "operations",
+      "label": "后台操作未完成，请先查询状态；未自动重试，避免重复写入。",
+      "template": "后台操作未完成，请先查询状态；未自动重试，避免重复写入。",
+      "fields": {},
+      "samples": {},
+      "fragment": false,
+      "mode": "text"
+    },
+    "members.row": {
+      "feature": "members",
+      "label": "{name}，{role}，{openid}",
+      "template": "{name}，{role}，{openid}",
+      "fields": {
+        "name": "昵称",
+        "role": "群角色",
+        "openid": "群成员 OpenID"
+      },
+      "samples": {
+        "name": "示例值",
+        "role": "示例值",
+        "openid": "示例值"
+      },
+      "fragment": true,
+      "mode": "text"
+    },
+    "members.page_limit": {
+      "feature": "members",
+      "label": "已达到本次10页查询上限，列表未全部取完。",
+      "template": "已达到本次10页查询上限，列表未全部取完。",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text"
+    },
+    "members.empty": {
+      "feature": "members",
+      "label": "平台未返回群成员；需要核对群管理权限。",
+      "template": "平台未返回群成员；需要核对群管理权限。",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text"
+    },
+    "callback.unsupported": {
+      "feature": "callback",
+      "label": "当前客户端不支持回调；可手动输入原查询命令",
+      "template": "当前客户端不支持回调；可手动输入原查询命令",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text",
+      "max_length": 60
+    },
+    "opponent.invalid_name": {
+      "feature": "opponent",
+      "label": "请填写有效的 MyCard 用户名（最多 100 字）",
+      "template": "请填写有效的 MyCard 用户名（最多 100 字）",
+      "fields": {},
+      "samples": {},
+      "fragment": true,
+      "mode": "text"
     }
   }
 }

@@ -34,7 +34,7 @@ class PreviewSession:
             if event.id in self.seen or not self.pager.capacity(event,'c2c'): return False
             self.seen[event.id]=self.clock()+3600
             try:
-                await bot.send(event,'输出预览会话已打开。请在本机编辑器保存草稿后点击“发到 QQ 预览”。本次最多再发 3 条，60 分钟内有效；不会发布草稿。')
+                await bot.send(event,present('preview.editor_preview_bff7dcc4', {}))
             except Exception as exc:
                 report('editor_session_failed',exc);return False
             stamp=event.timestamp

@@ -6,6 +6,7 @@ from nonebot import get_driver, logger
 from hikari_bot.services.official_bus import backend_bus
 from hikari_bot.services.official_control import execute
 from hikari_bot.services.platform import Result
+from hikari_bot.qq_official.output_templates import present
 
 _task = None
 _heartbeat_task = None
@@ -32,7 +33,7 @@ async def run(bus):
                 result = await asyncio.wait_for(execute(request['action'], request['argument']), timeout=110)
             except Exception as exc:
                 logger.warning(f'[official_bridge] operation failed: {type(exc).__name__}')
-                result = Result('后台操作未完成，请先查询状态；未自动重试，避免重复写入。')
+                result = Result(present('operations.backend_failed'))
             await asyncio.to_thread(bus.finish, job['id'], 'completed', result)
         except asyncio.CancelledError:
             raise

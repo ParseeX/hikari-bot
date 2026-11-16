@@ -13,6 +13,7 @@ from nonebot import logger
 from .library import DeckLibrary
 from .queries import player_image
 from .short_links import ShortLinks
+from ..wording import NoticeText, wording
 
 
 class WatchedAccounts:
@@ -34,7 +35,7 @@ class WatchedAccounts:
     def change(self, name: str, *, add: bool) -> bool:
         name = name.strip()
         if not name or len(name) > 100 or any(ord(char) < 32 for char in name):
-            raise ValueError("请填写有效的 MyCard 用户名（最多 100 字）")
+            raise ValueError(wording('opponent.invalid_name', '请填写有效的 MyCard 用户名（最多 100 字）'))
         with self._lock:
             if (name in self.accounts) == add:
                 return False
@@ -105,10 +106,9 @@ class OpponentWatch:
             link = ShortLinks(self.library.path.with_name("short-links.sqlite3")).url(opponent) if version else None
             return version, link
         version, link = await asyncio.to_thread(lookup)
-        heading = f"{player} vs {opponent}"
         if version is None:
-            return f"{heading}\n{opponent}：暂无卡组", None
-        return f"{heading}\n{opponent}：最新已收录卡组\n{link}", version
+            return NoticeText('opponent.no_deck', '{player} vs {opponent}\n{opponent}：暂无卡组', {'player': player, 'opponent': opponent}), None
+        return NoticeText('opponent.deck_link', '{player} vs {opponent}\n{opponent}：最新已收录卡组\n{link}', {'player': player, 'opponent': opponent, 'link': link}), version
 
     async def _deliver(self, player, text, image, stage, notice_key):
         for recipient in self.recipients:
@@ -132,7 +132,7 @@ class OpponentWatch:
                     text, version = await asyncio.wait_for(self._prepare(player, opponent), timeout=20)
                 except Exception as exc:
                     logger.warning(f"[mycard_watch] 对手卡组读取失败：{type(exc).__name__}")
-                    text, version = f"{player} vs {opponent}\n{opponent}：卡组暂时无法读取", None
+                    text, version = NoticeText('opponent.read_failed', '{player} vs {opponent}\n{opponent}：卡组暂时无法读取', {'player': player, 'opponent': opponent}), None
                 await self._deliver(player, text, None, "链接通知", notice_key)
                 if version is not None and player in self.accounts.accounts:
                     try:
@@ -154,10 +154,10 @@ class OpponentWatch:
                 try:
                     image = await asyncio.wait_for(player_image(opponent, version, self.library.path.with_name("deck-rules.json")), timeout=120)
                     logger.info(f"[mycard_watch] 图片生成完成 bytes={len(image)} elapsed={time.monotonic()-started:.2f}s")
-                    await self._deliver(player, f"{player} vs {opponent}\n{opponent}：最新已收录卡组", image, "卡组图片", notice_key)
+                    await self._deliver(player, NoticeText('opponent.image', '{player} vs {opponent}\n{opponent}：最新已收录卡组', {'player': player, 'opponent': opponent}), image, "卡组图片", notice_key)
                 except Exception as exc:
                     logger.warning(f"[mycard_watch] 卡组图片生成失败：{type(exc).__name__} elapsed={time.monotonic()-started:.2f}s")
-                    await self._deliver(player, f"{player} vs {opponent}\n{opponent}：卡组图片暂时无法生成", None, "图片失败提示", notice_key)
+                    await self._deliver(player, NoticeText('opponent.image_failed', '{player} vs {opponent}\n{opponent}：卡组图片暂时无法生成', {'player': player, 'opponent': opponent}), None, "图片失败提示", notice_key)
             finally:
                 self._image_queue.task_done()
 

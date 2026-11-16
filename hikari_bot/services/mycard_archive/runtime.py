@@ -12,6 +12,7 @@ from . import account_admin
 from .spectator import CredentialError, Credentials, watch
 from .store import ArchiveStore
 from .scheduling import PrioritySlots
+from ..wording import wording
 
 
 @dataclass
@@ -307,14 +308,15 @@ class ArchiveRuntime:
     async def status(self) -> str:
         stats = await asyncio.to_thread(self.store.stats)
         connected = sum(s.connected for s in self.rooms.values())
-        return (f"MyCard 采集：跟踪 {len(self.rooms)} 场，已连接 {connected} 场\n"
-                f"凭据：{len(self.accounts.accounts)} 份，占用 {len(self.accounts.active_users)} 个账号，"
-                f"认证待恢复 {sum(a.failed for a in self.accounts.accounts)} 份\n"
-                f"调度：按采集权重优先，零权重空闲采集（上限 {self.concurrency} 场）\n"
-                f"完整结束 {stats.get('complete', 0)} 场，不完整 {stats.get('partial', 0)} 场\n"
-                f"待投递 {stats['pending_messages']} 条\n"
-                f"入场冷却：{int(self.join_gate.remaining)} 秒\n"
-                f"最近异常：{self.last_error or '无'}")
+        return wording('monitor.status', 'MyCard 采集：跟踪 {rooms} 场，已连接 {connected} 场\n'
+                       '凭据：{accounts} 份，占用 {active} 个账号，认证待恢复 {failed} 份\n'
+                       '调度：按采集权重优先，零权重空闲采集（上限 {concurrency} 场）\n'
+                       '完整结束 {complete} 场，不完整 {partial} 场\n待投递 {pending} 条\n'
+                       '入场冷却：{cooldown} 秒\n最近异常：{error}',
+                       {'rooms': len(self.rooms), 'connected': connected, 'accounts': len(self.accounts.accounts),
+                        'active': len(self.accounts.active_users), 'failed': sum(a.failed for a in self.accounts.accounts),
+                        'concurrency': self.concurrency, 'complete': stats.get('complete', 0), 'partial': stats.get('partial', 0),
+                        'pending': stats['pending_messages'], 'cooldown': int(self.join_gate.remaining), 'error': self.last_error or '无'})
 
     async def close(self):
         if account_admin.active_runtime is self:

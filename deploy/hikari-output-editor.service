@@ -1,0 +1,17 @@
+[Unit]
+Description=Hikari command wording editor
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/srbs/current
+ExecStart=%h/srbs/envs/20261116-c512e80/bin/python -I -B -u %h/srbs/current/run_output_editor.py
+Environment=HIKARI_EDITOR_PASSWORD_FILE=%h/.local/share/hikari-mycard/admin-password.json
+UMask=0077
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

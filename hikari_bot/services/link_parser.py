@@ -1,4 +1,5 @@
 """复用原解析插件的隔离工作进程，不在官方 Bot 内注册它的事件和定时任务。"""
+from hikari_bot.services.wording import wording
 import asyncio
 import json
 import os
@@ -50,9 +51,9 @@ class LinkParser:
 
     async def parse(self, text):
         if len(text) > 16000:
-            return Result("链接消息过长。")
+            return Result(wording('links.link_parser_89428994', '链接消息过长。', {}))
         if self.lock.locked():
-            return Result("正在解析其他媒体，请稍后再试。")
+            return Result(wording('links.link_parser_ecde216f', '正在解析其他媒体，请稍后再试。', {}))
         async with self.lock:
             with TemporaryDirectory(prefix="hikari-parser-") as directory:
                 root = Path(directory)
@@ -69,10 +70,10 @@ class LinkParser:
                 try:
                     await asyncio.wait_for(process.wait(), self.timeout)
                     if process.returncode != 0:
-                        return Result("链接解析或下载失败；未自动重试。需要登录的平台须另行配置，旧 Cookie 未迁移。")
+                        return Result(wording('links.link_parser_abcdf26a', '链接解析或下载失败；未自动重试。需要登录的平台须另行配置，旧 Cookie 未迁移。', {}))
                     return await asyncio.to_thread(load_result, root)
                 except TimeoutError:
-                    return Result("链接解析超时；未自动重试，请稍后再试或直接打开原链接。")
+                    return Result(wording('links.link_parser_1479679f', '链接解析超时；未自动重试，请稍后再试或直接打开原链接。', {}))
                 finally:
                     if process.returncode is None:
                         if os.name == "nt":

@@ -36,6 +36,7 @@ from hikari_bot.services.mycard_archive.opponent_watch import OpponentWatch, Wat
 from hikari_bot.services.official_bus import backend_bus
 from hikari_bot.services.official_publish import mycard_notice, subscription_targets, publish
 from hikari_bot.services.platform import Result
+from hikari_bot.services.wording import wording, NoticeText
 
 
 # ── 常量与状态 ───────────────────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
 async def handle_create_event(bot: Bot, player_ids: list, room_id=None):
     try:
         for index, player in enumerate(player_ids):
-            await mycard_notice(player, f'您关注的{player}已开始对局，对手id：{player_ids[1-index]}。',
+            await mycard_notice(player, NoticeText('subscriptions.started', '您关注的{player}已开始对局，对手id：{opponent}。', {'player': player, 'opponent': player_ids[1-index]}),
                                 dedupe=f'start:{room_id}:{player}')
         subscribe_list = get_subscribe_list()
         for i, player_id in enumerate(player_ids):
@@ -165,7 +166,7 @@ async def handle_delete_event(bot: Bot, room_id):
         if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
                 if pt_deltas[i] > 0:
-                    await mycard_notice(player_id, f'您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。',
+                    await mycard_notice(player_id, NoticeText('subscriptions.firstwin', '您关注的{player}成功拿下首赢！pt变动：{delta}。', {'player': player_id, 'delta': pt_strs[i]}),
                                         dedupe=f'firstwin:{room_id}:{player_id}')
                 if player_id in subscribe_list:
                     if pt_deltas[i] > 0:
@@ -356,17 +357,17 @@ async def change_account(name: str, *, add: bool) -> str:
     command = "添加账号" if add else "删除账号"
     name = name.strip()
     if not name:
-        return f"用法：{command} MyCard用户名"
+        return wording('opponent.usage', '用法：{command} MyCard用户名', {'command': command})
     try:
         changed = await asyncio.to_thread(watched_accounts().change, name, add=add)
     except ValueError as exc:
         return str(exc)
     except OSError:
         logger.error("[mycard_watch] 关注账号名单保存失败")
-        return "账号名单暂时无法保存，请稍后重试"
+        return wording('opponent.save_failed', '账号名单暂时无法保存，请稍后重试')
     if add:
-        return f"已添加账号：{name}" if changed else f"账号已在名单中：{name}"
-    return f"已删除账号：{name}" if changed else f"账号不在名单中：{name}"
+        return wording('opponent.added', '已添加账号：{name}', {'name': name}) if changed else wording('opponent.exists', '账号已在名单中：{name}', {'name': name})
+    return wording('opponent.removed', '已删除账号：{name}', {'name': name}) if changed else wording('opponent.absent', '账号不在名单中：{name}', {'name': name})
 
 
 @add_account.handle()

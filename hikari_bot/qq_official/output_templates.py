@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import deepcopy
+from functools import wraps
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,16 @@ ROOT = Path(__file__).parent
 SCHEMA = json.loads((ROOT/'output_schema.json').read_text(encoding='utf-8'))
 OVERRIDE = ContextVar('srbs_output_preview',default=None)
 HOME = Path.home()
+
+
+def render_outputs(function):
+    """只在官方调用链启用文案；共享服务的 OneBot 调用维持原文。"""
+    from hikari_bot.services.wording import using_wording
+    @wraps(function)
+    async def wrapped(*args, **kwargs):
+        with using_wording(present):
+            return await function(*args, **kwargs)
+    return wrapped
 
 def escape(value):
     text = str(value or '')
@@ -29,7 +40,8 @@ def validate(key,spec):
     if spec['mode'] not in {'text','markdown'}: raise ValueError('显示方式无效')
     if definition.get('fragment') and spec['mode'] != 'text': raise ValueError('组合字段由外层决定格式')
     template = spec['template']
-    if not isinstance(template,str) or not 0 < len(template) <= 12000: raise ValueError('模板长度应为 1–12000 字符')
+    limit = definition.get('max_length', 12000)
+    if not isinstance(template,str) or not 0 < len(template) <= limit: raise ValueError(f'模板长度应为 1–{limit} 字符')
     fields = definition['fields']
     for _,name,format_spec,conversion in string.Formatter().parse(template):
         if name is not None and (name not in fields or format_spec or conversion):
@@ -88,14 +100,20 @@ class Store:
         return result
 
     def mutate(self,operation,feature,key=None,spec=None,revision=None):
-        # CLI calls are serialized by a short advisory lock, protecting separate tabs.
-        import fcntl
+        # 网页、CLI 和其他进程共用文件锁，再用 revision 防止旧页面覆盖。
         self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
         lock=self.path.with_suffix('.lock')
         if lock.is_symlink(): raise ValueError('存储锁无效')
-        fd=os.open(lock,os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW,0o600)
-        with os.fdopen(fd,'w') as f:
-            fcntl.flock(f,fcntl.LOCK_EX)
+        fd=os.open(lock,os.O_RDWR|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600)
+        with os.fdopen(fd,'r+b') as f:
+            if os.name == 'nt':
+                import msvcrt
+                # Windows 可锁定 EOF 之后的字节；不能先读已被另一进程锁住的字节。
+                f.seek(0)
+                msvcrt.locking(f.fileno(),msvcrt.LK_LOCK,1)
+            else:
+                import fcntl
+                fcntl.flock(f,fcntl.LOCK_EX)
             data=self.load()
             if revision!=data['revision']: raise ValueError('内容已由另一个页面更新，请重新载入')
             keys=[k for k,d in SCHEMA['states'].items() if d['feature']==feature]
@@ -114,6 +132,8 @@ class Store:
                 group['active'],group['previous']=group['previous'],{k:group['active'].get(k,default(k)) for k in keys}
             else: raise ValueError('操作不支持')
             data['revision']+=1
+            if len(json.dumps(data,ensure_ascii=False,indent=2).encode('utf-8'))>2_000_000:
+                raise ValueError('模板总量超过存储上限，本次未保存')
             self.atomic(self.path,data)
         return self.state()
 

@@ -1,4 +1,5 @@
 """官方平台内的管理操作，不把 OpenID 当成旧 QQ 号或群号。"""
+from .output_templates import present
 import asyncio
 from collections import OrderedDict
 import secrets
@@ -24,68 +25,68 @@ class Management:
         if (request.actor.platform != 'qq_official' or request.actor.app != self.config.app_id
                 or request.actor.kind != 'user' or request.actor.opaque_id not in self.config.admins
                 or request.conversation != request.actor):
-            return Result('权限不足：此操作仅允许已单独核验的官方管理员私聊执行。')
+            return Result(present('management.management_d3590a67', {}))
         if command in {'开启解析','关闭解析'}:
             # 不假装更改旧群开关；管理当前官方私聊的解析。
             if argument:
-                return Result('该命令只管理当前官方会话，请不要填写旧 QQ 群号。')
+                return Result(present('links.management_cb370695', {}))
             await asyncio.to_thread(self.bus.set_setting, request.actor.key, 'parser', command == '开启解析')
-            return Result(f'当前官方私聊的链接解析已{"开启" if command == "开启解析" else "关闭"}。旧群设置未改变。')
+            return Result(present('links.management_23c1c8c8', {'value1': '开启' if command == '开启解析' else '关闭'}))
         if command in {'白名单','添加至白名单','清空白名单'}:
-            return Result('旧白名单管理命令已停用，不再迁移。群接入由官方机器人配置管理；此命令不修改群接入、管理员权限或旧记录。')
+            return Result(present('whitelist.management_50fb5ef8', {}))
         if command in {'切换AI权限','切换本地模型权限'}:
-            return Result('原本地模型聊天模块当前未启用。尚未迁移官方群身份授权，未改变原权限开关。')
+            return Result(present('ai.management_88f6db5b', {}))
         if command == '重置卡价数据库':
-            return Result('重置会删除共享卡价历史；官方入口保留此提示，不执行删除。请通过受控维护流程备份后操作。')
+            return Result(present('price_reset.management_56b8abba', {}))
         if command == '广播':
             if not argument:
-                return Result('用法：广播 内容')
+                return Result(present('broadcast.management_ae2f939d', {}))
             targets = [key for key in await asyncio.to_thread(self.bus.recipients, 'broadcast')
                        if json.loads(key)[2] == 'group']
             if not targets:
-                return Result('当前没有完成群身份核验并开启主动通知的群；未广播。')
-            await asyncio.to_thread(self.bus.publish, Result(argument), dedupe=request.event_id, topic='broadcast', targets=targets)
-            return Result(f'已为{len(targets)}个已核验群排队；这不代表客户端已收到。')
+                return Result(present('broadcast.management_d095c789', {}))
+            await asyncio.to_thread(self.bus.publish, Result(present('broadcast.management_body_0f380231', {'content': argument})), dedupe=request.event_id, topic='broadcast', targets=targets)
+            return Result(present('broadcast.management_bf9d7553', {'value1': len(targets)}))
         if command == '成员列表':
             groups = sorted(self.config.groups)
             if not groups:
-                return Result('当前没有已核验的官方群，尚不能查询成员。')
+                return Result(present('members.management_6a5e8eec', {}))
             if not argument.isdigit() or not 1 <= int(argument) <= len(groups):
-                return Result(f'用法：成员列表 群序号（1—{len(groups)}）。返回官方群成员 OpenID，不返回原数字 QQ 号。')
+                return Result(present('members.management_6a13324f', {'value1': len(groups)}))
             if self.bot is None or not hasattr(self.bot, 'get_group_members'):
-                return Result('当前适配器或连接不支持群成员查询。')
+                return Result(present('members.management_eb435656', {}))
             rows, cursor, seen = [], None, set()
             for _ in range(10):
                 page = await self.bot.get_group_members(group_openid=groups[int(argument)-1], cursor=cursor)
                 for member in page.members:
-                    rows.append(f'{member.username or "未提供昵称"}，{member.member_role or "未知角色"}，{member.member_openid}')
+                    rows.append(present('members.row', {'name': member.username or '未提供昵称', 'role': member.member_role or '未知角色', 'openid': member.member_openid}))
                 cursor = page.next_cursor
                 if not cursor or cursor in seen:
                     break
                 seen.add(cursor)
             if cursor:
-                rows.append('已达到本次10页查询上限，列表未全部取完。')
-            return Result('\n'.join(rows) or '平台未返回群成员；需要核对群管理权限。')
+                rows.append(present('members.page_limit'))
+            return Result(present('members.management_body_b0942c38', {'content': '\n'.join(rows) or present('members.empty')}))
         if command == '确认操作':
             item = self.confirmations.pop(request.actor.key, None)
             if not item or item[1] != argument or item[2] < time.monotonic():
-                return Result('确认码无效或已过期，未执行操作。')
+                return Result(present('maintenance.management_1c3ad00e', {}))
             action = self.restart if item[0] == 'restart' else self.reboot
             if action is None:
-                return Result('维护操作尚未配置。')
+                return Result(present('maintenance.management_dec6ad65', {}))
             asyncio.create_task(self.delayed(action))
-            return Result('已确认，3秒后执行。官方会话将短暂断开。')
+            return Result(present('maintenance.management_80bad791', {}))
         operation = 'restart' if command in {'重载','重载插件','reload'} else 'reboot'
         if argument:
-            return Result('该维护命令不接受参数。')
+            return Result(present('management.management_d87a1132', {}))
         if (self.restart if operation == 'restart' else self.reboot) is None:
-            return Result('该维护操作尚未配置；没有执行重启。')
+            return Result(present('management.management_5e6b5000', {}))
         code = secrets.token_hex(3)
         self.confirmations[request.actor.key] = (operation, code, time.monotonic()+60)
         while len(self.confirmations)>16:
             self.confirmations.popitem(last=False)
-        detail = '重新启动当前官方发布版' if operation == 'restart' else '重启整台服务器，会中断全部服务'
-        return Result(f'{detail}。60秒内回复“确认操作 {code}”执行。不会拉取或覆盖代码。')
+        detail = present('management.management_e1b0483c', {}) if operation == 'restart' else present('management.management_7bb85b29', {})
+        return Result(present('management.management_b3519626', {'detail': detail, 'code': code}))
 
     @staticmethod
     async def delayed(action):

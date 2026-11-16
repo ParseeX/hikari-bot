@@ -1,4 +1,5 @@
 """两个入口共用的 MyCard 统计文字和图表，不访问身份数据库。"""
+from hikari_bot.services.wording import wording
 import calendar
 from datetime import datetime
 from io import BytesIO
@@ -17,21 +18,19 @@ async def history_report(user_id, month, year):
     current_year, current_month = current.year, current.month
     records = await mycard_service.mycard_get_records(user_id, month, year)
     if records == None:
-        return Result("查询失败，请稍后重试")
+        return Result(wording('history.mycard_reports_b98c4ab7', '查询失败，请稍后重试', {}))
 
     valid_records = [record for record in records if not _is_zero_delta_match(record, user_id)]
     wins = [record for record in valid_records if record['winner'] == user_id]
 
-    result_message = f"""玩家：{user_id}
-{str(year-2000)+'年' if year!=current_year else ''}{month}月场次：{len(valid_records)}
-{str(year-2000)+'年' if year!=current_year else ''}{month}月胜率：{(0 if len(valid_records)==0 else len(wins)*100.0/len(valid_records)):.2f}%"""
+    result_message = wording('history.mycard_reports_e55ebb30', '玩家：{user_id}\n{value2}{month}月场次：{value4}\n{value5}{month_6}月胜率：{value7}%', {'user_id': user_id, 'value2': str(year - 2000) + '年' if year != current_year else '', 'month': month, 'value4': len(valid_records), 'value5': str(year - 2000) + '年' if year != current_year else '', 'month_6': month, 'value7': f'{(0 if len(valid_records) == 0 else len(wins) * 100.0 / len(valid_records)):.2f}'})
 
     if len(valid_records) > 0:
         try:
             previous_score = await mycard_service.fetch_previous_month_score(user_id, year, month)
             pt = [point['score'] for point in month_trend(valid_records, user_id, year, month, previous_score)]
         except ValueError:
-            return Result('月初分数暂时无法获取，请稍后重试')
+            return Result(wording('history.mycard_reports_9e89da13', '月初分数暂时无法获取，请稍后重试', {}))
 
         tz_shanghai = pytz.timezone("Asia/Shanghai")
         now_shanghai = datetime.now(tz_shanghai)
@@ -53,15 +52,15 @@ async def history_report(user_id, month, year):
                 spt = [r['pta'] if r['usernamea'] == user_id else r['ptb'] for r in settlement_records]
                 spt.append(spt_ex[-1])
                 spt.reverse()
-                result_message = result_message + f"\n结算分数：{spt[-1]:.2f}"
+                result_message = result_message + wording('history.mycard_reports_d22d7508', '\n结算分数：{value1}', {'value1': f'{spt[-1]:.2f}'})
             rank = await mycard_service.fetch_player_history_rank(user_id, year, month)
             if rank is not None:
-                result_message = result_message + f"\n结算排名：{rank}"
+                result_message = result_message + wording('history.mycard_reports_e0970980', '\n结算排名：{rank}', {'rank': rank})
         else:
-            result_message = result_message + f"\n当前分数：{pt[-1]:.2f}"
+            result_message = result_message + wording('history.mycard_reports_da380fbd', '\n当前分数：{value1}', {'value1': f'{pt[-1]:.2f}'})
             rank = await mycard_service.mycard_get_player_rank(user_id)
             if rank is not None:
-                result_message = result_message + f"\n当前排名：{rank}"
+                result_message = result_message + wording('history.mycard_reports_77fb0a39', '\n当前排名：{rank}', {'rank': rank})
 
         plt.figure(figsize=(8, 6))
 
@@ -89,18 +88,18 @@ async def history_report(user_id, month, year):
         buf.seek(0)  # 将文件指针移到开始位置
         plt.close()
 
-        return Result(result_message, (buf.getvalue(),))
+        return Result(wording('history.mycard_reports_body_2fe0148e', '{content}', {'content': result_message}), (buf.getvalue(),))
 
-    return Result(result_message)
+    return Result(wording('history.mycard_reports_body_2fe0148e', '{content}', {'content': result_message}))
 
 
 async def winrate_report(user_id):
     records = await mycard_service.fetch_player_history(user_id)
     if records == None:
-        return Result("查询失败，请稍后重试")
+        return Result(wording('winrate.mycard_reports_b98c4ab7', '查询失败，请稍后重试', {}))
 
     if len(records) == 0:
-        return Result(f"玩家 {user_id} 暂无对战记录")
+        return Result(wording('winrate.mycard_reports_1687ad0c', '玩家 {user_id} 暂无对战记录', {'user_id': user_id}))
 
     valid_records = [record for record in records if not _is_zero_delta_match(record, user_id)]
 
@@ -134,10 +133,7 @@ async def winrate_report(user_id):
     total_games = len(valid_records)
     overall_rate = (total_wins * 100.0 / total_games) if total_games > 0 else 0.0
 
-    result_message = f"""玩家：{user_id}
-总场次：{total_games}
-总胜率：{overall_rate:.2f}%
-有对局的月份：{len(sorted_months)}个"""
+    result_message = wording('winrate.mycard_reports_93c4a902', '玩家：{user_id}\n总场次：{total_games}\n总胜率：{overall_rate}%\n有对局的月份：{value4}个', {'user_id': user_id, 'total_games': total_games, 'overall_rate': f'{overall_rate:.2f}', 'value4': len(sorted_months)})
 
     # 生成胜率曲线图
     if len(win_rates) > 0:
@@ -173,6 +169,6 @@ async def winrate_report(user_id):
         buf.seek(0)  # 将文件指针移到开始位置
         plt.close()
 
-        return Result(result_message, (buf.getvalue(),))
+        return Result(wording('winrate.mycard_reports_body_2fe0148e', '{content}', {'content': result_message}), (buf.getvalue(),))
 
-    return Result(result_message)
+    return Result(wording('winrate.mycard_reports_body_2fe0148e', '{content}', {'content': result_message}))

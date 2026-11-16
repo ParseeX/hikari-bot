@@ -1,4 +1,5 @@
 """复用现有翻译插件的客户端，不加载只支持 OneBot 的命令注册。"""
+from hikari_bot.services.wording import wording
 from importlib import import_module
 from importlib.metadata import distribution
 from pathlib import Path
@@ -22,9 +23,9 @@ def translator_type():
 
 async def translate(command, text, *, proxy=None):
     if not text:
-        return '翻译/x译x [内容]；语言支持：中、繁、英、日、韩、法、俄、德'
+        return wording('translation.translation_457fa801', '翻译/x译x [内容]；语言支持：中、繁、英、日、韩、法、俄、德', {})
     if len(text) > 4000:
-        return '翻译内容过长，请分段发送。'
+        return wording('translation.translation_fa654225', '翻译内容过长，请分段发送。', {})
     translator = translator_type()(proxies=proxy, raise_exception=True)
     async with translator.client:
         if command == '中译中':

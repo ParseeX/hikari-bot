@@ -1,4 +1,5 @@
 """独立管理员身份与私聊边界，不继承数字 QQ 或群管理员权限。"""
+from .output_templates import present
 import httpx
 import asyncio
 import json
@@ -22,10 +23,10 @@ class AdminQueries:
         if command not in {'开机', '关机'} and command not in CONTROL_COMMANDS:
             return None
         if request.conversation.kind != 'user' or request.actor.key not in self.admins:
-            return Result('权限不足：管理命令仅限单独核验的官方管理员私聊使用。')
+            return Result(present('operations.admin_768af6cc', {}))
         if command in CONTROL_COMMANDS:
             if self.bus is None or not (await asyncio.to_thread(self.bus.status))[0]:
-                return Result('管理后台当前离线，未执行操作。')
+                return Result(present('operations.admin_9a9d0430', {}))
             body = json.dumps({'action': CONTROL_COMMANDS[command], 'argument': argument})
             key = await asyncio.to_thread(self.bus.enqueue, 'control', request.actor.key, 'control', body, request.event_id, lifetime=120)
             for _ in range(110):
@@ -33,19 +34,19 @@ class AdminQueries:
                 if result:
                     return result
                 if status not in {'pending', 'processing'}:
-                    return Result('后台操作未完成（' + status + '），未自动重试。')
+                    return Result(present('operations.admin_body_1a447932', {'content': present('operations.admin_992515ed', {}) + status + present('operations.admin_b16086d4', {})}))
                 await asyncio.sleep(1)
-            return Result('后台尚未确认完成，请查询状态；不要重复提交写入命令。')
+            return Result(present('operations.admin_a7371c0b', {}))
         if argument:
-            return Result('此命令不接受参数。')
+            return Result(present('operations.admin_fc9b04d5', {}))
         if self.power is None:
-            return Result('NAS 电源控制尚未配置。')
+            return Result(present('operations.admin_759478ab', {}))
         try:
             await self.power('wake' if command == '开机' else 'shutdown')
         except httpx.HTTPStatusError as error:
-            return Result(f'NAS 未接受请求（HTTP {error.response.status_code}）。')
+            return Result(present('operations.admin_6049a7a1', {'value1': error.response.status_code}))
         except httpx.HTTPError:
-            return Result('无法连接 NAS 电源服务；未自动重试。')
+            return Result(present('operations.admin_de29891b', {}))
         except (RuntimeError, ValueError):
-            return Result('NAS 电源服务返回异常；未自动重试。')
-        return Result('已发送开机请求。' if command == '开机' else '已发送关机请求。')
+            return Result(present('operations.admin_9e69e81d', {}))
+        return Result(present('operations.admin_69f09f3b', {}) if command == '开机' else present('operations.admin_b1fd8b02', {}))

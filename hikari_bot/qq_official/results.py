@@ -1,4 +1,5 @@
 """事件绑定的混合媒体分页；失败不自动重发或改成主动消息。"""
+from .output_templates import present, Output
 from collections import OrderedDict
 from dataclasses import dataclass
 import asyncio
@@ -48,10 +49,11 @@ class ResultDelivery:
                 parts, offset = [], 0
                 while offset < len(result.text):
                     end = chunk_end(result.text, offset, TEXT_CHARS)
-                    parts.append(result.text[offset:end])
+                    part = result.text[offset:end]
+                    parts.append(Output(part, result.text.key, result.text.mode) if isinstance(result.text, Output) else part)
                     offset = end
                 parts.extend(MessageSegment.file_image(data) for data in result.images)
-                if result.text and len(result.text) <= TEXT_CHARS and len(result.images) == 1:
+                if result.text and len(result.text) <= TEXT_CHARS and len(result.images) == 1 and getattr(result.text, 'mode', 'text') == 'text':
                     # 已在官方 C2C 客户端验证普通图文合发；QQ 自行决定图片/文字布局。
                     parts = [Message(result.text) + MessageSegment.file_image(result.images[0])]
                 if result.file is not None:
@@ -61,15 +63,16 @@ class ResultDelivery:
                         offset = 0
                         while offset < len(media):
                             end = chunk_end(media, offset, TEXT_CHARS)
-                            parts.append(media[offset:end])
+                            part = media[offset:end]
+                            parts.append(Output(part, media.key, media.mode) if isinstance(media, Output) else part)
                             offset = end
                     else:
                         parts.append(getattr(MessageSegment, 'file_' + media.kind)(media.data, file_name=media.name or None))
                 size = sum(payload_size(part) for part in parts)
                 if size > 100 * 1024 * 1024:
-                    parts, size = ['媒体总大小超过100 MiB，请拆分内容或使用原链接。'], 0
+                    parts, size = [present('paging.media_size')], 0
                 elif len(self.pending) >= 128 or size + sum(p.size for p in self.pending.values()) > 256 * 1024 * 1024:
-                    parts, size = ['当前待发送媒体较多，请稍后重新查询。'], 0
+                    parts, size = [present('paging.media_busy')], 0
                 self.pending[key] = PendingResult(parts, now + 600, size)
             pending = self.pending.get(key)
             if pending is None:
@@ -79,7 +82,7 @@ class ResultDelivery:
                 if capacity == 0:
                     return
                 if capacity == 1 and len(pending.parts) > 1:
-                    await bot.send(event, "内容未完，请回复“继续”接收后续。")
+                    await bot.send(event, present('paging.results_23325cb3', {}))
                     return
                 await asyncio.wait_for(bot.send(event, pending.parts[0]), timeout=90)
                 part = pending.parts.pop(0)

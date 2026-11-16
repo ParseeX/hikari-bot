@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hikari · 功能与文案</title><link rel="stylesheet" href="/assets/editor.css"><script src="/assets/editor.js" defer></script></head>
+<body>
+<header><a class="brand" href="/">Hikari <span>功能与文案</span></a><div><span class="tag">QQ 官方机器人</span> <button id="logout" hidden>退出登录</button></div></header>
+<main>
+<section id="login" class="login card"><p class="eyebrow">HIKARI CONSOLE</p><h1>把每一句话，改成你的表达。</h1><p class="muted">按功能查看迁移进度，编辑机器人在不同场景下的回复。</p><form id="login-form"><label for="password">MyCard 管理密码</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button class="primary" type="submit">登录文案后台</button></form><p class="small muted">沿用 MyCard 后台密码，登录会话独立。</p></section>
+<div id="workspace" hidden>
+<section class="intro"><div><p class="eyebrow">BOT WORKSPACE</p><h1>功能与文案</h1><p class="muted">先了解功能进度，再逐条调整回复。保存为草稿，发布后生效。</p></div><button id="refresh">重新载入</button></section>
+<div class="layout"><aside><label for="search">查找功能或文案</label><input id="search" type="search" placeholder="例如：历史、绑定成功…"><nav id="features" aria-label="功能列表"></nav></aside>
+<div class="main-content"><section id="feature-info" class="card"></section><section class="card responses"><div class="section-heading"><h2>可能出现的文案</h2><span id="count" class="muted small"></span></div><p class="small muted">点选一个场景进行修改。变量中的用户名、价格、查询结果由程序实时填写。</p><div id="states" class="state-list"></div><div id="related" class="variables"></div><p id="no-states" hidden>该功能目前没有可编辑文案。上方会注明未接入的范围。</p></section>
+<section id="editor" class="card" hidden><div class="section-heading"><div><p class="eyebrow" id="scene-key"></p><h2 id="scene-title"></h2></div><span id="draft-status" class="tag"></span></div><p id="scene-note" class="small muted"></p>
+<div class="edit-grid"><div><label for="mode">发送格式</label><select id="mode"><option value="text">普通文字</option><option value="markdown">Markdown</option></select><p id="mode-note" class="small muted"></p><label for="template">回复文案</label><textarea id="template" rows="12" spellcheck="false"></textarea><div id="variables" class="variables"></div><details id="button-settings"><summary>已有按钮的文字与排列</summary><div id="button-labels"></div><label for="button-rows">排列（每行填写按钮标识，用空格分隔）</label><textarea id="button-rows" rows="3"></textarea><p class="small muted">仅可调整已有按钮；不会新增动作或改变权限。</p></details></div><div><label>网页预览 · 示例数据</label><div id="preview" class="preview" aria-live="polite"></div><p id="preview-note" class="small muted">网页预览用于检查文案，不代表 QQ 已验收。图片、文件和按钮交互请以 QQ 客户端为准。</p></div></div>
+<footer class="actions"><div><button id="save" class="primary">保存这条草稿</button><button id="restore">填入默认文案</button></div><div><button id="publish">发布本功能草稿</button><button id="rollback">恢复本功能上一版</button></div></footer><p class="small muted">发布和恢复只影响当前功能的文案，不会修改绑定、订阅、权限或业务数据。恢复上一版后保留未发布草稿。</p><details><summary>自己在 QQ 查看草稿效果</summary><p>先在获准的机器人私聊发送“输出预览”，在这里保存草稿后点击下方按钮。只发送当前场景的示例，不发布草稿。</p><button id="qq-preview">发到 QQ 预览</button> <button id="qq-status" disabled>查看发送状态</button><p id="qq-note" class="small muted">网页不会自动发送 QQ 消息。复杂图片、文件和实际业务仍需在 QQ 使用对应命令验证。</p></details></section></div></div></div>
+<p id="notice" role="status" aria-live="polite" hidden></p>
+</main></body></html>

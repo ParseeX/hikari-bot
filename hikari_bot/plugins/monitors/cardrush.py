@@ -347,8 +347,9 @@ async def _auto_send_daily_report():
         qq_screenshots = await prepare_qq_pages(screenshots)
         from hikari_bot.services.official_publish import publish
         from hikari_bot.services.platform import Result
+        from hikari_bot.services.wording import NoticeText
         try:
-            await publish(Result(f'【{date_str}】卡价日报', tuple(qq_screenshots)), dedupe='cardrush-daily:' + date_str)
+            await publish(Result(NoticeText('price_daily.notification', '【{date}】卡价日报', {'date': date_str}), tuple(qq_screenshots)), dedupe='cardrush-daily:' + date_str)
         except Exception as exc:
             logger.warning(f'[official_publish] daily report unavailable: {type(exc).__name__}')
         bot = get_bot()

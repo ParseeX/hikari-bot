@@ -1,4 +1,5 @@
 """事件绑定的查询与媒体回复；不启动旧入口后台采集，也不继承旧管理权限。"""
+from .output_templates import present
 from nonebot import logger, on_message, on_notice
 from nonebot.adapters.qq import Bot
 from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupAtMessageCreateEvent, GroupMessageCreateEvent, MessageEvent
@@ -80,7 +81,7 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
         if not gate.claim(request):
             return
         if request.session in inflight:
-            await bot.send(event, '上一条查询仍在处理中，请稍后再试。')
+            await bot.send(event, present('paging.plugin_e278b7fd', {}))
             return
         inflight.add(request.session)
         try:
@@ -109,7 +110,7 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
                 await results.send(bot, event, result)
                 return
         except Exception:
-            await pager.send(bot, event, "查询或媒体发送未完成，请稍后重试。未自动重发；部分内容可能已送达。")
+            await pager.send(bot, event, present('paging.request_failed'))
             return
         if command == "输出预览" and not argument:
             await editor.open(bot, event)

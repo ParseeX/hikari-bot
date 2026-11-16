@@ -15,6 +15,8 @@ def encode(result):
     value = dict(text=result.text, images=[base64.b64encode(x).decode() for x in result.images],
                  file=base64.b64encode(result.file).decode() if result.file else None,
                  filename=result.filename)
+    if getattr(result.text, 'mode', None) in {'text', 'markdown'}:
+        value['presentation'] = {'key': result.text.key, 'mode': result.text.mode}
     raw = json.dumps(value, ensure_ascii=False)
     if len(raw.encode()) > 40 * 1024 * 1024:
         raise ValueError('跨入口结果超过40 MiB，请使用网页或拆分文件')
@@ -23,6 +25,10 @@ def encode(result):
 
 def decode(raw):
     value = json.loads(raw)
+    presentation = value.get('presentation')
+    if isinstance(presentation, dict) and presentation.get('mode') in {'text', 'markdown'}:
+        from hikari_bot.qq_official.output_templates import Output
+        value['text'] = Output(value['text'], str(presentation.get('key', '')), presentation['mode'])
     return Result(value['text'], tuple(base64.b64decode(x, validate=True) for x in value['images']),
                   base64.b64decode(value['file'], validate=True) if value['file'] else None, value['filename'])
 
