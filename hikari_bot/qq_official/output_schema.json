@@ -1039,22 +1039,26 @@
       "label": "效果回复",
       "note": "群聊（带 @ 或不带 @）、私聊以及长文分页统一使用这一条文案和发送格式，不再提供按聊天场景分开的配置。",
       "format_note": "选择普通文字或 Markdown 后，两边都按此格式发送。普通文字不解析模板里手写的 #、**；想沿用原版排版，可填 {body} 并选择普通文字。Markdown 保留已有私聊短回复按钮；群聊和长文暂不附带按钮，正文与格式仍相同。明确拒绝时只提示错误，不自动改格式。",
-      "template": "# {name}\n{official}\n\n**{types}**\n\n{pendulum}## 效果\n{effect}",
+      "template": "# {name}\n{reading}{original}\n\n**{types}**\n\n{pendulum}{effect}",
       "fields": {
         "name": "卡名",
         "official": "日文名与已有读音",
+        "reading": "假名读音独立段落（Markdown 使用引用，无读音则省略）",
+        "original": "日文卡名（无日文时使用英文名，不含读音）",
         "types": "类型/属性/数值",
         "pendulum": "完整灵摆段落",
         "effect": "完整效果原文",
         "body": "原版完整效果文本（包含卡名、类型、灵摆和效果）"
       },
       "samples": {
-        "name": "灰流うらら",
+        "name": "青眼白龙",
         "official": "青眼の白龍",
+        "reading": "> ブルーアイズ・ホワイト・ドラゴン\n\n",
+        "original": "青眼の白龍",
         "types": "[怪兽|通常] 龙/光 [★8] 3000/2500",
         "pendulum": "",
         "effect": "以高攻击力著称的传说之龙。",
-        "body": "灰流丽（灰流うらら）\n[怪兽|效果|调整]\n完整效果示例。"
+        "body": "青眼白龙（青眼の白龍）\n[怪兽|通常] 龙/光 [★8] 3000/2500\n以高攻击力著称的传说之龙。"
       },
       "mode": "markdown",
       "buttons": {
@@ -1068,7 +1072,8 @@
         ]
       ],
       "blocks": [
-        "pendulum"
+        "pendulum",
+        "reading"
       ],
       "fragment": false,
       "category": "main"

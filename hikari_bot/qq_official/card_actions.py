@@ -63,9 +63,13 @@ def card_values(info):
     texts=info.get('text') or {}
     jp=info.get('jp_name') or ''
     official=jp or info.get('en_name') or ''
+    reading=(info.get('jp_ruby') or '').strip() if jp else ''
     if jp and info.get('jp_ruby'): official+='（'+info['jp_ruby']+'）'
     return {'name':info.get('cn_name') or jp or info.get('en_name') or '卡片',
             'official':official,'types':texts.get('types') or '',
+            'original':jp or info.get('en_name') or '',
+            # 空行结束引用，避免下一行日文名也被 Markdown 视为引用。
+            'reading':(''.join('> '+escape_markdown(line)+'\n' for line in reading.splitlines())+'\n') if reading else '',
             'pendulum':('## 灵摆效果\n'+escape_markdown(texts['pdesc'])+'\n\n***\n\n') if texts.get('pdesc') else '',
             'effect':texts.get('desc') or '暂无效果资料。', 'body':format_card_effect(info)}
 
@@ -84,8 +88,11 @@ def card_text(info):
 def card_content(key, info):
     values = card_values(info)
     content = present(key, values)
-    if content.mode == 'text' and values['pendulum']:
-        values['pendulum'] = info['text']['pdesc'] + '\n---------------\n'
+    if content.mode == 'text':
+        if values['reading']:
+            values['reading'] = info['jp_ruby'].strip() + '\n'
+        if values['pendulum']:
+            values['pendulum'] = info['text']['pdesc'] + '\n---------------\n'
         content = present(key, values)
     return content
 

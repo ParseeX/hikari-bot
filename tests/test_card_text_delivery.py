@@ -60,7 +60,7 @@ class FormatParityTests(unittest.IsolatedAsyncioTestCase):
         spec.update(template='{body}', mode='text')
         with draft('effect.card', spec):
             new = await reply_for("效果 synthetic query", catalog)
-        catalog.search.assert_called_once_with("synthetic query")
+        catalog.search.assert_called_once_with("synthetic query", fuzzy=True)
         self.assertEqual(old, expected)
         self.assertEqual(new, old)
 

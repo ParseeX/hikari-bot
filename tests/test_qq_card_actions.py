@@ -77,7 +77,8 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         info['cn_name'] = '[title](https://example.invalid)'
         info['text']['desc'] = '*literal* [x](url) <tag> _name_\\text\n完整末尾'
         rich, plain, content = card_message(info, 'only-user', images=True, prices=True)
-        self.assertIn('灰流うらら（はるうらら）', content)
+        self.assertIn('> はるうらら\n\n灰流うらら\n', content)
+        self.assertNotIn('## 效果', content)
         self.assertIn(escape_markdown(info['text']['desc']), content)
         self.assertNotIn('](https', content)
         self.assertTrue(plain.endswith(info['text']['desc']))
@@ -91,9 +92,32 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
             rich, _, content = card_message(info, 'only-user')
             self.assertNotIn('unused', content)
             self.assertNotIn('（）', content)
+            self.assertNotIn('> ', content)
             self.assertFalse(rich['keyboard'])
         rich, _, _ = card_message({'id': 0}, 'only-user', images=True, prices=True)
         self.assertFalse(rich['keyboard'])
+
+    def test_reading_quote_escapes_content_and_plain_mode_has_no_quote(self):
+        from hikari_bot.qq_official.output_templates import default, draft
+        from hikari_bot.qq_official.card_actions import card_text
+        info = copy.deepcopy(INFO)
+        info['jp_ruby'] = '*よみ*\nつづき'
+        content = card_text(info)
+        self.assertIn('> \\*よみ\\*\n> つづき\n\n灰流うらら', content)
+        spec = default('effect.card')
+        spec.update(template='{reading}{original}\n{effect}', mode='text')
+        with draft('effect.card', spec):
+            self.assertEqual(card_text(info), '*よみ*\nつづき\n灰流うらら\n'+info['text']['desc'])
+
+    def test_existing_official_name_template_remains_compatible(self):
+        from hikari_bot.qq_official.output_templates import default, draft
+        from hikari_bot.qq_official.card_actions import card_text
+        info = copy.deepcopy(INFO)
+        info['jp_ruby'] = 'はるうらら'
+        spec = default('effect.card')
+        spec.update(template='{official}', mode='markdown')
+        with draft('effect.card', spec):
+            self.assertEqual(card_text(info), '灰流うらら（はるうらら）')
 
     def test_pendulum_link_and_long_text_preserved(self):
         info = copy.deepcopy(INFO)
@@ -101,6 +125,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         _, plain, content = card_message(info, 'only-user')
         self.assertIn(escape_markdown(info['text']['types']), content)
         self.assertIn('## 灵摆效果\n灵摆完整\n第二行', content)
+        self.assertNotIn('## 效果', content)
         self.assertTrue(content.endswith('怪兽完整'*2000))
         self.assertTrue(plain.endswith('怪兽完整'*2000))
 
