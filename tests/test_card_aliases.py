@@ -92,6 +92,33 @@ def test_alias_command_feedback(catalog):
     assert '已关联' in asyncio.run(add_alias_reply(catalog, '1234 小龙'))
 
 
+@pytest.mark.parametrize('target', ['青眼白龙', '青眼白隆', '白龙青眼', 'Blue-Eyes White Dragon', 'Ｂｌｕｅ－Ｅｙｅｓ　White　Dragon', '１２３４'])
+def test_alias_command_accepts_card_names_and_splits_at_last_space(catalog, target):
+    reply = asyncio.run(add_alias_reply(catalog, f'  {target}   社长的龙  '))
+    assert reply == '已添加别名：社长的龙 → 青眼白龙'
+    assert catalog.search('社长的龙')['id'] == 1234
+    assert '已关联' in asyncio.run(add_alias_reply(catalog, f'{target} 社长的龙'))
+
+
+def test_ambiguous_alias_target_never_writes_new_alias(catalog):
+    catalog.add_alias('1234', '共同名字')
+    catalog.add_alias('2000', '共同名字')
+    reply = asyncio.run(add_alias_reply(catalog, '共同名字 新名字'))
+    assert '未添加别名' in reply
+    assert '00001234' in reply and '00002000' in reply
+    assert catalog.search('新名字') is None
+    with catalog.connect() as db:
+        assert db.execute("SELECT count(*) FROM card_names WHERE source='manual:alias'").fetchone()[0] == 2
+
+
+@pytest.mark.parametrize('argument', ['% 新名字', '99999999 新名字', '青眼白龙 1234'])
+def test_unmatched_target_or_invalid_alias_does_not_write(catalog, argument):
+    reply = asyncio.run(add_alias_reply(catalog, argument))
+    assert '已添加' not in reply
+    with catalog.connect() as db:
+        assert db.execute("SELECT count(*) FROM card_names WHERE source='manual:alias'").fetchone()[0] == 0
+
+
 def test_no_minimum_similarity_or_length_for_text_queries(catalog):
     for query in ['陌', 'xyzxyz', '毫无关系的名字']:
         assert catalog.search(query, fuzzy=True) is not None

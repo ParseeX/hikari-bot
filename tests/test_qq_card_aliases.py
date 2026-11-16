@@ -50,12 +50,13 @@ def test_official_commands_display_all_alias_targets(catalog):
 
 
 @pytest.mark.parametrize('kind', ['c2c', 'group', 'group_at'])
-def test_any_connected_user_can_add_shared_alias(catalog, kind):
+@pytest.mark.parametrize('target', ['1234', '青眼白隆', 'Blue-Eyes White Dragon'])
+def test_any_connected_user_can_add_shared_alias(catalog, kind, target):
     from hikari_bot.qq_official.admin import AdminQueries
     from hikari_bot.qq_official.config import PilotConfig
     admin = AdminQueries(PilotConfig('app', 'fake', admins=frozenset({'admin'})))
     queries = Queries(catalog, admin=admin)
-    result = asyncio.run(queries.handle(request(kind=kind, user='ordinary-user'), '添加别名', '1234 社长的龙'))
+    result = asyncio.run(queries.handle(request(kind=kind, user='ordinary-user'), '添加别名', f'{target} 社长的龙'))
     assert '已添加别名' in result.text
     assert '00001234' in asyncio.run(reply_for('卡密 社长的龙', catalog))
-    assert is_group_request('添加别名 1234 社长的龙')
+    assert is_group_request(f'添加别名 {target} 社长的龙')

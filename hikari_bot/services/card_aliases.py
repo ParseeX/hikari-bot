@@ -2,16 +2,26 @@
 import asyncio
 import logging
 import sqlite3
+from .card_catalog import AmbiguousCardName, normalize
 
 
 async def add_alias_reply(catalog, argument):
-    parts = argument.split(maxsplit=1)
+    parts = argument.rsplit(maxsplit=1)
     if len(parts) != 2:
-        return '用法：添加别名 卡密 别名'
+        return '用法：添加别名 卡名或卡密 别名（最后一个空格后为别名）'
     if catalog is None:
         return '卡片资料暂不可用，请稍后再试。'
     try:
-        info, added = await asyncio.to_thread(catalog.add_alias, *parts)
+        target, alias = parts
+        key = normalize(target)
+        if not (key.isascii() and key.isdigit()):
+            info = await asyncio.to_thread(catalog.search, target, fuzzy=True)
+            if info is None:
+                return '未找到对应卡片，请换用完整卡名或准确的卡密。'
+            target = info['id']
+        info, added = await asyncio.to_thread(catalog.add_alias, target, alias)
+    except AmbiguousCardName as error:
+        return '未添加别名。\n' + str(error)
     except ValueError as error:
         return str(error)
     except (OSError, sqlite3.Error):

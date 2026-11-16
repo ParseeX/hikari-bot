@@ -118,11 +118,12 @@ def test_price_command_shows_candidates_before_requesting_prices(catalog, monkey
     assert '青眼白龙' in matcher.messages[0] and '青眼黑龙' in matcher.messages[0]
 
 
-def test_onebot_alias_command_has_no_admin_restriction(catalog, matchers, monkeypatch):
+@pytest.mark.parametrize('target', ['1234', '青眼白隆', 'Blue-Eyes White Dragon'])
+def test_onebot_alias_command_has_no_admin_restriction(catalog, matchers, monkeypatch, target):
     monkeypatch.setattr(ygocard, 'catalog', catalog)
     matcher = matchers['添加别名']
     assert 'permission' not in matcher.options
     with pytest.raises(FinishedException):
-        asyncio.run(matcher.callback(None, None, Message('1234 社长的龙')))
+        asyncio.run(matcher.callback(None, None, Message(f'{target} 社长的龙')))
     assert '已添加别名' in matcher.messages[0]
     assert catalog.search('社长的龙')['id'] == 1234
