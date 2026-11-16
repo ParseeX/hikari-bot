@@ -3,6 +3,7 @@ import asyncio
 import sqlite3
 import subprocess
 import sys
+from dataclasses import replace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -92,6 +93,61 @@ def test_button_rejection_preserves_success_and_offers_manual_delete(catalog):
         assert catalog.search('小龙')['id'] == 1234
         assert not controller.actions
         assert messages(client)[-1].json['content'] == '已添加别名：小龙 → 青眼白龙\n删除按钮发送失败，可用：删除别名 00001234 小龙'
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('kind', ['c2c', 'group', 'group-no-at'])
+@pytest.mark.parametrize('attempt', ['admin', 'ordinary', 'other-group', 'revoked', 'card-query'])
+def test_admin_is_only_added_to_group_undo_buttons(catalog, kind, attempt):
+    from nonebot.adapters.qq import Message, MessageSegment
+    from nonebot.adapters.qq.models import MessageKeyboard
+    from hikari_bot.qq_official.card_actions import command_button
+    async def run():
+        added = await add_alias_reply(catalog, '1234 小龙', with_receipt=True)
+        client = transport(); client.put_interaction = AsyncMock()
+        config = replace(CONFIG, admins=frozenset({'other'}))
+        controller = CallbackController(config, AsyncMock(), undo_handler=undo_handler(catalog))
+        incoming = source(kind)
+        proxy = controller.wrap(NamedFileBot(client), incoming)
+        if attempt == 'card-query':
+            message = Message(MessageSegment.markdown('查卡'))
+            button = command_button('card', '查看卡图', '卡图 1234', 'only-user')
+            message += MessageSegment.keyboard(MessageKeyboard.model_validate({'content': {'rows': [{'buttons': [button]}]}}))
+            await proxy.send(incoming, message)
+        else:
+            await send_added(proxy, incoming, added)
+        button = messages(client)[0].json['keyboard']['content']['rows'][0]['buttons'][0]
+        expected = ['only-user', 'other'] if kind != 'c2c' and attempt != 'card-query' else ['only-user']
+        assert button['action']['permission'] == {'type': 0, 'specify_user_ids': expected}
+        clicked = click(button, kind)
+        actor = 'ordinary-member' if attempt == 'ordinary' else 'other'
+        if kind == 'c2c': clicked.user_openid = actor
+        else: clicked.group_member_openid = actor
+        if attempt == 'other-group':
+            clicked = click(button, 'group', group_member_openid=actor, group_openid='other-group')
+        if attempt == 'revoked': controller.config = replace(config, admins=frozenset())
+        await controller.handle(NamedFileBot(client), clicked)
+        await asyncio.gather(*controller.tasks)
+        if attempt == 'admin' and kind != 'c2c':
+            assert not catalog.alias_targets('小龙')
+            assert messages(client)[-1].json['content'] == '已删除别名：小龙 → 青眼白龙'
+            assert messages(client)[-1].url.path.endswith('/groups/synthetic-group/messages')
+        else:
+            assert catalog.search('小龙')['id'] == 1234
+        controller.processor.assert_not_awaited()
+    asyncio.run(run())
+
+
+def test_admin_creator_not_listed_twice(catalog):
+    async def run():
+        added = await add_alias_reply(catalog, '1234 小龙', with_receipt=True)
+        client = transport()
+        config = replace(CONFIG, admins=frozenset({'only-user'}))
+        controller = CallbackController(config, AsyncMock(), undo_handler=undo_handler(catalog))
+        incoming = source('group')
+        await send_added(controller.wrap(NamedFileBot(client), incoming), incoming, added)
+        button = messages(client)[0].json['keyboard']['content']['rows'][0]['buttons'][0]
+        assert button['action']['permission']['specify_user_ids'] == ['only-user']
     asyncio.run(run())
 
 

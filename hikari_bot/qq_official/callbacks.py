@@ -1,4 +1,4 @@
-"""群聊/私聊按钮绑定原用户与会话，使用事件额度回复，不读取凭据。"""
+"""按钮绑定原会话；群别名撤销额外允许显式管理员，使用事件额度回复。"""
 from .output_templates import present, Output
 import asyncio
 from collections import OrderedDict
@@ -31,6 +31,7 @@ class Action:
     ready: bool = False
     claimed: bool = False
     group: str = ''
+    admins: frozenset[str] = frozenset()
 
 
 def supported_command(command):
@@ -141,9 +142,10 @@ class CallbackController:
                         if action.get('type') != 1 or not supported_command(command):
                             raise ValueError('Unsupported callback action')
                         handle = PREFIX + secrets.token_urlsafe(18)
-                        self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL, group=group)
+                        admins = self.config.admins if group and UNDO_COMMAND.fullmatch(command) else frozenset()
+                        self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL, group=group, admins=admins)
                         handles.append(handle)
-                        button['action'] = {'type': 1, 'data': handle, 'permission': {'type': 0, 'specify_user_ids': [user]}, 'unsupport_tips': str(present('callback.unsupported', plain=True))}
+                        button['action'] = {'type': 1, 'data': handle, 'permission': {'type': 0, 'specify_user_ids': [user, *sorted(admins - {user})]}, 'unsupport_tips': str(present('callback.unsupported', plain=True))}
                 segment.data['keyboard'] = MessageKeyboard.model_validate(keyboard)
             self.prune()
             return (prepared, handles)
@@ -222,8 +224,11 @@ class CallbackController:
             return
         resolved = event.data.resolved
         action = self.actions.get(resolved.button_data)
+        actor = event.get_user_id()
         valid = (action is not None and action.ready and action.app == event.application_id
-                 and action.user == event.get_user_id() and action.group == (event.group_openid or '')
+                 and (action.user == actor or (action.group and UNDO_COMMAND.fullmatch(action.command)
+                                               and actor in action.admins and actor in self.config.admins))
+                 and action.group == (event.group_openid or '')
                  and action.button_id == resolved.button_id
                  and (not resolved.message_id or resolved.message_id == action.message_id))
         if not valid or action.claimed:
