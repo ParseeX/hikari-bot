@@ -4,17 +4,34 @@ import io
 import os
 import re
 import subprocess
+import sys
 import urllib.parse
 from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import OrderedDict
 
 import cairosvg
 import fitz
 from PIL import Image, ImageDraw, ImageFont
 
-from hikari_bot.core.constants import DATA_DIR, PDF_DIR, RESOURCES_DIR
-from hikari_bot.core.logger import log_message
-from hikari_bot.services.ygocard import get_card_info_by_id, get_ygopic
+PACKAGE_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR, PDF_DIR, RESOURCES_DIR = (str(PACKAGE_DIR / name) for name in ('data', 'pdf', 'resources'))
+
+
+async def get_card_info_by_id(card_id):
+    from hikari_bot.services.ygocard import get_card_info_by_id as lookup
+    return await lookup(card_id)
+
+
+async def get_ygopic(card_id):
+    from hikari_bot.services.ygocard import get_ygopic as lookup
+    return await lookup(card_id)
+
+
+async def log_message(message):
+    import logging
+    logging.getLogger(__name__).warning(message)
 
 deck_icon_file = os.path.join(RESOURCES_DIR, 'deck_icon.svg')
 decklist_template = os.path.join(RESOURCES_DIR, 'deck_cn.pdf')
@@ -142,7 +159,7 @@ def parse_ydk(deck_text):
 CARD_IMAGE_LOAD_TIMEOUT = 35
 
 
-async def batch_get_images(card_ids, *, size=(100, 145), preserve_positions=False):
+async def batch_get_images(card_ids, *, size=(100, 145), preserve_positions=False, image_loader=None):
     # 原始卡图由 get_ygopic 持久缓存；本次生成中重复卡片共享只读缩略图。
     card_ids = list(card_ids)
     unique_ids = list(dict.fromkeys(card_ids))
@@ -156,7 +173,7 @@ async def batch_get_images(card_ids, *, size=(100, 145), preserve_positions=Fals
     async def worker():
         for card_id in pending:
             try:
-                img_data = await asyncio.wait_for(get_ygopic(card_id), timeout=CARD_IMAGE_LOAD_TIMEOUT)
+                img_data = await asyncio.wait_for((image_loader or get_ygopic)(card_id), timeout=CARD_IMAGE_LOAD_TIMEOUT)
                 images[card_id] = await asyncio.to_thread(resize, img_data) if img_data else None
             except Exception as e:
                 await log_message(f"[ygodeck] Exception occurred while downloading card image {card_id}: {e}")
@@ -221,7 +238,7 @@ def draw_section(img, card_images, title, start_x, start_y, card_width, card_hei
             img.paste(card_img, (x, y))
 
 
-async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
+async def generate_deck_image(deck_text, id, match, result="", deck_name="", *, image_loader=None):
     main_deck, extra_deck, side_deck = parse_ydk(deck_text)
 
     if len(extra_deck) > 15 or len(side_deck) > 15:
@@ -252,7 +269,8 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
     # 批量获取卡片图片
     all_card_ids = main_deck + extra_deck + side_deck
-    all_card_images = await batch_get_images(all_card_ids, size=(card_width, card_height), preserve_positions=True)
+    options = {'image_loader': image_loader} if image_loader is not None else {}
+    all_card_images = await batch_get_images(all_card_ids, size=(card_width, card_height), preserve_positions=True, **options)
     # 下载失败保留原位置，避免主卡缺图后把额外或 Side 错分到前一区。
     for i, card_img in enumerate(all_card_images):
         if card_img is None:
@@ -311,14 +329,15 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
 
 
-async def generate_card_list_image(id_list):
+async def generate_card_list_image(id_list, *, image_loader=None):
     # 使用更小的卡片尺寸以节省内存
     card_width, card_height = 100, 145  # 缩小到原来的一半
     cards_per_row = 20  # 增加每行卡片数量以补偿
     padding = 2
     margin = 4
     
-    all_card_images = await batch_get_images(id_list)
+    options = {'image_loader': image_loader} if image_loader is not None else {}
+    all_card_images = await batch_get_images(id_list, **options)
     n = len(all_card_images)
     rows = (n + cards_per_row - 1) // cards_per_row
     total_width = cards_per_row * (card_width + padding) + padding + 2 * margin
@@ -338,15 +357,24 @@ def generate_subset_font(original_font_path, output_font_path, text):
     characters = ''.join(sorted(set(c for c in text)))
 
     command = [
-        "pyftsubset",
+        sys.executable, "-m", "fontTools.subset",
         original_font_path,
         f"--output-file={output_font_path}",
         f"--text={characters}",
     ]
 
-    subprocess.run(command)
+    subprocess.run(command, check=True, timeout=30)
 
-async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
+async def generate_deck_list_pdf(deck_text, language="sc", file_name=None, *, card_lookup=None):
+    # 每次生成独立字体子集，避免两个入口或并发请求覆盖同一个 sc.ttf/jp.ttf。
+    with TemporaryDirectory(prefix='hikari-deck-fonts-') as directory:
+        return await _generate_deck_list_pdf(deck_text, language, file_name,
+                                             card_lookup or get_card_info_by_id, directory)
+
+
+async def _generate_deck_list_pdf(deck_text, language, file_name, card_lookup, directory):
+    font_path_sc_subset = str(Path(directory) / 'sc.ttf')
+    font_path_jp_subset = str(Path(directory) / 'jp.ttf')
     main_deck, extra_deck, side_deck = parse_ydk(deck_text)
 
     if len(extra_deck) > 15 or len(side_deck) > 15:
@@ -366,7 +394,7 @@ async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
     
     t = [0] * 3
     for card_id, count in card_count.items():
-        card_info = await get_card_info_by_id(card_id)
+        card_info = await card_lookup(card_id)
         type = 0
         card_name = ""
         font_name = language
@@ -400,7 +428,7 @@ async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
     
     t = 0
     for card_id, count in card_count.items():
-        card_info = await get_card_info_by_id(card_id)
+        card_info = await card_lookup(card_id)
         card_name = ""
         font_name = language
         if card_info:
@@ -426,7 +454,7 @@ async def generate_deck_list_pdf(deck_text, language="sc", file_name=None):
     
     t = 0
     for card_id, count in card_count.items():
-        card_info = await get_card_info_by_id(card_id)
+        card_info = await card_lookup(card_id)
         card_name = ""
         font_name = language
         if card_info:

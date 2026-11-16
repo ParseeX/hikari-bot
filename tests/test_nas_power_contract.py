@@ -12,7 +12,8 @@ def test_nas_power_plugin_is_private_and_uses_existing_superusers():
     assert "settings.superusers" in source
     assert 'on_cmd("开机"' in source
     assert 'on_cmd("关机"' in source
-    assert 'f"{base_url}/v1/{action}"' in source
+    assert 'await request_action(base_url, token, action' in source
+    assert 'f"{base_url}/v1/{action}"' in (ROOT / 'hikari_bot/services/power.py').read_text(encoding='utf-8')
 
 
 def test_nas_power_settings_are_declared_without_exposing_the_token_repr():

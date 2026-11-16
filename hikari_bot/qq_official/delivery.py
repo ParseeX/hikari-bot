@@ -1,14 +1,14 @@
 """Lossless text paging within each incoming event's passive reply budget."""
-from .output_templates import present, arrange, Output
+from .output_templates import present, Output
 import asyncio
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
-from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupAtMessageCreateEvent
+from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupMessageCreateEvent
 from nonebot.adapters.qq.exception import ActionFailed
 TEXT_CHARS = 1500
-CONTINUE_HINT = '\n（内容未完，请回复“继续”接收后续。）'
+CONTINUE_HINT = '\n（内容未完，回复“继续”接收后续内容。）'
 PENDING_SECONDS = 600
 LIMITS = {'c2c': (4, 3600), 'group': (5, 300)}
 
@@ -20,7 +20,7 @@ class Pending:
 
 def context(bot, event):
     app = str(getattr(bot, 'self_id', ''))
-    if isinstance(event, GroupAtMessageCreateEvent):
+    if isinstance(event, GroupMessageCreateEvent):
         return (app, 'group', event.group_openid, event.get_user_id())
     if isinstance(event, C2CMessageCreateEvent):
         return (app, 'c2c', event.get_user_id())

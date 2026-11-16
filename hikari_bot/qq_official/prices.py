@@ -68,6 +68,10 @@ class PriceQueries:
     def active(self, user_id):
         return user_id in self.sessions
 
+    def cancel(self, user_id):
+        self.sessions.pop(user_id, None)
+        self.generations[user_id] = self.generations.get(user_id, 0) + 1
+
     async def start(self, info, user_id, *, rarity=None, prefix=None, japanese=False):
         self.sessions.pop(user_id, None)
         generation = self.generations.get(user_id, 0) + 1

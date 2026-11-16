@@ -44,3 +44,40 @@ def build_services(home: Path, credential_directory: Path, catalog):
         result['price_backend'] = PriceQueries(JhsClient(profile['bridge_url'], token, timeout=60),
             reader, IsolatedVersionCache(cache_path, catalog))
     return result
+
+
+def build_migration_queries(home, catalog, *, price_backend=None, config=None, credential_directory=None):
+    """仅新发布版调用；独立状态及缓存，不触碰旧 Bot 的数据库和配置。"""
+    from functools import partial
+    from hikari_bot.services.platform_state import PlatformState
+    from hikari_bot.services.card_media import CardMedia
+    from hikari_bot.services.deck_renderer import DeckRenderer
+    from hikari_bot.services.ruling_client import conclusion
+    from hikari_bot.services.link_parser import LinkParser
+    from hikari_bot.services.price_reports import PriceReports
+    from .business import Queries
+    from .admin import AdminQueries
+    directory = Path(home) / '.local/share/srbs/migration'
+    media = CardMedia(catalog, directory / 'card-images') if catalog else None
+    power = None
+    power_profile = Path(home) / '.config/srbs/nas-power.json'
+    if config and config.admins and credential_directory and power_profile.is_file():
+        from hikari_bot.services.power import request_action
+        profile = json.loads(power_profile.read_text(encoding='utf-8'))
+        if set(profile) != {'base_url', 'timeout'} or not isinstance(profile['base_url'], str):
+            raise ValueError('invalid NAS service profile')
+        url = urlsplit(profile['base_url'])
+        if url.scheme not in {'http', 'https'} or not url.hostname or url.username or url.password or url.query or url.fragment:
+            raise ValueError('invalid NAS service URL')
+        if type(profile['timeout']) not in {int, float} or not 1 <= profile['timeout'] <= 30:
+            raise ValueError('invalid NAS service timeout')
+        token = (Path(credential_directory) / 'srbs-nas-token').read_text(encoding='utf-8')
+        if not token or token != token.strip() or '\x00' in token:
+            raise ValueError('invalid NAS credential')
+        power = partial(request_action, profile['base_url'], token, timeout=profile['timeout'])
+    return Queries(catalog, image_loader=media.full if media else None,
+                   deck_renderer=DeckRenderer(catalog, media.full) if media else None,
+                   ruling=partial(conclusion, url='https://ocg-ruling-assistant.vercel.app/api/answer'),
+                   state=PlatformState(directory), links=LinkParser(),
+                   price_reports=PriceReports(price_backend.comparison.cardrush, catalog) if price_backend else None,
+                   admin=AdminQueries(config, power=power) if config else None)

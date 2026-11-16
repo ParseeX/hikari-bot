@@ -1,6 +1,7 @@
 """真实调用入口的先行卡 CDN 回退回归测试。"""
 import asyncio
 from io import BytesIO
+from types import SimpleNamespace
 
 import pytest
 from PIL import Image, ImageDraw
@@ -9,6 +10,13 @@ from hikari_bot.services import ygocard, ygodeck
 
 
 CDN = 'https://cdncf.moecube.com/ygopro-super-pre/data/pics/'
+
+
+@pytest.fixture(autouse=True)
+def isolated_catalog_and_cache(monkeypatch, tmp_path):
+    # 回退场景不依赖开发机/服务器的真实卡片身份与缓存。
+    monkeypatch.setattr(ygocard, 'catalog', SimpleNamespace(by_id=lambda code: None))
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path / 'images'))
 
 
 def card_bytes():

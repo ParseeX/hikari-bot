@@ -1,0 +1,132 @@
+# QQ 官方入口迁移清单
+
+核对日期：2026-11-16。此文记录代码及验证状态，**不是全部功能恢复公告**。
+
+用户已明确：旧机器人账号无法继续使用；比赛相关暂缓；先完成代码，QQ 客户端收发验证稍后进行。原数据库、NapCat 数据、旧入口与现网发布版均保留。不依赖旧机器人完成双端验证码。
+
+## 基线审计
+
+- 原本地基线 `9281e81` 已以 fast-forward 合入现网 Git 基线 `5b366f1`，未 reset、clean 或覆盖工作区。
+- 工作区源文件及原 diff 备份：`C:\Users\xu_yi\AppData\Local\hikari-migration-backup-20261116-100612`。不含凭据；原 `.pytest-tmp*`、两篇裁定研究文档及其他无关未跟踪文件保留。
+- `eb7bdfb`：单独收回已部署的 B 站 Range 下载修复及直接视频不发预览卡片修复，包含原兼容插件、共享补丁、测试及说明。
+- `832d858`：单独收回 `srbs` 现网官方入口、回调、模板编辑器、网关修复，以及现网已经使用的共享卡图/文字/只读卡价代码。原本地 `card_prices/service.py`、`cardrush/__init__.py`、`cardrush/parsing.py`、`.gitignore` 中已确认部分随此提交归档。
+- 现网官方代码来自 `/home/xyk/srbs/releases/20261013-08`，入口为根目录 `run_srbs.py`、`qq_bot.py`；没有用较旧本地官方目录覆盖它。较新的主库模糊搜索 `services/card_catalog.py` 保留，没有退回发布目录的旧实现。
+- 原工作区 `cardrush/repository.py`、`plugins/ygocard_query.py`、`services/ygocard.py` 的共享逻辑提取当时未应用现网，未冒充已部署基线提交；现在与迁移一起完成回归，属于新变更。查询、卡图及展示算法继续复用原实现。
+- 旧 `docs/qq-official-pilot.md` 与两个 PowerShell 启动/配对脚本仍为原未跟踪草稿，不作为最新能力或部署凭据。本文件为本次迁移状态依据。
+- 两个基线提交已推送 `origin/main`，均使用 `[skip ci]`。仓库 main 的普通推送会触发 `update.sh` 自动部署旧 Bot；本次代码提交必须继续跳过该流程，不能通过 push 隐式切换服务。
+
+## 平台、SDK、应用与真实结果
+
+以下四列必须分别判断。后台显示某能力选项，不代表此应用已获所有群的授权；API 接受上传或消息，也不等于用户客户端收到。
+
+| 能力 | 当前官方文档 | SDK | 当前应用/部署核对 | 本次真实 QQ 验证 |
+| --- | --- | --- | --- | --- |
+| C2C 私聊接收/回复 | 支持；被动回复有时间与条数限制 | 1.7.1/1.7.4 支持 | 后台 App 与 `srbs` App 匹配；仅 1 个 C2C 身份在服务允许名单中；网关在线 | 未做，用户要求稍后 |
+| 群 @ 消息 | 支持 | 两版均支持 | 后台累计 1 群，但服务允许群列表为空；不能当作获准群已配置 | 未做 |
+| 群非 @ 消息 | `GROUP_MESSAGE_CREATE`，须开启接收所有消息 | 1.7.1 已支持；本项目补上基类事件分发 | 本地 `receive_non_at` 默认 false；实际群开关未确认，未改后台 | 未做 |
+| 入站附件 | C2C/群事件含 attachments | 事件字段支持 | 入口保留附件字段，明确提示收到但未自动下载导入；比赛附件导入暂缓 | 未做 |
+| 文本、图片 | 支持 | SDK 支持，原 C2C Markdown/按钮保留 | 现网试点已有实现；本次合成消息验证不算客户端验收 | 未做 |
+| 视频、音频、文件 | 富媒体/分片上传接口 | 1.7.4 有分片完成重试；小文件名需本地窄适配 | 代码可生成文件并上传；没有发 QQ 探测消息 | 未做，视频播放尤其待验 |
+| 主动消息 | 最新文档仍支持，受开关、配额、场景及频率限制 | 支持无被动 msg_id 的接口 | 未查询到足以确认应用实际可投递的证据；新订阅保存为暂停 | 未做，未发送旧订阅通知 |
+| 群管理 | 最新文档有撤回、成员/发言/入群等接口 | 1.7.3/1.7.4 已补部分群管理接口 | 后台显示能力配置项、白名单群数量 0；移除成员还需白名单/群内授权 | 未做；未启用群管理命令 |
+| 任意群/好友公开使用 | 后台控制公开接入 | 与 SDK 能否解析事件不同 | 个人认证；公开好友、任意群开关显示关闭且不可编辑；体验用户 0 | 不承诺对所有 QQ 用户开放 |
+
+权威资料：
+
+- [消息收发概述](https://bot.q.qq.com/wiki/develop/api-v2/server-inter/message/overview.html)：被动回复、主动消息与频控。
+- [群内普通消息事件](https://bot.q.qq.com/wiki/develop/api-v2/autogen/event/group_message_create.html)、[C2C 消息事件](https://bot.q.qq.com/wiki/develop/api-v2/autogen/event/c2c_message_create.html)：身份、附件与事件字段。
+- [官方 API 调用与鉴权](https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/api-use.html)：统一 `api.bot.qq.com`。
+- [官方变更记录](https://bot.q.qq.com/wiki/develop/api-v2/changelog.html)、[QQ adapter 发布记录](https://github.com/nonebot/adapter-qq/releases)：新版接口覆盖与媒体修复。
+- [SDK 沙箱参数移除说明](https://github.com/nonebot/adapter-qq/pull/232)：1.7.3 起移除旧沙箱配置。本项目对新版 SDK 下的 `HIKARI_QQ_SANDBOX=true` 明确报错，不静默改连生产。
+
+旧仓库文档曾写主动消息停止支持，不能沿用为当前结论。文档列出的限制也不是本应用实测配额。入口暂按 C2C 每事件 4 条/60 分钟、群每事件 5 条/5 分钟控制被动回复；平台更严格的频控仍可能拒绝。
+
+## 结构与数据边界
+
+- OneBot：`bot.py` 与 `hikari_bot/plugins/`；官方：`qq_bot.py`、`run_srbs.py` 与 `hikari_bot/qq_official/`。不在官方进程加载整个旧插件目录。
+- `services/platform.py` 定义平台、应用、身份种类、作用域。C2C user、群 member、group 分开；同一个字符串在不同平台/App/群下不相等，禁止转成旧 QQ 数字。
+- `qq_official/events.py` 转换事件；`business.py` 调用共享服务；`results.py` 转换文本、图片、音频、视频、文件并续页。失败不自动改为主动推送，不自动重发结果。
+- 新状态只写 `~/.local/share/srbs/migration/qq-official-state.sqlite3`。绑定按新身份保存；订阅默认 `paused_platform_unverified`；旧数据库不打开、不合并、不批量改写。
+- 新入口使用独立缓存。Cardrush 历史库使用 SQLite `mode=ro` 与 `query_only`，沿用原统计过滤，不为了方便查询调用旧库初始化/迁移。
+- 旧绑定/订阅不会因迁移消失，但不会自动变成新身份的绑定/订阅。用户可在新私聊重新 `绑定 MyCard用户名`；这只是公开战绩查询的默认用户名，不证明持有那个 MyCard 账号，也不赋予管理权。
+- 无法使用旧入口时，由操作者通过当前 QQ 官方私聊的一次性口令核对 OpenID，再人工核验需要关联的旧记录。无证据时保留旧记录并要求重建新绑定；禁止按昵称关联。群关系另行核验。
+- 管理员使用独立的 `HIKARI_QQ_ADMIN_USERS`/`verified_admin_users`，默认空，必须属于显式允许的 C2C 用户；不从旧 QQ 管理员或群成员角色继承。NAS 仅允许这个名单中的私聊请求。
+- 官方后台不启动 MyCard/Cardrush/MENSA/图片恢复等第二份采集任务。原 MyCard 监听改为旧服务启动时启动，QQ 重连只换发送通道，断连不停止归档；离线时暂停旧通知，且不自动退订。此启动变更尚未部署，不能宣称现网已按新方式采集。
+- 新解析工作进程复用固定版 `nonebot-plugin-parser==2.6.6` 的 parser/renderer；不启动 driver/scheduler，临时目录与环境不继承旧 Cookie 或 Bot 密钥。不是直接把第三方事件插件加载进官方进程。
+- 新绑定、订阅与事件去重记录独立；事件 claim 持久化 1 小时，重启后也拒绝同事件再次执行。结果续页/卡价选择/回调仍为内存会话，重启后需要重新查询；不会恢复成主动发送。
+
+## 功能清单
+
+缩写：`Q` 为 `hikari_bot/qq_official/`，`S` 为 `hikari_bot/services/`，`P` 为 `hikari_bot/plugins/`。所有“待实测”均指此次用户暂缓的真实 QQ 客户端验收。
+
+| 原命令/功能 | 原代码位置 | 官方实现/当前状态 | 体验差异/阻塞 | 自动测试及其他验证 | QQ 结果 |
+| --- | --- | --- | --- | --- | --- |
+| 卡密查询、游戏王卡密、卡密 | P/ygocard_query.py | Q/commands.py，S/card_catalog.py | 保留卡密及模糊搜索，歧义列候选；不猜选卡 | test_card_text_delivery、test_qq_official | 待实测 |
+| 效果查询、游戏王效果、效果 | 同上 | Q/card_actions.py；S/card_text.py | 群沿用纯文字；C2C 保留试点 Markdown/按钮；长文“继续” | 文本一致性、灵摆、长文、SDK 序列化 | 待实测 |
+| 卡图查询、游戏王卡图、卡图 | 同上 | Q/card_actions.py；S/card_art.py | 原多图在官方按张翻页；C2C 原导航按钮保留，群给文字下一张命令 | test_qq_card_actions、parser/card image 原回归；真实卡图下载成功 | 待实测 |
+| 每日一卡 | 同上 | Q/business.py；S/card_media.py | 日期与新身份稳定，同一天重复相同；新身份种子与旧 QQ 不同 | 身份隔离/种子测试；真实卡图下载 | 待实测 |
+| 共界计算 | 同上 | Q/business.py，S/deck_renderer.py/ygodeck.py | 原计算算法与卡片列表图片；资料缺失明确报错 | 原计算回归；共享渲染测试 | 待实测 |
+| 随机一卡、更新数据库、每日 03:00 更新 | 同上 | 管理命令明确未启用；定时更新仍只由旧后台拥有 | 不把旧数字管理员搬过来；官方只读主库 | 管理拒绝、无旧插件导入测试 | 未启用 |
+| 卡价查询/卡价、日版价格查询/日版卡价查询 | P/monitors/cardrush_query.py | Q/prices.py/price_outputs.py，既有 ComparisonService | 罕贵/版本规则与文字保留；会话包含 App/群/用户，继续纯文字 | test_qq_card_actions、tests/cardrush | 待实测 |
+| 卡价曲线、历史卡价、卡价历史 | P/monitors/cardrush.py | S/price_reports.py，原 draw_price_chart | 仍编号选产品；文字与图片分消息，受被动条数限制 | 只读历史库哈希不变、真实 PNG 格式、原 chart 测试 | 待实测 |
+| 卡价日报 | 同上 | S/price_reports.py，原 format_daily_report | 沿用 M.D 日期、原价格范围/RD 过滤；长文按“继续”分页 | 原日报单测、只读查询与分页 | 待实测 |
+| 卡价图报、重置卡价数据库、cardrush_test | 同上 | 明确未授权/启用 | 管理员核验和图报多页客户端体验待完成；不执行 reset | 权限拒绝；原图报回归保留 | 未启用 |
+| 15 分钟价格抓取、22:20 日报推送 | 同上 | 旧后台保留；官方不重复注册 | 官方主动推送未启用，旧目标不转 OpenID | 官方导入隔离测试；未改旧定时配置 | 未恢复官方推送 |
+| MyCard 绑定、查询绑定/绑定查询 | P/mycard_query.py | Q/business.py，S/platform_state.py | 新身份重新绑定；旧反查数字 QQ 的体验不提供 | 独立库、群/私聊隔离、旧数据哈希 | 待实测 |
+| 查分、首胜查询/首赢查询 | 同上；S/mycard.py | Q/business.py 调用原 API | 显式用户名或新绑定；API 失败不误报未首胜 | API 失败单测、原 MyCard 回归 | 待实测 |
+| 历史、X月历史、XX年X月历史 | P/mycard_query.py | S/mycard_reports.py，由两入口共用 | 原月初分数/结算算法与图片；@旧用户查绑定不能原样实现，改显式用户名 | 原历史算法与图表回归，未来月份拒绝 | 待实测 |
+| 胜率查询/胜率统计 | 同上 | S/mycard_reports.py | 文字/图表保留，身份使用新绑定 | 原 MyCard 回归；媒体分页 | 待实测 |
+| 订阅、退订；开局/首赢通知 | 同上、P/monitors/mycard.py | 新订阅/退订存独立库，通知暂停 | 旧订阅保留；未核验的目标不发送；须另测主动权限/频控后接入发送 | 暂停状态、目标隔离、退订不改旧库 | 未恢复官方通知 |
+| 添加/删除账号、切换通知、对手提醒 | P/monitors/mycard.py | 旧监听/关注库保留；官方命令明确未启用 | 尚未把旧管理员收件目标关联到官方管理员，不能猜测投递 | 原 opponent_watch 回归；监听启动/断连/重连测试 | 未恢复官方提醒 |
+| MyCard采集状态/文件/规则检查 | 同上、S/mycard_archive/ | 原归档保留；官方管理入口明确未启用 | 待独立管理员验证与归档文件投递验收；不将归档权限开放给普通用户 | 原归档测试保留 | 未启用 |
+| 卡组查询 | P/mycard_decks.py | 管理查询明确未启用 | 原仅 SUPERUSERS；未扩大权限 | 管理拒绝、原卡组查询图片测试 | 未启用 |
+| 前排卡组信息 | 同上 | 返回现有 https://ygo.xyk.one/mc 网页入口 | 未提供原 100 名合并转发；明确说明 | 原前排/缓存回归；无新的转发 API 调用 | 网页替代待用户确认 |
+| 添加标签、删除标签、查看标签 | P/mycard_query.py | 提示尚未迁移 | 原代码仅注册命令、没有处理器，并非已可用功能被删除 | AST 清单核对 | 不宣称恢复 |
+| 裁定查询 | P/ruling_query.py | S/ruling_client.py，共享 HTTP 客户端 | 保留 shortAnswer 与“非官方裁定，仅供参考”；错误不暴露响应正文 | test_ruling_assistant 与模拟 HTTP | 待实测 |
+| 卡表、中文/简中/日文/英文卡表 | P/ygomatch_query.py 中独立卡表入口 | Q/commands.py | 原当前实现就是网页链接，PDF 代码已注释；继续网页入口 | 原入口语义测试 | 待实测 |
+| 生成卡组图片/卡组图片/卡组 | 同上独立生成器，S/ygodeck.py | S/deck_renderer.py，共享原排版 | 支持分享链接/命令内 YDK；缺图时明确失败，不发缺卡图 | deck_web、渲染回归；服务器真实生成并目视检查 | 待实测 |
+| 卡组 PDF | S/ygodeck.py 原生成器 | 新 `卡组PDF` 命令，Q/media.py 命名文件上传 | 独立字体子集；原模板每类主卡最多 20 种，超出明确拒绝；不等于群文件库 | 真实 PDF 生成/渲染检查；小文件命名上传与被动上下文单测 | 待实测打开/下载 |
+| 比赛查询、签到/比赛签到、退赛、新建比赛 | P/ygomatch_query.py | 按用户要求暂缓，未改模块 | 不执行任何比赛数据库写入 | 仅暂缓提示测试 | 暂缓 |
+| 比赛卡组提交/确认、环境统计、对阵信息、头像压缩 | 同上 | 按用户要求暂缓 | 原文件与数据保留 | 未操作比赛逻辑 | 暂缓 |
+| B站及其他链接/视频解析 | nonebot_plugin_parser；P/parser_compat.py | S/link_parser.py/link_worker.py | 单次工作进程复用原 parser/renderer；合并节点展开顺序消息；B站直接视频无前置卡片；原 Cookie 不迁移 | parser_compat；工作进程隔离与路径逃逸测试；实际样本 -404、热门索引 HTTP 412，尚无成功媒体样本 | 未验证下载到播放全链路 |
+| bm BV号 [分集] | 第三方 parser matchers | 工作进程复用原 Bili 音频下载接口 | 音频单独上传；不能把此命令误变成发视频 | 无效参数测试；有效音频待外部服务验证 | 待实测 |
+| ym、blogin | 第三方 parser matchers | 明确不可用/待配置 | ym 的可选 yt-dlp 本环境未安装；扫码 Cookie 需要独立登录，未复制旧凭据 | 不自动加载额外组件 | 未启用 |
+| 开启解析/关闭解析 | 第三方 parser filter | 明确管理功能未启用 | 原群管理/超级用户边界保留，不能任意用户修改其他群设置 | 管理拒绝 | 未启用 |
+| 翻译、中译日/日译中等、中译中 | 第三方 easy-translate、P/roundtrip_translate.py | S/translation.py 只载入原客户端 | 不加载 OneBot 注册器；中译中保持两步；输出文字；旧代理配置不自动继承 | 导入隔离、语言参数/两步翻译模拟测试 | 待实测 |
+| 开机、关机 | P/nas_power.py | Q/admin.py，S/power.py | 仅显式官方管理员私聊；独立 systemd 凭据与服务配置；默认禁用 | 拒绝群/陌生/未授权、模拟 HTTP 响应；未执行真实电源动作 | 待管理员验证 |
+| 日志/状态/版本/重载/重启/白名单/广播/成员列表 | P/base.py | 明确未授权/启用 | 不能从 OpenID 推回 QQ 群关系；群管理需额外平台授权；不能移植旧 shell/广播权限给普通用户 | 命令清单与拒绝测试 | 未启用 |
+| MENSA 门萨/切换门萨、3分钟任务 | P/monitors/mensa.py | 旧后台保留，官方明确未启用 | 官方管理员收件目标及主动推送尚未核验 | 不在官方进程注册定时器 | 未恢复官方通知 |
+| jm、切换AI权限/切换本地模型权限、本地模型聊天 | P/jm.py、local_llm_admin.py、_local_llm_chat.py | 旧入口保留；官方管理命令明确未启用 | 不扩大原权限；旧群授权不自动继承 | 拒绝测试；旧代码不改 | 未启用 |
+| 好友/群请求、白名单前置处理 | P/base.py | 不加载 OneBot 事件处理器 | 官方不是个人 QQ 账号，好友/群关系与接口不同 | 入口白名单和身份隔离测试 | 未移植自动接受 |
+| 集换社健康通知、图片预缓存/恢复、usage_stats、Web/API | P/jihuanshe_monitor.py、mycard_image_cache.py、usage_stats.py、Web 插件 | 原后台继续拥有；官方不复制计时器/HTTP 服务 | 官方新命令尚未计入原 OneBot usage_stats；旧 Web/API 仍原服务提供 | 纯导入无旧插件/配置断言；相关旧回归 | 未切换这些后台服务 |
+| ping、帮助、继续、样式预览、输出预览、回调按钮 | Q/commands.py、delivery.py、preview.py、editor_preview.py、callbacks.py | 现网功能保留，并扩展混合媒体续页 | C2C 回调仍绑定本人、App、消息和一次性句柄；扩展群配置不取消已有私聊回调 | SDK 序列化、超时、过期、所有权、长文分页、回归 | 本次待复验 |
+
+## 不能承诺原样复刻的体验
+
+1. 合并转发：本次没有使用官方原生合并转发。链接解析展开为顺序消息；前排卡组给现有网页。长输出需要用户回复“继续”，不静默截断。
+2. 群文件库：发送文件附件不是写入群文件库，也不等于可浏览旧文件。PDF 先按命名附件实现，群内是否可下载仍待验。
+3. QQ 身份与群关系：OpenID 不等于 QQ 号，同名不证明是同人；群成员 ID 与 C2C ID也不直接相等。旧记录保留，新绑定/管理员显式配置。
+4. 视频大文件：工作进程默认沿用插件 90 MiB/480 秒限制，结果总量上限 100 MiB；上传限额、客户端内联播放、编码及清晰度均待实测。失败明确提示，不能只看 upload 成功就报视频恢复。
+5. 主动推送：接口存在不等于此应用/此关系可用。新订阅暂停；不把未核验的旧数字目标提交给官方接口。API 429/超时不自动重试原消息；显式“继续”可能重复网络超时但已送达的最后一项，需先检查聊天记录。
+6. 多条输出：每次按事件被动额度发送，剩余内存保存 10 分钟。总缓存有上限；不足时提示重新查询，不能无限堆积媒体。进程重启后重新查询，不主动补发。
+
+## 环境、验证与切换
+
+- 旧运行环境保留。隔离测试环境 `/home/xyk/srbs/envs/20261116-migration`，测试源码在相邻 `20261116-source`，均不在 `srbs/current`。
+- `qq-official.lock` 是 Linux/Python 3.12 官方服务的带哈希锁定清单，基于仓库原 uv.lock 的版本，QQ adapter 升至 1.7.4，并补足 aiohttp driver 的依赖。没有修改原 OneBot 的 `pyproject.toml`/`uv.lock`。
+- `uv pip sync --dry-run --require-hashes` 已核对运行依赖与测试环境一致，仅会移除测试工具。Windows 不能直接使用 Linux 锁文件；本机原 1.7.1 环境的兼容回归也保留。
+- 自动测试使用合成身份、临时 SQLite 与模拟 QQ API，不算真实收发。回归覆盖去重（含重启后的 claim）、私聊/群会话隔离、非 @ 开关、权限拒绝、被动分页、发送失败/超时、SDK 网关超时、Cookie/配置隔离、小 PDF 命名上传、缺图/PDF 溢出及后台重连不重启采集。
+- 最终 Linux 隔离环境（SDK 1.7.4）完整回归：854 passed；包含 Bash 部署保护测试。首次全量发现测试快照缺少文档、图片用例读取了服务器真实主库，已补齐快照并把这两组用例的资料与缓存改为临时数据。另一个原归档冷却测试首次受时序影响失败，单独复验与最终全量均通过，未改生产归档算法。
+- Windows 原环境（SDK 1.7.1）完整回归：849 passed、4 skipped、1 failed；失败为缺少 Bash，已在上述 Linux 环境验证。图片测试隔离调整后，本机相关测试再次 62 passed。依赖内部仍有弃用警告；没有宣称零警告。
+- `qq_bot.py --connect` 的独立启动配置可用卡图加载器；完整卡价桥接与 NAS 的受控凭据仍通过 `run_srbs.py` 配置，不从旧 dotenv 自动导入。
+- 已实际从服务器加载主库并下载卡图，生成卡组 PNG 与 PDF；没有加载旧 `core.config`。PDF 已渲染检查，示例显示简中官方卡名（例如“黑魔导”），不是按其他译名强行替换。此测试未发 QQ。
+- 现网 `srbs` 仍是 `/home/xyk/srbs/releases/20261013-08` + `/home/xyk/srbs/.venv`；`bot.service` 与 NapCat 未重启。新代码未部署；新管理员、群与通知权限未配置。
+- 后续部署先将已提交代码和资源放入新 release，使用新 venv，保存用户级 `srbs.service` 配置及 current 目标，再切换并重启 `srbs`（会有短暂断连）。回退切回上述旧 release/venv 和原 unit，不删除新/旧数据。
+- MyCard 后台启动方式的变更涉及 `bot.service`，必须独立部署验证采集状态；不能只更新 `srbs` 就宣称旧后台也生效。旧服务完整保留时，官方入口不要重复启动它的任务。
+- 客户端验收待用户方便后逐项执行：C2C、群 @/非 @、入站附件、卡图、PDF 下载打开、视频内联播放、主动通知、按钮回调、拒绝权限、频控、断线重连。以接收方实际可见为通过依据。
+
+### 管理员与 NAS 的后续配置
+
+现网 schema 1 profile 继续有效，管理员始终为空。核验后才能显式改为 schema 2，保留四个原字段并增加 `verified_admin_users`（已核验 C2C OpenID 列表）和 `receive_non_at`（布尔值）。不得从继承环境变量偷偷扩大该文件的范围。
+
+NAS 另需受控的 `~/.config/srbs/nas-power.json`（只含 `base_url`、`timeout`）和 systemd credential `srbs-nas-token`。未配置时命令明确提示未配置；无管理员时甚至不读取这项凭据。此文不含真实配置值，本次没有迁移或启用 NAS 凭据。

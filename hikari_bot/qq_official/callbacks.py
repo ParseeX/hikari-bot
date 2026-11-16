@@ -129,7 +129,7 @@ class CallbackController:
             raise
 
     def trusted(self, bot, event):
-        return isinstance(event, InteractionCreateEvent) and event.type == 11 and (event.application_id == str(bot.self_id) == self.config.app_id) and (event.chat_type == 2) and (event.scene == 'c2c') and (not any([event.group_openid, event.group_member_openid, event.guild_id, event.channel_id])) and (len(self.config.users) == 1) and (not self.config.groups) and isinstance(event.user_openid, str) and self.config.allows('c2c', event.user_openid)
+        return isinstance(event, InteractionCreateEvent) and event.type == 11 and (event.application_id == str(bot.self_id) == self.config.app_id) and (event.chat_type == 2) and (event.scene == 'c2c') and (not any([event.group_openid, event.group_member_openid, event.guild_id, event.channel_id])) and isinstance(event.user_openid, str) and self.config.allows('c2c', event.user_openid)
 
     async def ack(self, bot, event, code, timeout=ACK_SECONDS):
         try:

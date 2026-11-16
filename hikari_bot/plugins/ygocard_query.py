@@ -27,6 +27,7 @@ from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.logger import log_message
 from hikari_bot.services import ygocard as card_service
 from hikari_bot.services.card_catalog import AmbiguousCardName
+from hikari_bot.services.card_text import format_card_effect
 from hikari_bot.services.ygodeck import generate_card_list_image
 
 
@@ -116,24 +117,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await ygo_card_effect.finish("未找到对应卡片！")
             return
 
-        official_name = card_info.get("jp_name") or card_info.get("en_name", "")
-        cn_name = card_info.get("cn_name", "")
-        type = card_info["text"]["types"]
-        p_effect = card_info["text"]["pdesc"]
-        effect = card_info["text"]["desc"]
-
-        if cn_name:
-            result = f"{cn_name}（{official_name}）\n{type}\n"
-        else:
-            result = f"{official_name}\n{type}\n"
-        if p_effect != "":
-            result = result + p_effect + "\n---------------\n"
-        
-        if effect == "":
-            effect = "暂无效果资料。"
-        result = result + effect
-
-        await ygo_card_effect.finish(result)
+        await ygo_card_effect.finish(format_card_effect(card_info))
 
 
 # ── 数据库维护 ─────────────────────────────────────────────────────────────────────────

@@ -7,6 +7,11 @@ from tempfile import TemporaryDirectory
 
 
 def initialize(nonebot, config):
+    from nonebot.adapters.qq.config import Config as SDKConfig
+    supports_sandbox = 'qq_is_sandbox' in SDKConfig.model_fields
+    if config.sandbox and not supports_sandbox:
+        raise ValueError('当前 QQ adapter 已移除沙箱模式；拒绝自动改连生产。请明确设置 HIKARI_QQ_SANDBOX=false。')
+    sdk_options = {'qq_is_sandbox': config.sandbox} if supports_sandbox else {}
     # NoneBot 2.5 always probes .env for Env(), even with _env_file=None.
     # Initialize in an empty directory and give Config an explicit file list.
     previous = Path.cwd()
@@ -15,7 +20,7 @@ def initialize(nonebot, config):
             os.chdir(empty)
             nonebot.init(_env_file=[Path(empty) / "unused.env"], driver="~aiohttp",
                          log_level="WARNING", superusers=set(), command_start={"", "/"},
-                         qq_is_sandbox=config.sandbox, qq_bots=[config.bot_info()])
+                         qq_bots=[config.bot_info()], **sdk_options)
         finally:
             os.chdir(previous)
 
@@ -49,13 +54,18 @@ def main():
         from hikari_bot.qq_official.pairing import run
         return run(config, args.pair, args.pair_timeout)
     import nonebot
-    from nonebot.adapters.qq import Adapter
+    from hikari_bot.qq_official.gateway import SrbsQQAdapter as Adapter
 
     initialize(nonebot, config)
     nonebot.get_driver().register_adapter(Adapter)
     from hikari_bot.qq_official.plugin import register
 
-    register(config)
+    from hikari_bot.services.card_catalog import CardCatalog
+    from hikari_bot.qq_official.runtime_services import build_migration_queries
+    from hikari_bot.qq_official.card_actions import existing_art_loader
+    catalog = CardCatalog(config.catalog_path) if config.catalog_path else None
+    queries = build_migration_queries(Path.home(), catalog, config=config)
+    register(config, queries=queries, image_loader=existing_art_loader if catalog else None)
     nonebot.run()
 
 

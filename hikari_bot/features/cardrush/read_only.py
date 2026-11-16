@@ -107,3 +107,12 @@ class ReadOnlyPrices:
 
     async def search_prices(self, name, rarity=None, model_number=None, limit=10):
         return await asyncio.to_thread(search_latest, self, name, rarity, model_number, limit)
+
+    async def get_price_history(self, product_id):
+        from .repository import PriceRepository
+        return await asyncio.to_thread(PriceRepository.get_history, self, product_id)
+
+    async def get_daily_changes(self, date, *, exclude_prefixes=None):
+        from .repository import PriceRepository
+        return await asyncio.to_thread(PriceRepository.get_daily_changes, self, date,
+                                      None, 0, True, exclude_prefixes)

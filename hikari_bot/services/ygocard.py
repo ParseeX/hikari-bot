@@ -1,5 +1,4 @@
 import asyncio
-import io
 import json
 import os
 import sys
@@ -7,11 +6,11 @@ import sqlite3
 from urllib.parse import quote
 
 import aiohttp
-from PIL import Image, ImageOps
 
 from hikari_bot.core.config import PROJECT_ROOT, settings
 from hikari_bot.core.constants import DATA_DIR
 from hikari_bot.services.card_catalog import CardCatalog
+from hikari_bot.services import card_art
 from hikari_bot.services.card_image_cache import read_card_image, valid_card_image, write_card_image
 from hikari_bot.services.card_image_sources import (
     IMAGE_ORIGIN, IMAGE_FULL, IMAGE_CHINESE, IMAGE_TIMEOUT,
@@ -76,9 +75,7 @@ async def get_unknown_card():
 
 
 def _valid_image(data: bytes) -> bytes:
-    with Image.open(io.BytesIO(data)) as image:
-        image.load()
-    return data
+    return card_art._valid_image(data)
 
 
 async def _resolved_image_id(session, code, *, info=None):
@@ -178,21 +175,7 @@ async def get_ygopic(id: int, half: bool = True, *, refresh=False):
 
 
 def _crop_chinese_card_art(image_data: bytes) -> bytes:
-    """裁去中文卡图模板的文字和边框，仅保留中间插画。"""
-    with Image.open(io.BytesIO(image_data)) as image:
-        width, height = image.size
-        left_ratio, top_ratio, right_ratio, bottom_ratio = _CHINESE_CARD_ART_CROP
-        crop_box = (
-            round(width * left_ratio),
-            round(height * top_ratio),
-            round(width * right_ratio),
-            round(height * bottom_ratio),
-        )
-        cropped = image.crop(crop_box).convert("RGB")
-
-        buffer = io.BytesIO()
-        cropped.save(buffer, format="JPEG", quality=95)
-        return buffer.getvalue()
+    return card_art._crop_chinese_card_art(image_data)
 
 
 async def get_image_by_id(id: int):
@@ -224,34 +207,11 @@ async def get_card_info(keyword: str, *, fuzzy=True):
 
 
 def normalize_card_art(data: bytes) -> bytes:
-    """统一画面大小并清除内嵌缩略图，避免发送端误读 JPEG 尺寸。"""
-    with Image.open(io.BytesIO(data)) as image:
-        image.load()
-        image = ImageOps.pad(ImageOps.exif_transpose(image).convert('RGB'), CARD_ART_SIZE,
-                             method=Image.Resampling.LANCZOS, color='white')
-        # 同尺寸也重新编码；源文件的 EXIF 中可能含有 120×120 的 JPEG。
-        image.info.clear()
-        buffer = io.BytesIO()
-        image.save(buffer, format='JPEG', quality=95)
-        return buffer.getvalue()
+    return card_art.normalize_card_art(data)
 
 
 async def get_card_images(keyword: str) -> list[tuple[int, bytes | None]]:
-    """有限并发下载全部画面，保留顺序和失败位置供一条消息展示。"""
-    ids = await asyncio.to_thread(catalog.image_ids, keyword)
-    semaphore = asyncio.Semaphore(3)
-
-    async def download(card_id):
-        async with semaphore:
-            try:
-                data = await asyncio.wait_for(get_image_by_id(card_id), timeout=25)
-                if data:
-                    return card_id, await asyncio.to_thread(normalize_card_art, data)
-            except (TimeoutError, OSError, ValueError):
-                await log_message(f'[card_images] 图片加载失败：{card_id}')
-            return card_id, None
-
-    return await asyncio.gather(*(download(card_id) for card_id in ids))
+    return await card_art.get_card_images(catalog, keyword, image_loader=get_image_by_id, log_message=log_message)
 
 
 # ==================== 工具函数 ====================

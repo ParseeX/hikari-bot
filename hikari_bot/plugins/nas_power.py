@@ -9,6 +9,7 @@ from nonebot.params import CommandArg
 from hikari_bot.core.commands import on_cmd
 from hikari_bot.core.config import ConfigurationError, settings
 from hikari_bot.core.logger import log_message
+from hikari_bot.services.power import request_action
 
 
 def _is_allowed_private_request(event: MessageEvent) -> bool:
@@ -21,16 +22,7 @@ async def _request_power_action(action: str) -> None:
     if not settings.superusers:
         raise ConfigurationError("SUPERUSERS is not configured")
 
-    async with httpx.AsyncClient(timeout=settings.nas_power_timeout) as client:
-        response = await client.post(
-            f"{base_url}/v1/{action}",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        response.raise_for_status()
-        payload = response.json()
-
-    if payload.get("ok") is not True or payload.get("action") != action:
-        raise RuntimeError("NAS power service returned an unexpected response")
+    await request_action(base_url, token, action, timeout=settings.nas_power_timeout)
 
 
 async def _handle_power_command(matcher, event: MessageEvent, action: str, args: str) -> None:

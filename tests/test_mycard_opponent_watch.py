@@ -223,7 +223,8 @@ def load_plugin(monkeypatch, tmp_path):
 
     monkeypatch.setattr(hikari_bot.core.commands, "on_cmd", lambda cmd, **kw: Matcher(**kw))
     monkeypatch.setattr(nonebot, "get_driver", lambda: SimpleNamespace(
-        on_bot_connect=lambda fn: fn, on_shutdown=lambda fn: fn))
+        on_startup=lambda fn: fn, on_bot_connect=lambda fn: fn,
+        on_bot_disconnect=lambda fn: fn, on_shutdown=lambda fn: fn))
     spec = importlib.util.spec_from_file_location("watch_monitor_test", Path("hikari_bot/plugins/monitors/mycard.py"))
     plugin = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(plugin)
@@ -274,7 +275,12 @@ def test_monitor_connection_wires_private_image_and_reconnects_without_reset(tmp
     monkeypatch.setattr(plugin, "handle_create_event", ignore)
 
     async def run():
-        await plugin._on_bot_connect(SimpleNamespace(send_private_msg=send))
+        await plugin._on_startup()
+        task = plugin._ws_task
+        assert task is not None and not task.done()
+        client = SimpleNamespace(send_private_msg=send)
+        await plugin._on_bot_connect(client)
+        assert plugin._ws_task is task
         watcher = plugin._opponent_watch
         await watcher.send("123", "a[CQ:at,qq=all]", b"png")
         assert messages[0]["user_id"] == 123
@@ -284,6 +290,13 @@ def test_monitor_connection_wires_private_image_and_reconnects_without_reset(tmp
         assert watcher._seen
         await plugin._on_bot_connect(SimpleNamespace(send_private_msg=send))
         assert plugin._opponent_watch is watcher
+        assert plugin._ws_task is task
+        await plugin._on_bot_disconnect(client)
+        assert plugin._delivery_bot is not None  # 旧连接断开不能清掉新通道。
+        await plugin._on_bot_disconnect(plugin._delivery_bot)
+        assert plugin._delivery_bot is None and plugin._ws_task is task
+        await plugin._send_notifications(None, [('private', '123')], 'paused', 'private')
+        assert len(messages) == 1
         await plugin._on_shutdown()
         assert plugin._opponent_watch is None and plugin._ws_task is None
     asyncio.run(run())

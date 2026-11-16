@@ -1,0 +1,78 @@
+"""只读卡价曲线与日报；复用原来的选择规则、统计和图表。"""
+from collections import OrderedDict
+from datetime import datetime
+import time
+from zoneinfo import ZoneInfo
+
+from hikari_bot.features.cardrush.parsing import parse_price_query, expand_rarity_to_jp_list, rarity_jp_to_en
+from hikari_bot.features.cardrush.reporting.text import format_daily_report, parse_date_arg
+from .platform import Result
+
+
+class PriceReports:
+    def __init__(self, reader, catalog, *, clock=time.monotonic):
+        self.reader, self.catalog, self.clock = reader, catalog, clock
+        self.sessions = OrderedDict()
+
+    async def handle(self, request, command, argument):
+        now = self.clock()
+        for key in [key for key, (expiry, _) in self.sessions.items() if expiry <= now]:
+            del self.sessions[key]
+        key = request.session
+        if command == '卡价日报':
+            today = datetime.now(ZoneInfo('Asia/Tokyo')).date()
+            try:
+                date = parse_date_arg(argument, today=today) if argument else today.isoformat()
+            except ValueError as error:
+                return Result(str(error))
+            changes = await self.reader.get_daily_changes(date, exclude_prefixes=['RD/'])
+            return Result(media=tuple(format_daily_report(changes, date)))
+        if command in {'卡价曲线', '历史卡价', '卡价历史'}:
+            self.sessions.pop(key, None)
+            if not argument:
+                return Result('请输入卡片名称！例如：卡价曲线 青眼白龙')
+            name, rarity, prefix = parse_price_query(argument)
+            if self.catalog:
+                import asyncio
+                info = await asyncio.to_thread(self.catalog.search, name)
+                name = (info or {}).get('jp_name') or name
+            candidates = await self.reader.search_prices(name, expand_rarity_to_jp_list(rarity) if rarity else None, prefix, 11)
+            if not candidates:
+                return Result(f'暂无 {name} 的价格历史记录。')
+            if len(candidates) > 10:
+                return Result('找到超过10条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。')
+            if len(candidates) == 1:
+                return await self.draw(candidates[0])
+            self.sessions[key] = (now + 180, candidates)
+            while len(self.sessions) > 128:
+                self.sessions.popitem(last=False)
+            lines = '\n'.join(f'{i}. {item.name}  {(item.model_number or "").split("-")[0]}-{rarity_jp_to_en(item.rarity or "")}  {item.price:,}円' for i, item in enumerate(candidates, 1))
+            return Result(f'找到 {len(candidates)} 条结果，请回复编号：\n{lines}')
+        if key not in self.sessions:
+            return None
+        if command in {'取消', '退出', 'cancel'}:
+            del self.sessions[key]
+            return Result('已取消卡价曲线查询。')
+        if not argument and command.isascii() and command.isdigit() and len(command) <= 3:
+            candidates = self.sessions[key][1]
+            index = int(command) - 1
+            if not 0 <= index < len(candidates):
+                return Result(f'请输入 1-{len(candidates)} 之间的编号：')
+            del self.sessions[key]
+            return await self.draw(candidates[index])
+        # 新命令结束旧的曲线选择，避免截获其他业务的编号。
+        self.sessions.pop(key, None)
+        return None
+
+    async def draw(self, selected):
+        from hikari_bot.features.cardrush.reporting.chart import draw_price_chart
+        history = await self.reader.get_price_history(selected.product_id)
+        if not history:
+            return Result('暂无该卡片的历史价格记录。')
+        image = draw_price_chart(history)
+        if not image:
+            return Result('绘制图表失败。')
+        box = selected.model_number.split('-')[0] if selected.model_number else '未知'
+        text = (f'{selected.name}  {box}-{rarity_jp_to_en(selected.rarity or "")}\n'
+                f'当前买取价：{history[-1].price:,}円（共 {len(history)} 条记录）')
+        return Result(text, (image,))

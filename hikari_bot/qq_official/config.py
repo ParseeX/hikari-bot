@@ -24,6 +24,8 @@ class PilotConfig:
     users: frozenset[str] = field(default_factory=frozenset, repr=False)
     groups: frozenset[str] = field(default_factory=frozenset, repr=False)
     catalog_path: Path | None = None
+    receive_non_at: bool = False
+    admins: frozenset[str] = field(default_factory=frozenset, repr=False)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str], *, pairing: bool = False):
@@ -35,12 +37,18 @@ class PilotConfig:
         sandbox = env.get("HIKARI_QQ_SANDBOX", "").lower()
         if sandbox not in {"true", "false"}:
             raise ValueError("HIKARI_QQ_SANDBOX must be true or false")
+        non_at = env.get("HIKARI_QQ_RECEIVE_NON_AT", "false").lower()
+        if non_at not in {"true", "false"}:
+            raise ValueError("HIKARI_QQ_RECEIVE_NON_AT must be true or false")
         if pairing:
             # Discovery must not consult business paths or existing permissions.
             return cls(env["HIKARI_QQ_APP_ID"].strip(), env["HIKARI_QQ_APP_SECRET"],
                        env.get("HIKARI_QQ_TOKEN", ""), sandbox == "true")
         users = _ids(env, "HIKARI_QQ_ALLOWED_USERS")
         groups = _ids(env, "HIKARI_QQ_ALLOWED_GROUPS")
+        admins = _ids(env, 'HIKARI_QQ_ADMIN_USERS')
+        if not admins <= users:
+            raise ValueError('HIKARI_QQ_ADMIN_USERS must be explicitly allowed C2C users')
         if not users and not groups:
             raise ValueError("Configure at least one allowed official QQ user/group identifier")
         path = env.get("HIKARI_QQ_CARD_CATALOG", "").strip()
@@ -48,10 +56,11 @@ class PilotConfig:
             raise ValueError("HIKARI_QQ_CARD_CATALOG must point to an existing card catalog")
         return cls(env["HIKARI_QQ_APP_ID"].strip(), env["HIKARI_QQ_APP_SECRET"],
                    env.get("HIKARI_QQ_TOKEN", ""), sandbox == "true", users, groups,
-                   Path(path) if path else None)
+                   Path(path) if path else None,
+                   non_at == "true", admins)
 
     def allows(self, kind: str, user_id: str, group_id: str = "") -> bool:
-        if kind == "group_at":
+        if kind == "group_at" or (kind == "group" and self.receive_non_at):
             return bool(group_id) and group_id in self.groups
         return kind == "c2c" and user_id in self.users
 

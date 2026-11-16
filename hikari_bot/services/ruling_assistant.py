@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import httpx
 
 from hikari_bot.core.config import settings
@@ -26,16 +24,5 @@ async def get_ruling_conclusion(
 
 
 async def _get_ruling_conclusion(question: str, client: httpx.AsyncClient) -> str:
-    response = await client.post(
-        settings.ruling_assistant_api_url,
-        json={"question": question},
-    )
-    response.raise_for_status()
-    payload: Any = response.json()
-    if not isinstance(payload, dict):
-        raise ValueError("Ruling Assistant returned a non-object response")
-
-    conclusion = payload.get("shortAnswer")
-    if not isinstance(conclusion, str) or not (conclusion := conclusion.strip()):
-        raise ValueError("Ruling Assistant response does not contain shortAnswer")
-    return conclusion
+    from .ruling_client import conclusion
+    return await conclusion(question, settings.ruling_assistant_api_url, client=client)

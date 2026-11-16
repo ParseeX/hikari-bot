@@ -9,6 +9,13 @@ from PIL import Image, ImageDraw
 from hikari_bot.services import ygocard
 
 
+@pytest.fixture(autouse=True)
+def isolated_catalog_and_cache(monkeypatch, tmp_path):
+    # 需要特定卡片身份的用例自行覆盖，其他用例不能读取真实主库。
+    monkeypatch.setattr(ygocard, 'catalog', SimpleNamespace(by_id=lambda code: None))
+    monkeypatch.setattr(ygocard, 'CARD_PICS', str(tmp_path / 'images'))
+
+
 class _FakeResponse:
     def __init__(self, status: int, data: bytes = b""):
         self.status = status

@@ -151,88 +151,13 @@ class PriceRepository:
                 f"Cardrush price save failed: {exc}"
             ) from exc
 
-    def search_latest(
-        self,
-        name: str,
-        rarity: str | list[str] | None = None,
-        model_number: str | None = None,
-        limit: int = 10,
-    ) -> list[PriceSnapshot]:
-        self.initialize()
-        conditions = ["name LIKE ?"]
-        params: list[object] = [f"%{name}%"]
-
-        if isinstance(rarity, list):
-            if rarity:
-                placeholders = ",".join("?" for _ in rarity)
-                conditions.append(f"rarity IN ({placeholders})")
-                params.extend(rarity)
-            else:
-                conditions.append("0")
-        elif rarity is not None:
-            conditions.append("IFNULL(rarity, '') = IFNULL(?, '')")
-            params.append(rarity)
-        if model_number is not None:
-            conditions.append("model_number LIKE ?")
-            params.append(f"%{model_number}%")
-
-        where = " AND ".join(conditions)
+    def search_latest(self, name: str, rarity: str | list[str] | None = None,
+                      model_number: str | None = None, limit: int = 10) -> list[PriceSnapshot]:
+        from .read_only import search_latest
         try:
-            with self._connect() as connection:
-                rows = connection.execute(
-                    f"""
-                    WITH ranked AS (
-                        SELECT
-                            product_id,
-                            name,
-                            rarity,
-                            model_number,
-                            price,
-                            changed_at,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY product_id
-                                ORDER BY datetime(changed_at) DESC, id DESC
-                            ) AS rn
-                        FROM card_price_history
-                        WHERE {where} AND price > 0
-                    )
-                    SELECT
-                        product_id,
-                        name,
-                        rarity,
-                        model_number,
-                        price,
-                        changed_at
-                    FROM ranked
-                    WHERE rn = 1
-                    ORDER BY price DESC
-                    LIMIT ?
-                    """,
-                    [*params, limit],
-                ).fetchall()
-        except (sqlite3.Error, PersistenceError) as exc:
-            raise CardrushRepositoryError(
-                f"Cardrush price search failed: {exc}"
-            ) from exc
-
-        return [
-            PriceSnapshot(
-                product_id=product_id,
-                name=name_value,
-                rarity=rarity_value,
-                model_number=model_value,
-                price=int(price),
-                changed_at=changed_at,
-            )
-            for (
-                product_id,
-                name_value,
-                rarity_value,
-                model_value,
-                price,
-                changed_at,
-            ) in rows
-        ]
+            return search_latest(self, name, rarity, model_number, limit)
+        except PersistenceError as exc:
+            raise CardrushRepositoryError("Cardrush database unavailable") from exc
 
     def get_history(self, product_id: int) -> list[PricePoint]:
         self.initialize()

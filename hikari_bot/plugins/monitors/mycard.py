@@ -44,6 +44,7 @@ room_list: dict = {}
 _archive: ArchiveRuntime | None = None
 _opponent_watch: OpponentWatch | None = None
 _watched_accounts: WatchedAccounts | None = None
+_delivery_bot: Bot | None = None
 
 
 def watched_accounts() -> WatchedAccounts:
@@ -55,6 +56,10 @@ def watched_accounts() -> WatchedAccounts:
 # ── 通知推送 ─────────────────────────────────────────────────────────────────────────
 
 async def _send_notifications(bot: Bot, subscribers: list, message: str, message_type: str):
+    bot = _delivery_bot or bot
+    if bot is None:
+        logger.info('[mycard_subscriber] delivery paused: OneBot is not connected')
+        return  # 不猜测官方 OpenID，不因旧入口离线取消历史订阅。
     for subscriber in subscribers:
         try:
             usertype, qq = subscriber
@@ -98,6 +103,9 @@ async def handle_create_event(bot: Bot, player_ids: list):
 
 
 async def handle_delete_event(bot: Bot, room_id):
+    if _delivery_bot is None and bot is None:
+        room_list.pop(room_id, None)
+        return  # 归档已由独立监听处理；离线时不轮询仅用于推送的战绩。
     try:
         subscribe_list = get_subscribe_list()
         if room_id not in room_list:
@@ -155,7 +163,7 @@ async def handle_delete_event(bot: Bot, room_id):
 
 
 async def process_mycard_event(bot: Bot, payload: dict):
-    if _opponent_watch:
+    if _opponent_watch and (_delivery_bot or bot):
         try:
             _opponent_watch.process(payload)
         except Exception as exc:
@@ -169,6 +177,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
     data  = payload.get("data") or {}
 
     if event == "init":
+        room_list.clear()
         for match in data:
             users = match.get("users") or []
             player_ids = [user.get("username") for user in users if user.get("username")]
@@ -181,6 +190,8 @@ async def process_mycard_event(bot: Bot, payload: dict):
         player_ids = [user.get("username") for user in users if user.get("username")]
         room_id = data.get("id")
         if len(player_ids) == 2:
+            if room_id in room_list:
+                return
             room_list[room_id] = player_ids
             await handle_create_event(bot, player_ids)
 
@@ -227,27 +238,23 @@ def ws_status_check() -> bool:
 # ── 启动与关闭钉子 ───────────────────────────────────────────────────────────────────
 
 driver = get_driver()
-@driver.on_bot_connect
-async def _on_bot_connect(bot: Bot):
+async def _start_background():
     global _ws_task, _archive, _opponent_watch
     if _ws_task and not _ws_task.done():
-        _ws_task.cancel()
-        try:
-            await _ws_task
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            await log_message(f"[mycard_subscriber] Exception occurred while canceling ws task: {e}")
-        await log_message("[mycard_subscriber] MyCard monitor canceled old task.")
+        return  # QQ 重连只替换发送通道，不重新订阅或重启采集。
     
     async def send_archive_message(recipient: str, text: str):
-        await bot.send_private_msg(user_id=int(recipient), message=MessageSegment.text(text))
+        if _delivery_bot is None:
+            raise RuntimeError('OneBot delivery is paused')
+        await _delivery_bot.send_private_msg(user_id=int(recipient), message=MessageSegment.text(text))
 
     async def send_opponent_image(recipient: str, text: str, image: bytes | None):
+        if _delivery_bot is None:
+            raise RuntimeError('OneBot delivery is paused')
         message = Message(MessageSegment.text(text))
         if image is not None:
             message += MessageSegment.image(image)
-        await bot.send_private_msg(user_id=int(recipient), message=message)
+        await _delivery_bot.send_private_msg(user_id=int(recipient), message=message)
 
     if _opponent_watch:
         _opponent_watch.send = send_opponent_image
@@ -280,12 +287,29 @@ async def _on_bot_connect(bot: Bot):
             except Exception as exc:
                 logger.error(f"[mycard_archive] 归档启动失败：{type(exc).__name__}")
                 _archive = None
-    _ws_task = asyncio.create_task(ws_runner(bot))
+    _ws_task = asyncio.create_task(ws_runner(None))
     await log_message("[mycard_subscriber] MyCard monitor started.")
+
+@driver.on_startup
+async def _on_startup():
+    await _start_background()
+
+@driver.on_bot_connect
+async def _on_bot_connect(bot: Bot):
+    global _delivery_bot
+    _delivery_bot = bot
+    await _start_background()
+
+@driver.on_bot_disconnect
+async def _on_bot_disconnect(bot: Bot):
+    global _delivery_bot
+    if _delivery_bot is bot:
+        _delivery_bot = None
 
 @driver.on_shutdown
 async def _on_shutdown():
-    global _ws_task, _archive, _opponent_watch
+    global _ws_task, _archive, _opponent_watch, _delivery_bot
+    _delivery_bot = None
     if _ws_task and not _ws_task.done():
         _ws_task.cancel()
         try:

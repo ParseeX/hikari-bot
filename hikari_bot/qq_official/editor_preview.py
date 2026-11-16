@@ -28,7 +28,7 @@ class PreviewSession:
         await self.tick()  # Mark interrupted requests; never send without a new session.
 
     async def open(self,bot,event,*,start_worker=True):
-        if not isinstance(event,C2CMessageCreateEvent) or len(self.config.users)!=1 or self.config.groups or not self.config.allows('c2c',event.get_user_id()): return False
+        if not isinstance(event,C2CMessageCreateEvent) or len(self.config.users)!=1 or not self.config.allows('c2c',event.get_user_id()): return False
         async with self.lock:
             self.seen={k:v for k,v in self.seen.items() if v>self.clock()}
             if event.id in self.seen or not self.pager.capacity(event,'c2c'): return False

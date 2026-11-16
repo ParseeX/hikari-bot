@@ -14,8 +14,13 @@ import aiohttp
 import pytz
 from nonebot import logger
 
-from hikari_bot.persistence import get_state_store
 from hikari_bot.services.mycard_history import record_month
+
+
+def get_state_store():
+    # 只读 API 调用不应初始化旧 QQ 数据库或读取旧入口配置。
+    from hikari_bot.persistence import get_state_store as legacy_store
+    return legacy_store()
 
 
 # ── 常量 ──────────────────────────────────────────────────────────────────────────────

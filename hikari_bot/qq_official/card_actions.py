@@ -4,9 +4,9 @@ import asyncio
 import re
 from typing import Protocol
 from nonebot.adapters.qq import Message, MessageSegment
-from nonebot.adapters.qq.event import C2CMessageCreateEvent
+from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupMessageCreateEvent, GroupAtMessageCreateEvent
 from nonebot.adapters.qq.models import MessageKeyboard
-from hikari_bot.services.card_text import format_card_effect
+from hikari_bot.services.card_catalog import AmbiguousCardName
 from .delivery import TEXT_CHARS, context
 from .preview import report
 EFFECT_COMMANDS = {'效果', '效果查询', '游戏王效果'}
@@ -79,14 +79,18 @@ class CardActions:
         self.catalog, self.image_loader, self.price_backend = (catalog, image_loader, price_backend)
 
     async def handle(self, command, argument, config, bot, event, pager):
-        if not isinstance(event, C2CMessageCreateEvent) or len(config.users) != 1 or (not config.allows('c2c', event.get_user_id())):
+        group = isinstance(event, GroupMessageCreateEvent)
+        kind = ('group_at' if isinstance(event, GroupAtMessageCreateEvent) else 'group') if group else 'c2c'
+        if not isinstance(event, (C2CMessageCreateEvent, GroupMessageCreateEvent)) or not config.allows(kind, event.get_user_id(), event.group_openid if group else ''):
             return False
+        session = context(bot, event)
+        command = {'卡图查询': '卡图', '游戏王卡图': '卡图', '查卡图': '卡图', '查效果': '效果'}.get(command, command)
         price_commands = {'卡价', '卡价查询', '价格查询', '日版价格查询', '日版卡价查询'}
         known = EFFECT_COMMANDS | {'卡图'} | price_commands
         if command not in known:
-            if self.price_backend is not None and self.price_backend.active(event.get_user_id()) and (not argument) and (command not in {'继续', 'ping', 'help', '帮助', '卡表', '样式预览'}):
+            if self.price_backend is not None and self.price_backend.active(session) and (not argument) and command.lower() not in {'ping', 'help', 'log', 'status', 'version', 'reload', 'reboot'} and re.fullmatch(r'(?:[0-9]{1,3}|[A-Za-z+]{1,12}|取消|退出)', command):
                 try:
-                    response = await asyncio.wait_for(self.price_backend.choose(command, event.get_user_id()), timeout=95)
+                    response = await asyncio.wait_for(self.price_backend.choose(command, session), timeout=95)
                 except TimeoutError:
                     response = present('price.prices_9')
                 await pager.send(bot, event, response)
@@ -115,7 +119,7 @@ class CardActions:
                 await pager.send(bot, event, present('art.card_actions_3', {}))
             elif command in EFFECT_COMMANDS:
                 rich, plain, content = card_message(info, event.get_user_id(), images=self.image_loader is not None, prices=self.price_backend is not None)
-                if len(content) <= TEXT_CHARS:
+                if not group and len(content) <= TEXT_CHARS:
                     await pager.send(bot, event, plain, preview=rich, report=report)
                 else:
                     await pager.send(bot, event, plain)
@@ -123,10 +127,12 @@ class CardActions:
                 if self.price_backend is None:
                     await pager.send(bot, event, present('art.card_actions_4', {}))
                 else:
-                    response = await asyncio.wait_for(self.price_backend.start(info, event.get_user_id(), rarity=rarity, prefix=prefix, japanese=command in {'日版价格查询', '日版卡价查询'}), timeout=95)
+                    response = await asyncio.wait_for(self.price_backend.start(info, session, rarity=rarity, prefix=prefix, japanese=command in {'日版价格查询', '日版卡价查询'}), timeout=95)
                     await pager.send(bot, event, response)
             else:
                 await self.images(info, offset, bot, event, pager)
+        except AmbiguousCardName as exc:
+            await pager.send(bot, event, str(exc))
         except (TimeoutError, OSError, ValueError):
             report('card_query_failed')
             await pager.send(bot, event, present('art.card_actions_5', {}))
@@ -149,19 +155,22 @@ class CardActions:
             for old in [k for k, expiry in pager.seen.items() if expiry <= now]:
                 del pager.seen[old]
             marker = (*key, event.id)
-            if marker in pager.seen or pager.capacity(event, 'c2c') < 2:
+            if marker in pager.seen or pager.capacity(event, key[1]) < 2:
                 return
             pager.seen[marker] = now + 3600
             while len(pager.seen) > 2048:
                 pager.seen.popitem(last=False)
         data = await asyncio.wait_for(self.image_loader(ids[offset]), timeout=30)
         async with pager.lock:
-            if pager.capacity(event, 'c2c') < 2:
+            if pager.capacity(event, key[1]) < 2:
                 return
             payload = MessageSegment.file_image(data) if data and len(data) <= 8 * 1024 * 1024 else present('art.failed',{'index':offset+1})
             await bot.send(event, payload)
-            if pager.capacity(event, 'c2c'):
-                await bot.send(event, image_navigation(info, event.get_user_id(), offset, len(ids), prices=self.price_backend is not None))
+            if pager.capacity(event, key[1]):
+                if isinstance(event, C2CMessageCreateEvent):
+                    await bot.send(event, image_navigation(info, event.get_user_id(), offset, len(ids), prices=self.price_backend is not None))
+                elif offset + 1 < len(ids):
+                    await bot.send(event, f'共有 {len(ids)} 张卡图。下一张请发送：卡图 {code} {offset + 1}')
 
 async def existing_art_loader(card_id):
     from hikari_bot.services.card_art import get_image_by_id, normalize_card_art

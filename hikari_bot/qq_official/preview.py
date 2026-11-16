@@ -2,10 +2,7 @@
 from .output_templates import present, arrange
 import asyncio
 import json
-from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.adapters.qq.event import C2CMessageCreateEvent
-from nonebot.adapters.qq.models import MessageKeyboard
-from hikari_bot.services.card_text import format_card_effect
 from .delivery import TEXT_CHARS
 from .diagnostics import exception_metadata
 CARD_ID = '14558127'
