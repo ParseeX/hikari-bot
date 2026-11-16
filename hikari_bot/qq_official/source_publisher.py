@@ -32,6 +32,23 @@ class Publisher:
         if self.git('branch','--show-current').decode().strip() != 'main':
             raise ValueError('后台不在预期的 main 分支')
 
+    @staticmethod
+    def documentation(name):
+        return name.startswith('docs/') or name.endswith('.md')
+
+    def sync_documents(self):
+        self.git('fetch','origin','main')
+        head = self.git('rev-parse','HEAD').decode().strip()
+        remote = self.git('rev-parse','origin/main').decode().strip()
+        if head == remote:
+            return
+        base = self.git('merge-base',head,remote).decode().strip()
+        if base == remote:
+            return  # 上一次本地提交尚未推送，不丢弃它。
+        if base != head or any(not self.documentation(p) for p in self.git('diff','--name-only',head,remote).decode().splitlines()):
+            raise ValueError('远程代码已变化，请先由维护者合并部署')
+        self.git('merge','--ff-only','origin/main')
+
     def point(self, target):
         if not target.is_dir() or target.parent != self.root/'releases':
             raise ValueError('发布目录无效')
@@ -92,10 +109,13 @@ class Publisher:
 
     def publish(self, job):
         self.clean()
+        self.sync_documents()
         old = (self.root/'current').resolve(strict=True)
         if str(old) != job['release']:
             raise ValueError('运行版本已变化')
         for name in self.git('ls-files').decode().splitlines():
+            if self.documentation(name):
+                continue
             deployed = old/name
             repository = self.backend/name
             if not deployed.is_file() or deployed.is_symlink() or repository.is_symlink():

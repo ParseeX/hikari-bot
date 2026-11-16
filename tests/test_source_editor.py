@@ -120,6 +120,18 @@ def test_repository_drift_and_busy_job_never_overwrite(setup):
     assert (repo/'someone-elses-work.py').read_text()=='preserve me'
 
 
+def test_remote_documentation_fast_forward_does_not_block_source_publication(setup,tmp_path):
+    home,repo,store,publisher=setup
+    clone=tmp_path/'writer'
+    subprocess.run(['git','clone',git(repo,'remote','get-url','origin'),str(clone)],check=True,capture_output=True)
+    git(clone,'checkout','main');git(clone,'config','user.name','Synthetic writer');git(clone,'config','user.email','writer@example.invalid')
+    (clone/'README.md').write_text('documentation only')
+    git(clone,'add','README.md');git(clone,'commit','-m','docs [skip ci]');git(clone,'push','origin','main')
+    save(store);store.enqueue('history',store.load()['revision']);publisher.tick()
+    assert store.load()['job']['status']=='published' and store.load()['job']['pushed']
+    assert (repo/'README.md').read_text()=='documentation only'
+
+
 def test_web_source_auth_origin_save_check_and_publish_queue(setup,tmp_path):
     home,repo,store,publisher=setup
     auth=AdminAuth(tmp_path/'auth');auth.password_path.parent.mkdir(parents=True,exist_ok=True)
