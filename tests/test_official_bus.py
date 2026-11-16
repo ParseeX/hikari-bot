@@ -254,7 +254,7 @@ client=SimpleNamespace(self_id='app',send_to_group=AsyncMock(return_value=Simple
 client.send=MethodType(Bot.send,client)
 def event(id,text,group='g',robot=False,at=False):
  cls=GroupAtMessageCreateEvent if at else GroupMessageCreateEvent
- return cls.model_validate(dict(id=id,content=text,group_id=group,group_openid=group,timestamp=datetime.now(timezone.utc).isoformat(),author=dict(id='member',member_openid='member',bot=robot)))
+ return cls.model_validate(dict(id=id,content=text,group_id=group,group_openid=group,timestamp=datetime.now(timezone.utc).isoformat(),author=dict(id='member',member_openid='member',member_role='member',bot=robot)))
 async def run():
  handler=register(config,queries=queries).handlers[0].call
  await handler(client,event('chat','今天吃什么'))

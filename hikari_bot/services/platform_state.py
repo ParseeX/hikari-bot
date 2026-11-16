@@ -30,6 +30,8 @@ class PlatformState:
                 CREATE TABLE IF NOT EXISTS event_claims (digest TEXT PRIMARY KEY, expires REAL NOT NULL);
                 CREATE TABLE IF NOT EXISTS verified_links (
                     actor TEXT PRIMARY KEY, legacy_user TEXT NOT NULL, evidence TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS verified_member_links (
+                    actor TEXT PRIMARY KEY, user_actor TEXT NOT NULL, evidence TEXT NOT NULL);
             ''')
             with db:
                 yield db
@@ -47,11 +49,44 @@ class PlatformState:
         if not self.path.exists():
             return None
         with self.connect() as db:
+            key = self._binding_key(db, actor)
             row = db.execute("SELECT player FROM bindings WHERE actor=?", (key,)).fetchone()
             if row:
                 return row[0]
             link = db.execute('SELECT legacy_user FROM verified_links WHERE actor=?', (key,)).fetchone()
         return self.legacy.binding(link[0]) if link and self.legacy else None
+
+    def _binding_key(self, db, actor):
+        key = self.key(actor)
+        if actor.kind == 'member':
+            row = db.execute('SELECT user_actor FROM verified_member_links WHERE actor=?', (key,)).fetchone()
+            if row:
+                return row[0]
+        return key
+
+    def link_member(self, member, user, *, evidence):
+        """人工核验后的同人绑定关联；不改变事件身份、订阅目标或管理员权限。"""
+        if (member.kind != 'member' or user.kind != 'user' or member.app != user.app
+                or not isinstance(evidence, str) or not evidence.strip()):
+            raise ValueError('必须核验同一应用中的群成员与私聊身份并记录依据')
+        member_key, user_key = self.key(member), self.key(user)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT user_actor FROM verified_member_links WHERE actor=?', (member_key,)).fetchone()
+            if existing:
+                if existing[0] != user_key:
+                    raise ValueError('该群成员已关联其他身份，未覆盖')
+                return
+            local = db.execute('SELECT player FROM bindings WHERE actor=?', (member_key,)).fetchone()
+            canonical = db.execute('SELECT player FROM bindings WHERE actor=?', (user_key,)).fetchone()
+            if canonical:
+                player = canonical[0]
+            else:
+                legacy = db.execute('SELECT legacy_user FROM verified_links WHERE actor=?', (user_key,)).fetchone()
+                player = self.legacy.binding(legacy[0]) if legacy and self.legacy else None
+            if local and local[0] != player:
+                raise ValueError('群内与私聊已有不同绑定，需明确选择后再关联；未覆盖记录')
+            db.execute('INSERT INTO verified_member_links VALUES (?,?,?)', (member_key, user_key, evidence))
 
     def link_legacy(self, actor, legacy_user, *, evidence):
         """仅供受控部署工具调用；不是聊天命令，不按昵称/数字相同自动关联。"""
@@ -92,7 +127,7 @@ class PlatformState:
             raise ValueError("MyCard 用户名无效")
         with self.connect() as db:
             db.execute("INSERT INTO bindings VALUES (?,?) ON CONFLICT(actor) DO UPDATE SET player=excluded.player",
-                       (self.key(actor), player))
+                       (self._binding_key(db, actor), player))
 
     def subscribe(self, target, player):
         if not player or len(player) > 200:
