@@ -7,6 +7,7 @@ from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupMessageCreateEvent, GroupAtMessageCreateEvent
 from nonebot.adapters.qq.models import MessageKeyboard
 from hikari_bot.services.card_catalog import AmbiguousCardName
+from hikari_bot.services.card_text import format_card_effect
 from .delivery import TEXT_CHARS, context
 from .preview import report
 EFFECT_COMMANDS = {'效果', '效果查询', '游戏王效果'}
@@ -71,7 +72,12 @@ def card_message(info, user_id, *, images=False, prices=False):
     content=present('effect.card',card_values(info))
     buttons=primary_buttons(stable_code(info),user_id,images=images,prices=prices)
     rows=arrange('effect.card',[(b['id'].split('_')[0],b) for b in buttons])
-    return output_message(content,rows),present('effect.card',card_values(info),plain=True),content
+    return output_message(content,rows),card_text(info),content
+
+
+def card_text(info):
+    """普通回复使用独立文案，避免把富文本模板标记原样发出。"""
+    return present('common.effect_plain', {'body': format_card_effect(info)})
 
 class CardActions:
 

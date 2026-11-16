@@ -1748,7 +1748,7 @@
     },
     "common.effect_plain": {
       "feature": "effect",
-      "label": "兼容纯文本效果",
+      "label": "普通效果回复（群聊、超长效果及富文本失败回退）",
       "template": "{body}",
       "mode": "text",
       "fields": {

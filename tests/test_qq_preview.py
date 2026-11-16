@@ -97,6 +97,8 @@ class PreviewTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["msg_seq"], 2)
         self.assertIn("304003", payload["content"])
         self.assertTrue(payload["content"].endswith(INFO["text"]["desc"]))
+        from hikari_bot.services.card_text import format_card_effect
+        self.assertTrue(payload["content"].endswith(format_card_effect(INFO)))
         self.assertIn("304003", output)
         self.assertIn("text_fallback_api_accepted", output)
         self.assertNotIn("secret-payload", output)
@@ -131,6 +133,13 @@ class PreviewTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(c.args[0].json["msg_type"] == 0 for c in client._request.call_args_list))
         self.assertTrue(next(iter(pager.pending.values())).text.endswith(info["text"]["desc"]))
         self.assertIn("local_plain_text", output)
+
+    def test_plain_pendulum_keeps_original_symbols_and_separator(self):
+        from hikari_bot.services.card_text import format_card_effect
+        info = copy.deepcopy(INFO)
+        info['text']['pdesc'] = '①：原文 * 与 # 不应被删除。'
+        _, plain, _ = build_preview(info, 'only-user')
+        self.assertEqual(plain, format_card_effect(info))
 
     async def test_plugin_routes_preview_without_changing_default_queries(self):
         from hikari_bot.qq_official import plugin

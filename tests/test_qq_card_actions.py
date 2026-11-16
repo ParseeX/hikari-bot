@@ -28,6 +28,41 @@ CONFIG = PilotConfig('test', 'fake', users=frozenset({'only-user'}))
 
 
 class CardTests(unittest.IsolatedAsyncioTestCase):
+    async def test_group_effect_plain_message_uses_original_layout_without_markdown_markers(self):
+        from nonebot.adapters.qq.event import GroupMessageCreateEvent
+        from hikari_bot.qq_official.media import NamedFileBot
+        from hikari_bot.services.card_text import format_card_effect
+        info = copy.deepcopy(INFO)
+        info['text']['desc'] = '①：保留原文中的 * 和 #。\n②：完整的第二段。'
+        catalog = Mock(search=Mock(return_value=info))
+        config = PilotConfig('synthetic-app', 'fake', groups=frozenset({'synthetic-group'}))
+        for at in (True, False):
+            client = bot()
+            async def post(**kwargs):
+                return await Bot.post_group_messages(client, **kwargs)
+            async def group(**kwargs):
+                return await Bot.send_to_group(client, **kwargs)
+            client.post_group_messages, client.send_to_group = post, group
+            source = event('group')
+            if not at:
+                source = GroupMessageCreateEvent.model_validate(source.model_dump())
+            await CardActions(catalog).handle('效果', '卡名', config, NamedFileBot(client), source, ReplyPager(now=lambda: NOW))
+            payload = client._request.call_args.args[0].json
+            self.assertEqual(payload['msg_type'], 0)
+            self.assertEqual(payload['content'], format_card_effect(info))
+            self.assertNotIn('keyboard', payload)
+
+    async def test_long_private_effect_uses_clean_text_without_losing_any_effect(self):
+        from hikari_bot.services.card_text import format_card_effect
+        info = copy.deepcopy(INFO)
+        info['text']['desc'] = '①：完整长效果。' * 350
+        client = bot()
+        await CardActions(Mock(search=Mock(return_value=info))).handle(
+            '效果', '卡名', CONFIG, client, event(), ReplyPager(now=lambda: NOW))
+        payloads = [call.args[0].json for call in client._request.call_args_list]
+        self.assertTrue(all(p['msg_type'] == 0 for p in payloads))
+        self.assertEqual(''.join(p['content'] for p in payloads), format_card_effect(info))
+
     def test_reading_escape_and_stable_button_identity(self):
         info = copy.deepcopy(INFO)
         info.update(jp_ruby='はるうらら', passcode='01455812')
