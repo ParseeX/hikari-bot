@@ -7,7 +7,12 @@ HELP = '官方 QQ 测试入口：ping、帮助、卡密 <卡名/卡密>、效果
 DECK_URL = 'https://ygo.xyk.one/deck'
 
 def parse_command(text: str):
-    parts = text.strip().removeprefix('/').split(maxsplit=1)
+    text = text.strip().removeprefix('/').lstrip()
+    # 旧版这两个无参数命令允许直接接文字；其他命令仍要求空格分隔。
+    for command in ('每日一卡', '随机一卡'):
+        if text.startswith(command):
+            return command, text[len(command):].strip()
+    parts = text.split(maxsplit=1)
     return (parts[0], parts[1].strip() if len(parts) > 1 else '') if parts else ('', '')
 
 
