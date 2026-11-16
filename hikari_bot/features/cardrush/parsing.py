@@ -1,6 +1,8 @@
 import re
 
-from hikari_bot.services.ygocard import get_card_info
+async def get_card_info(*args, **kwargs):
+    from hikari_bot.services.ygocard import get_card_info as lookup
+    return await lookup(*args, **kwargs)
 
 RARITY_MAPPING = {
     "ノーマル": "N",

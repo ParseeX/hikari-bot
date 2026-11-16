@@ -1,0 +1,847 @@
+{
+  "features": {
+    "effect": {
+      "label": "效果卡片",
+      "coverage": "卡名、日文名/读音、类型数值、灵摆与效果；保留完整原数据"
+    },
+    "art": {
+      "label": "卡图与查询反馈",
+      "coverage": "逐张卡图、页码、上一张/下一张与主按钮；图像来源不变"
+    },
+    "price": {
+      "label": "卡价与版本",
+      "coverage": "罕贵/版本列表、人民币集换社价格、日元 Cardrush 收取价、日版与错误状态；匹配和品相规则不变"
+    },
+    "common": {
+      "label": "帮助与查询入口",
+      "coverage": "帮助、ping、卡密、卡组网页入口和查询错误"
+    },
+    "paging": {
+      "label": "长输出与续读",
+      "coverage": "完整长文本分页、继续提示、过期与平台拒绝提示"
+    },
+    "preview": {
+      "label": "格式预览",
+      "coverage": "原格式预览命令和其按钮"
+    },
+    "callback": {
+      "label": "回调反馈",
+      "coverage": "过期、重复、ACK 失败提示；权限/动作和安全码不允许编辑"
+    },
+    "unsupported": {
+      "label": "尚未实现",
+      "coverage": "没有多候选选卡列表、独立版本选择按钮、群输出或主动推送；不伪造可编辑功能",
+      "unsupported": true
+    }
+  },
+  "states": {
+    "effect.card": {
+      "feature": "effect",
+      "label": "效果卡片",
+      "template": "# {name}\n{official}\n\n**{types}**\n\n{pendulum}## 效果\n{effect}",
+      "fields": {
+        "name": "卡名",
+        "official": "日文名与已有读音",
+        "types": "类型/属性/数值",
+        "pendulum": "完整灵摆段落",
+        "effect": "完整效果原文"
+      },
+      "samples": {
+        "name": "灰流うらら",
+        "official": "示例值",
+        "types": "示例值",
+        "pendulum": "示例值",
+        "effect": "示例值"
+      },
+      "mode": "markdown",
+      "buttons": {
+        "image": "查看卡图",
+        "price": "查询卡价"
+      },
+      "rows": [
+        [
+          "image",
+          "price"
+        ]
+      ],
+      "blocks": [
+        "pendulum"
+      ],
+      "fragment": false
+    },
+    "art.page": {
+      "feature": "art",
+      "label": "卡图页与导航",
+      "template": "**{name}**\n第 {index} / {total} 张卡图",
+      "fields": {
+        "name": "卡名",
+        "index": "当前图片序号",
+        "total": "图片总数"
+      },
+      "samples": {
+        "name": "灰流うらら",
+        "index": "1",
+        "total": "3"
+      },
+      "mode": "markdown",
+      "buttons": {
+        "previous": "上一张",
+        "next": "下一张",
+        "image": "查看卡图",
+        "price": "查询卡价"
+      },
+      "rows": [
+        [
+          "previous",
+          "next"
+        ],
+        [
+          "image",
+          "price"
+        ]
+      ],
+      "blocks": [],
+      "fragment": false
+    },
+    "preview.card": {
+      "feature": "preview",
+      "label": "格式预览卡片",
+      "template": "# {name}\n{official}\n\n**{types}**\n\n{pendulum}## 效果\n{effect}",
+      "fields": {
+        "name": "卡名",
+        "official": "日文名与已有读音",
+        "types": "类型/属性/数值",
+        "pendulum": "完整灵摆段落",
+        "effect": "完整效果原文"
+      },
+      "samples": {
+        "name": "灰流うらら",
+        "official": "示例值",
+        "types": "示例值",
+        "pendulum": "示例值",
+        "effect": "示例值"
+      },
+      "mode": "markdown",
+      "buttons": {
+        "effect": "完整效果",
+        "passcode": "卡密"
+      },
+      "rows": [
+        [
+          "effect",
+          "passcode"
+        ]
+      ],
+      "blocks": [
+        "pendulum"
+      ],
+      "fragment": false
+    },
+    "price.prompt": {
+      "feature": "price",
+      "label": "罕贵/版本列表整体",
+      "template": "{body}",
+      "fields": {
+        "body": "完整罕贵与版本选择列表"
+      },
+      "samples": {
+        "body": "【灰流うらら】请选择罕贵：\n1. UR（RC04-JP009）\n2. SR（RC03-JP010）\n回复编号或罕贵名称；回复“取消”结束。"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.result": {
+      "feature": "price",
+      "label": "卡价结果整体",
+      "template": "{body}",
+      "fields": {
+        "body": "完整价格结果（保留币种与品相语义）"
+      },
+      "samples": {
+        "body": "【灰流うらら｜UR】\nRC04-JP009\n集换社最低价：12.34 元\n集换价：18.00 元\nCardrush 买取价：1,200 円"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.heading": {
+      "feature": "price",
+      "label": "价格结果标题",
+      "template": "【{name}｜{rarity}】\n",
+      "fields": {
+        "name": "日文卡名",
+        "rarity": "罕贵"
+      },
+      "samples": {
+        "name": "灰流うらら",
+        "rarity": "UR"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.version": {
+      "feature": "price",
+      "label": "每个版本编号",
+      "template": "{version}",
+      "fields": {
+        "version": "版本编号"
+      },
+      "samples": {
+        "version": "RC04-JP009"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.jhs": {
+      "feature": "price",
+      "label": "集换社价格字段",
+      "template": "集换社最低价：{minimum}\n集换价：{market}",
+      "fields": {
+        "minimum": "带人民币单位的最低价/无数据",
+        "market": "带人民币单位的参考价/无数据"
+      },
+      "samples": {
+        "minimum": "12.34 元",
+        "market": "18.00 元"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.japanese": {
+      "feature": "price",
+      "label": "日版报价字段",
+      "template": "日版最低价：{value}",
+      "fields": {
+        "value": "带人民币单位的合规报价/无数据"
+      },
+      "samples": {
+        "value": "12.34 元"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.cardrush": {
+      "feature": "price",
+      "label": "Cardrush 价格字段",
+      "template": "Cardrush 买取价：{value}",
+      "fields": {
+        "value": "带日元单位的收取价/无数据"
+      },
+      "samples": {
+        "value": "1,200 円"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.rarity_header": {
+      "feature": "price",
+      "label": "罕贵列表标题",
+      "template": "【{name}】请选择罕贵：",
+      "fields": {
+        "name": "日文卡名"
+      },
+      "samples": {
+        "name": "灰流うらら"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.rarity_row": {
+      "feature": "price",
+      "label": "罕贵/版本行",
+      "template": "{index}. {rarity}（{versions}）",
+      "fields": {
+        "index": "选项号",
+        "rarity": "罕贵",
+        "versions": "该罕贵的所有版本编号"
+      },
+      "samples": {
+        "index": "1",
+        "rarity": "UR",
+        "versions": "RC04-JP009、RC03-JP010"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.rarity_hint": {
+      "feature": "price",
+      "label": "罕贵选择说明",
+      "template": "回复编号或罕贵名称；回复“取消”结束。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "common.help": {
+      "feature": "common",
+      "label": "帮助菜单",
+      "template": "srbs 功能：效果 <卡名/卡号>、卡图 <卡号>、卡价 <卡名/卡号>、日版价格查询 <卡名>、卡密 <卡名/卡号>、卡组、样式预览、帮助、ping。长输出未完可发送“继续”。私有编辑器草稿预览：输出预览。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.commands_1": {
+      "feature": "common",
+      "label": "pong（官方 QQ 测试入口）",
+      "template": "pong（官方 QQ 测试入口）",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.commands_2": {
+      "feature": "common",
+      "label": "卡表 PDF 和卡组图片请使用网页版：{value1}",
+      "template": "卡表 PDF 和卡组图片请使用网页版：{value1}",
+      "fields": {
+        "value1": "现有卡表入口网址"
+      },
+      "samples": {
+        "value1": "https://ygo.xyk.one/deck"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.commands_3": {
+      "feature": "common",
+      "label": "用法：{value1} <卡名或卡密>",
+      "template": "用法：{value1} <卡名或卡密>",
+      "fields": {
+        "value1": "当前查询命令"
+      },
+      "samples": {
+        "value1": "卡密"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.commands_4": {
+      "feature": "common",
+      "label": "查询内容过长，请输入卡名或卡密。",
+      "template": "查询内容过长，请输入卡名或卡密。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.commands_5": {
+      "feature": "common",
+      "label": "测试入口尚未配置卡片资料库。",
+      "template": "测试入口尚未配置卡片资料库。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.commands_6": {
+      "feature": "common",
+      "label": "卡片资料暂不可用，请稍后重试。",
+      "template": "卡片资料暂不可用，请稍后重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.commands_7": {
+      "feature": "common",
+      "label": "未找到对应卡片。",
+      "template": "未找到对应卡片。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_1": {
+      "feature": "price",
+      "label": "这张卡缺少日文名，暂无法可靠匹配卡价。",
+      "template": "这张卡缺少日文名，暂无法可靠匹配卡价。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_2": {
+      "feature": "price",
+      "label": "暂时无法获取集换社版本列表，请稍后重试。",
+      "template": "暂时无法获取集换社版本列表，请稍后重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_3": {
+      "feature": "price",
+      "label": "此查询已被较新的卡价查询替换，请使用最新的选择列表。",
+      "template": "此查询已被较新的卡价查询替换，请使用最新的选择列表。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_4": {
+      "feature": "price",
+      "label": "集换社暂无匹配版本，请检查卡名、罕贵或编号。",
+      "template": "集换社暂无匹配版本，请检查卡名、罕贵或编号。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_5": {
+      "feature": "price",
+      "label": "请先发送卡价查询。",
+      "template": "请先发送卡价查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_6": {
+      "feature": "price",
+      "label": "已取消卡价查询。",
+      "template": "已取消卡价查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_7": {
+      "feature": "price",
+      "label": "选择已过期，请重新发送卡价查询。",
+      "template": "选择已过期，请重新发送卡价查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_8": {
+      "feature": "price",
+      "label": "请回复 1-{value1} 的编号或列表中的罕贵名称；回复“取消”退出。",
+      "template": "请回复 1-{value1} 的编号或列表中的罕贵名称；回复“取消”退出。",
+      "fields": {
+        "value1": "可选罕贵总数"
+      },
+      "samples": {
+        "value1": "3"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_9": {
+      "feature": "price",
+      "label": "卡价查询超时，请稍后重试；没有把未完成结果当作最低价。",
+      "template": "卡价查询超时，请稍后重试；没有把未完成结果当作最低价。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.prices_10": {
+      "feature": "price",
+      "label": "卡价查询暂时失败，请稍后重试。",
+      "template": "卡价查询暂时失败，请稍后重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "callback.callbacks_1": {
+      "feature": "callback",
+      "label": "按钮事件已超时，未执行查询。请重新点击或手动输入原查询命令。",
+      "template": "按钮事件已超时，未执行查询。请重新点击或手动输入原查询命令。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "callback.callbacks_2": {
+      "feature": "callback",
+      "label": "按钮已使用或已过期，未重复执行。请重新查询后点击，或手动输入原查询命令。",
+      "template": "按钮已使用或已过期，未重复执行。请重新查询后点击，或手动输入原查询命令。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "callback.callbacks_3": {
+      "feature": "callback",
+      "label": "按钮确认失败，未执行查询。请重新查询后点击，或手动输入原查询命令。",
+      "template": "按钮确认失败，未执行查询。请重新查询后点击，或手动输入原查询命令。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "art.card_actions_1": {
+      "feature": "art",
+      "label": "用法：{value1} <卡名或卡密>；查询内容不超过 200 字符。",
+      "template": "用法：{value1} <卡名或卡密>；查询内容不超过 200 字符。",
+      "fields": {
+        "value1": "当前查询命令"
+      },
+      "samples": {
+        "value1": "效果"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "art.card_actions_2": {
+      "feature": "art",
+      "label": "卡片资料暂不可用。",
+      "template": "卡片资料暂不可用。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "art.card_actions_3": {
+      "feature": "art",
+      "label": "未找到对应卡片。",
+      "template": "未找到对应卡片。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "art.card_actions_4": {
+      "feature": "art",
+      "label": "卡价功能尚未接入，当前不提供价格结果。",
+      "template": "卡价功能尚未接入，当前不提供价格结果。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "art.card_actions_5": {
+      "feature": "art",
+      "label": "查询暂时未完成，请稍后重试。",
+      "template": "查询暂时未完成，请稍后重试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "art.card_actions_6": {
+      "feature": "art",
+      "label": "这张卡暂时没有可用卡图。",
+      "template": "这张卡暂时没有可用卡图。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "art.card_actions_7": {
+      "feature": "art",
+      "label": "没有对应的卡图页，请重新点击查看卡图。",
+      "template": "没有对应的卡图页，请重新点击查看卡图。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "paging.delivery_1": {
+      "feature": "paging",
+      "label": "没有待发送的后续内容，或内容已过期，请重新查询。",
+      "template": "没有待发送的后续内容，或内容已过期，请重新查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "preview.preview_1": {
+      "feature": "preview",
+      "label": "灰流丽的卡片资料暂不可用，请稍后再试。",
+      "template": "灰流丽的卡片资料暂不可用，请稍后再试。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "paging.continue": {
+      "feature": "paging",
+      "label": "长输出继续提示",
+      "template": "\n（内容未完，回复“继续”接收后续内容。）",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "paging.rejected": {
+      "feature": "paging",
+      "label": "Markdown 拒绝后的说明",
+      "template": "格式预览被平台拒绝（HTTP {status}，错误码 {code}），已改为纯文本。\n\n",
+      "fields": {
+        "status": "安全 HTTP 状态码",
+        "code": "安全平台错误码"
+      },
+      "samples": {
+        "status": "403",
+        "code": "304003"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "art.failed": {
+      "feature": "art",
+      "label": "单张卡图不可用",
+      "template": "第 {index} 张卡图暂不可用，请稍后重试。",
+      "fields": {
+        "index": "图片序号"
+      },
+      "samples": {
+        "index": "1"
+      },
+      "mode": "text",
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "price.jhs_unavailable": {
+      "feature": "price",
+      "label": "集换社 · jhs_unavailable",
+      "template": "集换社：暂时不可用",
+      "mode": "text",
+      "fields": {},
+      "samples": {},
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.japanese_unavailable": {
+      "feature": "price",
+      "label": "日版最低价 · japanese_unavailable",
+      "template": "日版最低价：暂时不可用",
+      "mode": "text",
+      "fields": {},
+      "samples": {},
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.number_unknown": {
+      "feature": "price",
+      "label": "编号未知 · number_unknown",
+      "template": "编号未知",
+      "mode": "text",
+      "fields": {},
+      "samples": {},
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.cardrush_unavailable": {
+      "feature": "price",
+      "label": "Cardrush 取价 · cardrush_unavailable",
+      "template": "Cardrush 买取价：暂时不可用",
+      "mode": "text",
+      "fields": {},
+      "samples": {},
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "price.cardrush_missing": {
+      "feature": "price",
+      "label": "Cardrush 取价 · cardrush_missing",
+      "template": "Cardrush 买取价：数据库暂无对应记录",
+      "mode": "text",
+      "fields": {},
+      "samples": {},
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": true
+    },
+    "preview.long": {
+      "feature": "preview",
+      "label": "预览内容较长，发送完整纯文本。\n\n{body} · long",
+      "template": "预览内容较长，发送完整纯文本。\n\n{body}",
+      "mode": "text",
+      "fields": {
+        "body": "完整卡片正文"
+      },
+      "samples": {
+        "body": "这是完整正文的示例。实际长内容保留原分页和“继续”机制。"
+      },
+      "buttons": {},
+      "rows": [],
+      "blocks": [],
+      "fragment": false
+    },
+    "common.passcode": {
+      "feature": "common",
+      "label": "卡密结果",
+      "template": "{code}",
+      "mode": "text",
+      "fields": {
+        "code": "原卡密或临时编号"
+      },
+      "samples": {
+        "code": "14558127"
+      },
+      "rows": [],
+      "buttons": {},
+      "blocks": [],
+      "fragment": false
+    },
+    "common.passcode_missing": {
+      "feature": "common",
+      "label": "没有卡密",
+      "template": "该卡暂无卡密。",
+      "mode": "text",
+      "fields": {},
+      "samples": {},
+      "rows": [],
+      "buttons": {},
+      "blocks": [],
+      "fragment": false
+    },
+    "common.effect_plain": {
+      "feature": "common",
+      "label": "兼容纯文本效果",
+      "template": "{body}",
+      "mode": "text",
+      "fields": {
+        "body": "完整原效果文本"
+      },
+      "samples": {
+        "body": "灰流丽\n[怪兽|效果|调整]\n这段为完整效果示例。"
+      },
+      "rows": [],
+      "buttons": {},
+      "blocks": [],
+      "fragment": false
+    }
+  }
+}

@@ -1,11 +1,15 @@
 """按罕贵选择，再严格按卡片编号关联两种价格口径。"""
+from __future__ import annotations
+
 import asyncio
+from typing import TYPE_CHECKING
 import unicodedata
 from dataclasses import dataclass
 
 from hikari_bot.features.cardrush.models import PriceSnapshot
 from hikari_bot.features.cardrush.parsing import clean_card_name, rarity_jp_to_en
-from hikari_bot.features.cardrush.service import CardrushService
+if TYPE_CHECKING:
+    from hikari_bot.features.cardrush.service import CardrushService
 from .client import JhsClient, JhsUnavailable
 from .models import CardVersion, JhsPrice, normalized
 
