@@ -233,3 +233,12 @@ NAS 另需受控的 `~/.config/srbs/nas-power.json`（只含 `base_url`、`timeo
 - Windows 首次全量为 882 passed、4 skipped、2 failed：一项为本轮 Windows 字节锁竞争，已修复；另一项为本机无 Bash 的原更新脚本测试。修复后编辑器专项 12 passed，后续包含新增手动 QQ 预览接口的相关回归 60 passed；Bash 测试已包含在最终 Linux 889 项中。
 - 初次 Linux 临时包携带 Windows 工作区 `update.sh` 的 CRLF，导致 Bash 的 pipefail 解析失败；该暂存包 887 passed、1 failed。按 Git 中原有 LF 重新打包后最终全量 889 passed，没有为了通过测试改写旧更新脚本。
 - `git diff --check`、Python 静态检查、前端 `node --check` 通过。Chrome 隔离数据验证登录、功能切换、Markdown 预览、保存、发布及恢复上一版；没有使用生产模板做试写，没有发 QQ 测试消息。
+
+### 2026-11-16 文案后台实际上线结果
+
+- 代码 `3dc1599` 已推送 `origin/main`（提交含 `[skip ci]`，没有触发旧自动部署）。官方发布指向 `/home/xyk/srbs/releases/20261116-3dc1599`；原采集后台工作区也以 fast-forward 更新至 `3dc1599`，没有 reset、clean 或覆盖未提交文件。
+- `hikari-output-editor.service`、`srbs.service`、`bot.service`、Caddy 均 active。编辑器只监听 `127.0.0.1:8792`；原 NapCat 的 6099 监听仍在。Caddy 仅切换 `bot.xyk.one` 的目标端口，其余内容保留并通过配置校验。
+- Chrome 已打开 `https://bot.xyk.one` 的 Hikari 登录页。回环 HTTP：根页面 200，未登录 `/api/templates` 与 `/api/session` 为 401，并返回 no-store / DENY；命令行直接请求公网域名遇到 Cloudflare 403，但正常浏览器访问通过，没有为此关闭或修改 WAF。真实 MyCard 密码由用户自行登录，本轮没有读取明文密码或建立生产测试会话。
+- 官方网关在本次启动后重新连接，保留 `group_access=joined`；原后台独立队列心跳新鲜。没有创建生产模板覆盖文件，所有新模板保持原默认文案；没有发送 QQ 测试消息或触发开关机、广播、比赛写入。
+- 初次切换检查因账号仍被占用而停顿；代码核对确认占用含等待入场阶段、已收到录像写盘有关闭保护。本次无观战连接时完成正常重启。用户随后明确本任务不需要等待观战，不应再用观战占用阻塞部署；不更改采集权限或账号数据。
+- 可恢复备份在 `/home/xyk/srbs/deploy-backups/20261116-output-editor`：`before.json` 保存原官方 `e836238` 指针与原后台 `5c0c3a8`，`Caddyfile.before` / `route.json` 保存域名原路由，`backend-before.tar.gz` 保存旧代码，`backend-changed.json` / `backend-after-hashes.json` 限定可恢复文件并防止覆盖后来修改。已确认原发布目录和代码归档实际存在。
