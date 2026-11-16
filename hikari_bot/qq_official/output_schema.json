@@ -8,7 +8,7 @@
         "绑定查询"
       ],
       "status": "已接入",
-      "implementation": "重新绑定默认查询用户名；成功只回复“绑定成功”。",
+      "implementation": "重新绑定默认查询用户名；成功回复实际绑定的用户名。",
       "differences": "OpenID 与旧 QQ 号不同。其他用户需重新绑定；不同群的成员身份可能不同，需分别绑定。不授予管理员权。",
       "qq": "本人已核验关联的私聊与群绑定曾验证；其他用户重新绑定需自行验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
@@ -2255,9 +2255,13 @@
     "binding.business_758d5462": {
       "feature": "binding",
       "label": "绑定成功",
-      "template": "绑定成功",
-      "fields": {},
-      "samples": {},
+      "template": "已成功绑定用户名 {player}。",
+      "fields": {
+        "player": "刚绑定的 MyCard 用户名"
+      },
+      "samples": {
+        "player": "示例玩家A"
+      },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",

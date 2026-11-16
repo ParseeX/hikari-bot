@@ -483,6 +483,6 @@ def test_unbound_mycard_queries_explain_username_and_rebinding(tmp_path):
             assert '绑定 用户名' in result.text
             assert '旧机器人绑定不会自动沿用' in result.text
             assert 'OpenID' not in result.text
-        assert (await queries.handle(request(kind='group'), '绑定', 'player')).text == '绑定成功'
+        assert (await queries.handle(request(kind='group'), '绑定', 'player')).text == '已成功绑定用户名 player。'
         assert 'player' in (await queries.handle(request(kind='group'), '查询绑定', '')).text
     asyncio.run(run())

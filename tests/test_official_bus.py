@@ -314,7 +314,7 @@ def event(id,text,group='new-group'):
 async def run():
  handler=register(config,queries=queries).handlers[0].call
  await handler(client,event('first','绑定 synthetic-player'))
- assert str(client.send_to_group.call_args.kwargs['message'])=='绑定成功'
+ assert str(client.send_to_group.call_args.kwargs['message'])=='已成功绑定用户名 synthetic-player。'
  restarted=register(config,queries=queries).handlers[0].call
  await restarted(client,event('second','查询绑定'))
  assert 'synthetic-player' in str(client.send_to_group.call_args.kwargs['message'])

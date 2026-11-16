@@ -96,12 +96,12 @@ def test_draft_publish_rollback_and_stale_tab_are_separate(setup):
     spec['template'] = '已绑定。'
     response = post(client, 'change', dict(operation='save', feature='binding', key=key, spec=spec, revision=0))
     assert response.status_code == 200
-    assert present(key) == '绑定成功'
+    assert present(key, {'player': '示例玩家A'}) == '已成功绑定用户名 示例玩家A。'
     assert post(client, 'change', dict(operation='publish', feature='binding', revision=0)).status_code == 409
     assert post(client, 'change', dict(operation='publish', feature='binding', revision=1)).status_code == 200
     assert present(key) == '已绑定。'
     assert post(client, 'change', dict(operation='rollback', feature='binding', revision=2)).status_code == 200
-    assert present(key) == '绑定成功'
+    assert present(key, {'player': '示例玩家A'}) == '已成功绑定用户名 示例玩家A。'
     assert client.get('/api/templates').json()['session'] == {}
     post(client, 'logout', {})
     assert client.get('/api/templates').status_code == 401

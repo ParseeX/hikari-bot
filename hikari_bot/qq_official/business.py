@@ -57,7 +57,7 @@ class Queries:
                 if not argument:
                     return Result(present('binding.business_60feb2f4', {}))
                 await asyncio.to_thread(self.state.bind, request.actor, argument)
-                return Result(present('binding.business_758d5462', {}))
+                return Result(present('binding.business_758d5462', {'player': argument}))
             if command in {"查询绑定", "绑定查询"}:
                 if argument:
                     return Result(present('binding.business_fde84002', {}))
