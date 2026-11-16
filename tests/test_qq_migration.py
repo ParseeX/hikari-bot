@@ -111,7 +111,7 @@ class IdentityTests(unittest.TestCase):
             actor = request().actor
             state.bind(actor, 'player')
             self.assertEqual(state.binding(actor), 'player')
-            self.assertIsNone(state.binding(request(kind='group').actor))
+            self.assertEqual(state.binding(request(kind='group').actor), 'player')
             state.subscribe(actor, 'player')
             self.assertEqual(state.subscriptions(actor), [('player', 'paused_platform_unverified')])
             state.unsubscribe(request(user='other').actor, 'player')
@@ -294,7 +294,7 @@ class BusinessTests(unittest.IsolatedAsyncioTestCase):
             queries = Queries(None, state=state)
             self.assertIn('成功', (await queries.handle(request(), '绑定', 'player')).text)
             self.assertIn('player', (await queries.handle(request(), '查询绑定', '')).text)
-            self.assertIn('未绑定', (await queries.handle(request(kind='group'), '查询绑定', '')).text)
+            self.assertIn('player', (await queries.handle(request(kind='group'), '查询绑定', '')).text)
             self.assertIn('尚未启用', (await queries.handle(request(kind='group'), '订阅', 'player')).text)
             self.assertEqual(state.subscriptions(request(kind='group').conversation), [])
 

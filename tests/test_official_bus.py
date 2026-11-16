@@ -319,7 +319,7 @@ async def run():
  await restarted(client,event('second','查询绑定'))
  assert 'synthetic-player' in str(client.send_to_group.call_args.kwargs['message'])
  await restarted(client,event('third','查询绑定',group='another-new-group'))
- assert '绑定 用户名' in str(client.send_to_group.call_args.kwargs['message'])
+ assert 'synthetic-player' in str(client.send_to_group.call_args.kwargs['message'])
  await restarted(client,event('admin','状态'))
  assert '权限不足' in str(client.send_to_group.call_args.kwargs['message'])
  calls=client.send_to_group.await_count

@@ -8,8 +8,8 @@
         "绑定查询"
       ],
       "status": "已接入",
-      "implementation": "重新绑定默认查询用户名；成功回复实际绑定的用户名。",
-      "differences": "OpenID 与旧 QQ 号不同。其他用户需重新绑定；不同群的成员身份可能不同，需分别绑定。不授予管理员权。",
+      "implementation": "同一官方机器人内，使用同一用户 OpenID 共用 MyCard 默认查询用户名；在任一群或私聊绑定及修改后通用。",
+      "differences": "同一用户在各群和私聊共用绑定。旧的官方分群记录自动读取；若存在冲突，需本人发送“绑定 用户名”选择。旧 OneBot 账号仍须重新绑定或经核验关联。",
       "qq": "本人已核验关联的私聊与群绑定曾验证；其他用户重新绑定需自行验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
@@ -22,7 +22,7 @@
           "key": "paging.request_failed"
         }
       ],
-      "reason": "官方使用 OpenID，不能直接认定为旧 QQ 身份；群成员身份也可能按群隔离。",
+      "reason": "只统一 MyCard 绑定，不把 OpenID 当作数字 QQ 号；管理员权限、群设置和订阅目标继续隔离。不同 OpenID 不按昵称或 MyCard 用户名猜测合并。",
       "pending_work": ""
     },
     "history": {
@@ -6050,6 +6050,15 @@
       "fragment": true,
       "category": "error",
       "format_note": "固定普通文字错误提示；原图文保留待发，不降级、不自动重试。"
+    },
+    "binding.conflict": {
+      "feature": "binding",
+      "label": "旧绑定不一致",
+      "template": "你之前在不同聊天中的绑定不一致。请发送“绑定 用户名”选择要通用的用户名。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "category": "error"
     }
   }
 }

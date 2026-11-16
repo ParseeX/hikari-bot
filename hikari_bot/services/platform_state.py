@@ -9,6 +9,10 @@ import time
 from .platform import Identity
 
 
+class BindingConflict(ValueError):
+    """同一个官方用户存在不同的旧绑定，需要本人明确选择。"""
+
+
 class PlatformState:
     def __init__(self, directory, *, legacy=None):
         directory = Path(directory)
@@ -24,6 +28,7 @@ class PlatformState:
         try:
             db.executescript('''
                 CREATE TABLE IF NOT EXISTS bindings (actor TEXT PRIMARY KEY, player TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS shared_bindings (actor TEXT PRIMARY KEY, player TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS tags (actor TEXT, name TEXT, value TEXT, PRIMARY KEY(actor,name));
                 CREATE TABLE IF NOT EXISTS subscriptions (
                     target TEXT, player TEXT, status TEXT NOT NULL, PRIMARY KEY(target,player));
@@ -50,19 +55,45 @@ class PlatformState:
             return None
         with self.connect() as db:
             key = self._binding_key(db, actor)
-            row = db.execute("SELECT player FROM bindings WHERE actor=?", (key,)).fetchone()
+            row = db.execute("SELECT player FROM shared_bindings WHERE actor=?", (key,)).fetchone()
             if row:
                 return row[0]
+            # 兼容旧的分群记录，只读汇总，不批量改写或删除原记录。
+            players = set()
+            for old_key, player in db.execute('SELECT actor,player FROM bindings'):
+                old = self._identity(old_key)
+                if old.app == actor.app and self._binding_key(db, old) == key:
+                    players.add(player)
             link = db.execute('SELECT legacy_user FROM verified_links WHERE actor=?', (key,)).fetchone()
-        return self.legacy.binding(link[0]) if link and self.legacy else None
+        if link and self.legacy:
+            player = self.legacy.binding(link[0])
+            if player:
+                players.add(player)
+        if len(players) > 1:
+            raise BindingConflict('旧绑定不一致')
+        return next(iter(players), None)
+
+    @staticmethod
+    def _identity(key):
+        platform, app, kind, scope, opaque = json.loads(key)
+        return Identity(platform, app, kind, opaque, scope)
 
     def _binding_key(self, db, actor):
-        key = self.key(actor)
+        self.key(actor)
+        if actor.kind not in {'member', 'user'}:
+            raise ValueError('绑定必须属于用户')
         if actor.kind == 'member':
-            row = db.execute('SELECT user_actor FROM verified_member_links WHERE actor=?', (key,)).fetchone()
-            if row:
-                return row[0]
-        return key
+            linked = set()
+            for member_key, user_key in db.execute('SELECT actor,user_actor FROM verified_member_links'):
+                member = self._identity(member_key)
+                if member.app == actor.app and member.opaque_id == actor.opaque_id:
+                    linked.add(user_key)
+            if len(linked) > 1:
+                raise BindingConflict('已核验身份关联不一致')
+            if linked:
+                return linked.pop()
+        # 仅 MyCard 默认查询用户名共用；事件身份、权限和订阅目标仍带原范围。
+        return Identity('qq_official', actor.app, 'user', actor.opaque_id).key
 
     def link_member(self, member, user, *, evidence):
         """人工核验后的同人绑定关联；不改变事件身份、订阅目标或管理员权限。"""
@@ -77,8 +108,13 @@ class PlatformState:
                 if existing[0] != user_key:
                     raise ValueError('该群成员已关联其他身份，未覆盖')
                 return
-            local = db.execute('SELECT player FROM bindings WHERE actor=?', (member_key,)).fetchone()
-            canonical = db.execute('SELECT player FROM bindings WHERE actor=?', (user_key,)).fetchone()
+            local = db.execute('SELECT player FROM shared_bindings WHERE actor=?',
+                               (self._binding_key(db, member),)).fetchone()
+            if local is None:
+                local = db.execute('SELECT player FROM bindings WHERE actor=?', (member_key,)).fetchone()
+            canonical = db.execute('SELECT player FROM shared_bindings WHERE actor=?', (user_key,)).fetchone()
+            if canonical is None:
+                canonical = db.execute('SELECT player FROM bindings WHERE actor=?', (user_key,)).fetchone()
             if canonical:
                 player = canonical[0]
             else:
@@ -100,6 +136,7 @@ class PlatformState:
                        (self.key(actor), legacy_user, evidence))
             # 去掉此前临时复制的绑定，之后直接读旧库；旧库没有任何写操作。
             db.execute('DELETE FROM bindings WHERE actor=?', (self.key(actor),))
+            db.execute('DELETE FROM shared_bindings WHERE actor=?', (self.key(actor),))
 
     def legacy_subscriptions(self, target):
         if not self.legacy or not self.path.exists() or target.kind != 'user':
@@ -126,7 +163,7 @@ class PlatformState:
         if not player or len(player) > 200:
             raise ValueError("MyCard 用户名无效")
         with self.connect() as db:
-            db.execute("INSERT INTO bindings VALUES (?,?) ON CONFLICT(actor) DO UPDATE SET player=excluded.player",
+            db.execute("INSERT INTO shared_bindings VALUES (?,?) ON CONFLICT(actor) DO UPDATE SET player=excluded.player",
                        (self._binding_key(db, actor), player))
 
     def subscribe(self, target, player):

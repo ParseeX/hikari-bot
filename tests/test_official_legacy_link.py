@@ -51,7 +51,7 @@ def test_verified_member_uses_same_binding_without_aliasing_permissions_or_subsc
     state.link_legacy(user, '123', evidence='verified original owner')
     state.link_member(member, user, evidence='verified same person in target group')
     assert state.binding(member) == state.binding(user) == 'original'
-    assert state.binding(other_group) is None
+    assert state.binding(other_group) == 'original'
     assert state.legacy_subscriptions(member) == []
     assert state.subscriptions(member) == []
     assert member.kind == 'member' and member != user
@@ -66,8 +66,9 @@ def test_verified_member_uses_same_binding_without_aliasing_permissions_or_subsc
         state.link_member(member, Identity('qq_official', 'app', 'user', 'someone-else'), evidence='conflicting')
     with pytest.raises(ValueError):
         state.link_member(other_group, Identity('qq_official', 'other-app', 'user', 'c2c'), evidence='wrong app')
-    state.bind(other_group, 'independent')
+    conflicting_member = Identity('qq_official', 'app', 'member', 'unrelated-openid', 'other-group')
+    state.bind(conflicting_member, 'independent')
     with pytest.raises(ValueError):
-        state.link_member(other_group, user, evidence='conflicting local binding')
-    assert state.binding(other_group) == 'independent'
+        state.link_member(conflicting_member, user, evidence='conflicting local binding')
+    assert state.binding(conflicting_member) == 'independent'
     assert hashlib.sha256(old.read_bytes()).digest() == digest

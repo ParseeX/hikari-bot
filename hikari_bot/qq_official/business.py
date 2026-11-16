@@ -32,6 +32,13 @@ class Queries:
 
     @render_outputs
     async def handle(self, request, command, argument):
+        from hikari_bot.services.platform_state import BindingConflict
+        try:
+            return await self._handle(request, command, argument)
+        except BindingConflict:
+            return Result(present('binding.conflict'))
+
+    async def _handle(self, request, command, argument):
         if self.notifications:
             result = await self.notifications.handle(request, command, argument)
             if result is not None:
