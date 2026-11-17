@@ -25,7 +25,7 @@ SOURCES = {
     'ruling': [S+'ruling_assistant.py', S+'ruling_client.py', Q+'business.py'],
     'deck': [S+'deck_renderer.py', S+'deck_png.py', S+'deck_message_image.py', Q+'business.py'],
     'archive': [S+'official_control.py', S+'mycard_archive/library.py', S+'mycard_archive/queries.py'],
-    'front_decks': [Q+'availability.py', S+'mycard_archive/front_stats.py'],
+    'front_decks': [Q+'front_decks.py', S+'mycard_front.py'],
     'links': [S+'link_parser.py', S+'link_worker.py', S+'parser_compat.py', Q+'business.py'],
     'translation': [S+'translation.py', Q+'business.py'],
     'operations': [Q+'admin.py', S+'official_control.py', Q+'management.py'],

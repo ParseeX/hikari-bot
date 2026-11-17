@@ -22,7 +22,7 @@ def binding_help(command=None):
 
 
 class Queries:
-    def __init__(self, catalog, *, image_loader=None, ruling=None, deck_renderer=None, state=None, links=None, price_reports=None, admin=None, notifications=None):
+    def __init__(self, catalog, *, image_loader=None, ruling=None, deck_renderer=None, state=None, links=None, price_reports=None, admin=None, notifications=None, front_decks=None):
         self.catalog, self.image_loader = catalog, image_loader
         self.ruling, self.deck_renderer = ruling, deck_renderer
         self.state = state
@@ -30,6 +30,8 @@ class Queries:
         self.price_reports = price_reports
         self.admin = admin
         self.notifications = notifications
+        from hikari_bot.services.mycard_front import FrontDecks
+        self.front_decks = front_decks if front_decks is not None else FrontDecks()
 
     @render_outputs
     async def handle(self, request, command, argument):
@@ -42,6 +44,14 @@ class Queries:
             return Result(present('binding.conflict'))
 
     async def _handle(self, request, command, argument):
+        if command == '前排卡组信息':
+            from .front_decks import render_front_decks
+            try:
+                return Result(render_front_decks(await self.front_decks.top()))
+            except Exception as error:
+                from .preview import report
+                report('front_decks_failed', error)
+                return Result(present('front_decks.failed'))
         if request.shared_video is not None:
             if self.links is None:
                 return None

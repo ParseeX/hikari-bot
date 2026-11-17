@@ -472,14 +472,14 @@
       "commands": [
         "前排卡组信息"
       ],
-      "status": "部分接入",
-      "implementation": "当前发送原卡组网页链接。",
-      "differences": "原前 100 名合并转发未还原，网页只是替代，不是同等聊天体验。",
-      "qq": "QQ 已看到网页回复。",
-      "remaining": "聊天内完整列表与接近原合并转发的展示。",
+      "status": "已接入",
+      "implementation": "读取网页同一份榜单快照，显示前二十名玩家和卡组名称。",
+      "differences": "聊天列出前二十名，每条可点击进入该玩家当前卡组页，底部进入网页版打开完整排行榜。沿用网页已有的玩家访问范围，掉出榜单后姓名链接可能失效；未收录卡组保留名次并标注。较长回复按原额度分条，普通文字模式显示完整网址。",
+      "qq": "新列表及链接点击待用户在 QQ 验收。",
+      "remaining": "本次要求的前二十名列表已接入；真实 QQ 链接点击待用户验收。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
       "tests": "模板与实际回复调用链、关联段落的组合预览及兼容性回归；QQ 客户端仍需自行验收。",
-      "updated": "2026-11-16",
+      "updated": "2026-11-18",
       "related": [
         {
           "label": "查询失败、分页和媒体发送提示",
@@ -487,8 +487,8 @@
           "key": "paging.request_failed"
         }
       ],
-      "reason": "聊天列表与原合并转发样式尚未接入，当前仅提供网页替代。",
-      "pending_work": "聊天内完整列表与接近原合并转发的展示。"
+      "reason": "按本次要求保留简洁前二十名文字列表；链接打开现有玩家详情页，不恢复旧版合并转发或内嵌卡组图片。",
+      "pending_work": ""
     },
     "links": {
       "label": "链接与视频解析",
@@ -3735,15 +3735,49 @@
     },
     "front_decks.availability_1ddd1afd": {
       "feature": "front_decks",
-      "label": "前排卡组网页版入口",
-      "template": "请查看[网页版](https://ygo.xyk.one/mc)",
-      "fields": {},
-      "samples": {},
+      "label": "前排二十名卡组列表",
+      "template": "{rows}\n\n{footer}",
+      "fields": {
+        "rows": "前二十名玩家与卡组链接",
+        "footer": "网页版排行榜提示"
+      },
+      "samples": {
+        "rows": "1. [灵sama【狱神奥义耀圣】](https://ygo.xyk.one/mc/player/?name=%E7%81%B5sama)\n2. [亚翁【狱神奥义耀圣】](https://ygo.xyk.one/mc/player/?name=%E4%BA%9A%E7%BF%81)",
+        "footer": "> 更多内容请点击链接[进入网页版](https://ygo.xyk.one/mc)查看！"
+      },
       "mode": "markdown",
       "fragment": false,
-      "source": "hikari_bot/qq_official/availability.py",
+      "source": "hikari_bot/qq_official/front_decks.py",
       "note": "命中此场景时返回的回复。",
-      "category": "main"
+      "category": "main",
+      "blocks": [
+        "rows",
+        "footer"
+      ],
+      "parts": {
+        "rows": {
+          "label": "每位玩家",
+          "items": [
+            {
+              "key": "front_decks.row",
+              "values": {}
+            }
+          ],
+          "separator": "\n"
+        },
+        "footer": {
+          "label": "底部提示",
+          "items": [
+            {
+              "key": "front_decks.footer",
+              "values": {}
+            }
+          ]
+        }
+      },
+      "previous_default_templates": [
+        "请查看[网页版](https://ygo.xyk.one/mc)"
+      ]
     },
     "unavailable.availability_8434d50c": {
       "feature": "links",
@@ -6361,6 +6395,78 @@
       "previous_default_templates": [
         "{index}. **{name} · {rarity}**\n{number} · {price} 円"
       ]
+    },
+    "front_decks.row": {
+      "feature": "front_decks",
+      "label": "每位玩家与卡组链接",
+      "template": "{rank}. [{player}【{deck_name}】]({url})",
+      "fields": {
+        "rank": "榜单序号",
+        "player": "玩家名",
+        "deck_name": "卡组名称",
+        "url": "该玩家的卡组详情页地址"
+      },
+      "samples": {
+        "rank": "1",
+        "player": "灵sama",
+        "deck_name": "狱神奥义耀圣",
+        "url": "https://ygo.xyk.one/mc/player/?name=%E7%81%B5sama"
+      },
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "front_decks.availability_1ddd1afd",
+      "category": "part",
+      "blocks": [
+        "player",
+        "deck_name",
+        "url"
+      ],
+      "plain_template": "{rank}. {player}【{deck_name}】\n{url}"
+    },
+    "front_decks.footer": {
+      "feature": "front_decks",
+      "label": "网页版排行榜提示",
+      "template": "> 更多内容请点击链接[进入网页版](https://ygo.xyk.one/mc)查看！",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "front_decks.availability_1ddd1afd",
+      "category": "part",
+      "plain_template": "更多内容请进入网页版查看：https://ygo.xyk.one/mc"
+    },
+    "front_decks.missing": {
+      "feature": "front_decks",
+      "label": "尚未收录卡组",
+      "template": "暂无卡组",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "front_decks.availability_1ddd1afd",
+      "category": "part"
+    },
+    "front_decks.unclassified": {
+      "feature": "front_decks",
+      "label": "尚未识别卡组类型",
+      "template": "未识别",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "front_decks.availability_1ddd1afd",
+      "category": "part"
+    },
+    "front_decks.failed": {
+      "feature": "front_decks",
+      "label": "榜单查询失败",
+      "template": "前排卡组暂时无法查询，请稍后重试。\n[进入网页版](https://ygo.xyk.one/mc)",
+      "fields": {},
+      "samples": {},
+      "mode": "markdown",
+      "fragment": false,
+      "category": "error",
+      "plain_template": "前排卡组暂时无法查询，请稍后重试。\nhttps://ygo.xyk.one/mc"
     }
   }
 }
