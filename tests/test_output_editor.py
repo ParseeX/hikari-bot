@@ -315,7 +315,7 @@ def test_art_page_uses_one_published_template_for_both_chats(setup, mode):
         assert ('卡图 14558127 1' if offset == 0 else '已是最后一张') in str(group)
 
 
-@pytest.mark.parametrize('delivery_type', ['pager', 'result'])
+@pytest.mark.parametrize('delivery_type', ['pager', 'result', 'front_list'])
 @pytest.mark.parametrize('status', [400, 403])
 def test_markdown_rejection_reports_failure_and_keeps_original_format(delivery_type, status):
     from test_qq_preview import NOW, bot, event
@@ -332,10 +332,12 @@ def test_markdown_rejection_reports_failure_and_keeps_original_format(delivery_t
         wrapped = NamedFileBot(client)
         pager = ReplyPager(now=lambda: NOW)
         delivery = pager if delivery_type == 'pager' else ResultDelivery(pager)
-        output = Output('# 原文\n**完整正文**', 'synthetic', 'markdown')
+        output = (Output('前排卡组\n' + ('完整榜单链接\n' * 200), 'front_decks.availability_1ddd1afd', 'markdown')
+                  if delivery_type == 'front_list' else Output('# 原文\n**完整正文**', 'synthetic', 'markdown'))
         await delivery.send(wrapped, event(), output if delivery_type == 'pager' else Result(output))
         payloads = [call.args[0].json for call in client._request.call_args_list]
         assert [p['msg_type'] for p in payloads] == [2, 0]
+        assert payloads[0]['markdown']['content'] == output
         assert '304003' not in payloads[1]['content'] and '消息发送失败' in payloads[1]['content']
         assert 'secret-payload' not in payloads[1]['content'] and '**完整正文**' not in payloads[1]['content']
         assert delivery.pending

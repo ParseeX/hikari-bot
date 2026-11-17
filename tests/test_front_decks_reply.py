@@ -94,8 +94,9 @@ async def run():
   client=gallery_transport();event=source(kind);event.content='前排卡组信息'
   await handler(client,event)
   payloads=[m.json for m in messages(client)]
-  assert payloads and all(p['msg_type']==2 for p in payloads)
+  assert len(payloads)==1 and payloads[0]['msg_type']==2
   content=''.join(p['markdown']['content'] for p in payloads)
+  assert len(content)>1500
   assert content.count('](https://ygo.xyk.one/mc/player/?name=')==20
   assert content.count('[进入网页版](https://ygo.xyk.one/mc)')==1
   assert 'keyboard' not in payloads[0]

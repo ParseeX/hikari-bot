@@ -54,6 +54,10 @@ class ResultDelivery:
                 self.pager.pending.pop(key, None)
                 self.pending.pop(key, None)
                 parts, offset = [], 0
+                if (isinstance(result.text, Output) and result.text.mode == 'markdown'
+                        and result.text.key == 'front_decks.availability_1ddd1afd'):
+                    # 前二十名与网页入口作为完整榜单发送；失败时也保留整条重试。
+                    parts, offset = [result.text], len(result.text)
                 while offset < len(result.text):
                     end = chunk_end(result.text, offset, TEXT_CHARS)
                     part = result.text[offset:end]
