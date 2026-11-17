@@ -1,4 +1,5 @@
 """Text parity and passive paging; synthetic inputs, no live APIs or plugins."""
+HINT = '> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！'
 import ast
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -62,7 +63,7 @@ class FormatParityTests(unittest.IsolatedAsyncioTestCase):
             new = await reply_for("效果 synthetic query", catalog)
         catalog.search.assert_called_once_with("synthetic query", fuzzy=True)
         self.assertEqual(old, expected)
-        self.assertEqual(new, old)
+        self.assertEqual(new, old + "\n\n" + HINT)
 
     async def test_ash_blossom_header_and_body(self):
         await self.assert_parity({"cn_name": "灰流丽", "jp_name": "灰流うらら",
@@ -96,7 +97,7 @@ class FormatParityTests(unittest.IsolatedAsyncioTestCase):
             catalog = Mock()
             catalog.search.return_value = info
             self.assertEqual(matcher.finish.call_args.args[0], expected)
-            self.assertEqual(await reply_for("卡密 test", catalog), expected)
+            self.assertEqual(await reply_for("卡密 test", catalog), expected + "\n\n" + HINT)
 
 
 class DeliveryTests(unittest.IsolatedAsyncioTestCase):
@@ -203,7 +204,7 @@ class DeliveryTests(unittest.IsolatedAsyncioTestCase):
         await pager.send(bot, event(), "old" * 4000)
         clock[0] = 601
         await pager.send(bot, event(message_id="later"))
-        self.assertIn("已过期", bot.send_to_c2c.call_args.kwargs["message"])
+        self.assertEqual("没有更多内容。", bot.send_to_c2c.call_args.kwargs["message"])
         await pager.send(bot, event(message_id="new"), "new result")
         self.assertEqual(bot.send_to_c2c.call_args.kwargs["message"], "new result")
         self.assertFalse(pager.pending)

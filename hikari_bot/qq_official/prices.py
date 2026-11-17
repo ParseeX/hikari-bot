@@ -115,7 +115,12 @@ class PriceQueries:
         try:
             rows = await asyncio.wait_for(self.comparison.compare(name, groups[rarity], japanese=japanese), timeout=90)
             pages = format_comparison(name, rarity, rows, japanese=japanese)
-            return Output('\n\n'.join(pages), 'price.result', pages[0].mode) if pages else present('price.result', {'body': '', 'heading': '', 'versions': ''})
+            if pages:
+                hint = str(present('common.card_name_hint', plain=True))
+                # 多个价格块合为一个待发结果，只在整份结果底部保留提示。
+                body = '\n\n'.join(str(page).removesuffix('\n\n' + hint) for page in pages)
+                return Output(body + '\n\n' + hint, 'price.result', pages[0].mode)
+            return present('price.result', {'body': '', 'heading': '', 'versions': ''})
         except TimeoutError:
             return present('price.prices_9', {})
         except Exception:

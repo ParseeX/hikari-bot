@@ -42,7 +42,7 @@ class ResultDelivery:
         value = self.pending.get(context(bot, event))
         return value is not None and value.expires > self.clock()
 
-    async def send(self, bot, event, result=None, *, markdown_images=False):
+    async def send(self, bot, event, result=None, *, markdown_images=False, combine_last_caption=False):
         key = context(bot, event)
         if key is None:
             return
@@ -84,6 +84,12 @@ class ResultDelivery:
                             offset = end
                     else:
                         parts.append(getattr(MessageSegment, 'file_' + media.kind)(media.data, file_name=media.name or None))
+                if combine_last_caption and len(parts) >= 2 and isinstance(parts[-1], str):
+                    previous, caption = parts[-2:]
+                    if isinstance(previous, str) and len(previous) + len(caption) <= TEXT_CHARS:
+                        parts[-2:] = [previous + caption]
+                    elif getattr(previous, 'type', None) == 'file_image' and len(caption) <= TEXT_CHARS:
+                        parts[-2:] = [Message(previous) + MessageSegment.text(caption)]
                 if not parts:
                     return
                 size = sum(payload_size(part) for part in parts)

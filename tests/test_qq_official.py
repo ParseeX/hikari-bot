@@ -1,3 +1,4 @@
+HINT = '> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！'
 import importlib.util
 import asyncio
 import io
@@ -251,7 +252,7 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
         catalog = Mock()
         catalog.search.return_value = {"passcode": "00001234", "cn_name": "测试卡",
                                       "text": {"types": "魔法", "desc": "测试效果"}}
-        self.assertEqual(await commands.reply_for("卡密 测试卡", catalog), "00001234")
+        self.assertEqual(await commands.reply_for("卡密 测试卡", catalog), "00001234\n\n" + HINT)
         from hikari_bot.qq_official.card_actions import card_text
         result = await commands.reply_for("/效果 测试卡", catalog)
         self.assertEqual(result, card_text(catalog.search.return_value))
@@ -265,7 +266,7 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
         catalog.search.assert_not_called()
         catalog.search.return_value = {"text": {"desc": "a" * 3000}}
         result = await commands.reply_for("效果 card", catalog)
-        self.assertTrue(result.endswith("a" * 3000))
+        self.assertTrue(result.endswith("a" * 3000 + "\n\n" + HINT))
         self.assertGreater(len(result), 3000)
 
 

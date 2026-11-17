@@ -195,7 +195,13 @@ def present(key,values=None,*,plain=False):
     root_spec = (overrides.get(root) if overrides and root in overrides else Store().active(root)) if root else spec
     if root_spec['mode']=='markdown' and not plain:
         cooked={k:(v if k in SCHEMA['states'][key].get('blocks',[]) else escape(v)) for k,v in cooked.items()}
-    return Output(spec['template'].format_map(cooked),key,'text' if plain else spec['mode'])
+    text = spec['template'].format_map(cooked)
+    notice = definition.get('notice')
+    if notice:
+        hint = str(present(notice, plain=True))
+        if hint and not text.rstrip().endswith(hint):
+            text += '\n\n' + hint
+    return Output(text,key,'text' if plain else spec['mode'])
 
 def arrange(key,buttons):
     overrides=OVERRIDE.get()

@@ -1077,7 +1077,8 @@
         "original"
       ],
       "fragment": false,
-      "category": "main"
+      "category": "main",
+      "notice": "common.card_name_hint"
     },
     "art.page": {
       "feature": "art",
@@ -1115,7 +1116,8 @@
       "blocks": [],
       "fragment": false,
       "note": "群聊和私聊共用此页码文案及格式，跟在卡图后发送。只有已接入的私聊 Markdown 附带按钮，其他场景可输入文案中的下一张命令。",
-      "category": "main"
+      "category": "main",
+      "notice": "common.card_name_hint"
     },
     "preview.card": {
       "feature": "preview",
@@ -1223,7 +1225,8 @@
         "body"
       ],
       "category": "main",
-      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。"
+      "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
+      "notice": "common.card_name_hint"
     },
     "price.result": {
       "feature": "price",
@@ -1359,7 +1362,8 @@
             }
           }
         }
-      ]
+      ],
+      "notice": "common.card_name_hint"
     },
     "price.heading": {
       "feature": "price",
@@ -2080,7 +2084,8 @@
       "buttons": {},
       "blocks": [],
       "fragment": false,
-      "category": "main"
+      "category": "main",
+      "notice": "common.card_name_hint"
     },
     "common.passcode_missing": {
       "feature": "passcode",
@@ -2644,7 +2649,8 @@
       "hidden_fields": [
         "content"
       ],
-      "category": "error"
+      "category": "error",
+      "notice": "common.card_name_hint"
     },
     "ruling.business_body_4783ee60": {
       "feature": "ruling",
@@ -6198,7 +6204,19 @@
       ],
       "category": "main",
       "note": "默认一次发送全部图片组成的 Markdown。{images} 必须保留一次，可在前后加字、调整位置。选择普通文字则恢复逐条图片，受额度影响可能需要继续。单张页码命令的导航另设。预览中的图片位置为示意，真实图片由查询加载。",
-      "format_note": "群聊和私聊共用。Markdown 把所有可加载的卡图嵌入一条消息；源图片缺失保留对应序号说明，上传或整条发送失败则报错，不自动拆条。实际图片显示、缩放以 QQ 客户端为准。"
+      "format_note": "群聊和私聊共用。Markdown 把所有可加载的卡图嵌入一条消息；源图片缺失保留对应序号说明，上传或整条发送失败则报错，不自动拆条。实际图片显示、缩放以 QQ 客户端为准。",
+      "notice": "common.card_name_hint"
+    },
+    "common.card_name_hint": {
+      "feature": "common",
+      "label": "卡名识别纠正提示",
+      "template": "> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": true,
+      "category": "content",
+      "note": "卡图、效果、卡密、卡价和共界计算成功结果的统一末尾提示。Markdown 中显示为引用；普通文字保留 > 字符。"
     }
   }
 }

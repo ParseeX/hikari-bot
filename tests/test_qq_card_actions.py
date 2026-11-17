@@ -1,3 +1,4 @@
+HINT = '> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！'
 import asyncio
 import copy
 from decimal import Decimal
@@ -53,7 +54,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
                 await CardActions(catalog).handle('效果', '卡名', config, NamedFileBot(client), source, ReplyPager(now=lambda: NOW))
             payload = client._request.call_args.args[0].json
             self.assertEqual(payload['msg_type'], 0)
-            self.assertEqual(payload['content'], format_card_effect(info))
+            self.assertEqual(payload['content'], format_card_effect(info) + '\n\n' + HINT)
             self.assertNotIn('keyboard', payload)
 
     async def test_long_private_effect_uses_clean_text_without_losing_any_effect(self):
@@ -69,7 +70,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
                 '效果', '卡名', CONFIG, client, event(), ReplyPager(now=lambda: NOW))
         payloads = [call.args[0].json for call in client._request.call_args_list]
         self.assertTrue(all(p['msg_type'] == 0 for p in payloads))
-        self.assertEqual(''.join(p['content'] for p in payloads), format_card_effect(info))
+        self.assertEqual(''.join(p['content'] for p in payloads), format_card_effect(info) + '\n\n' + HINT)
 
     def test_reading_escape_and_stable_button_identity(self):
         info = copy.deepcopy(INFO)
@@ -95,7 +96,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
             if info.get('jp_name'):
                 self.assertIn('> 日本語\n\n', content)
             else:
-                self.assertNotIn('> ', content)
+                self.assertNotIn('> ', content.removesuffix('\n\n' + HINT))
             self.assertFalse(rich['keyboard'])
         rich, _, _ = card_message({'id': 0}, 'only-user', images=True, prices=True)
         self.assertFalse(rich['keyboard'])
@@ -110,7 +111,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         spec = default('effect.card')
         spec.update(template='{reading}{original}\n{effect}', mode='text')
         with draft('effect.card', spec):
-            self.assertEqual(card_text(info), '*よみ*\nつづき\n灰流うらら\n'+info['text']['desc'])
+            self.assertEqual(card_text(info), '*よみ*\nつづき\n灰流うらら\n'+info['text']['desc'] + '\n\n' + HINT)
 
     def test_existing_official_name_template_remains_compatible(self):
         from hikari_bot.qq_official.output_templates import default, draft
@@ -120,7 +121,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         spec = default('effect.card')
         spec.update(template='{official}', mode='markdown')
         with draft('effect.card', spec):
-            self.assertEqual(card_text(info), '灰流うらら（はるうらら）')
+            self.assertEqual(card_text(info), '灰流うらら（はるうらら）' + '\n\n' + HINT)
 
     def test_pendulum_link_and_long_text_preserved(self):
         info = copy.deepcopy(INFO)
@@ -129,7 +130,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(escape_markdown(info['text']['types']), content)
         self.assertIn('## 灵摆效果\n灵摆完整\n第二行', content)
         self.assertNotIn('## 效果', content)
-        self.assertTrue(content.endswith('怪兽完整'*2000))
+        self.assertTrue(content.endswith('怪兽完整'*2000 + '\n\n' + HINT))
         self.assertTrue(plain.endswith('怪兽完整'*2000))
 
     async def test_effect_resolves_once_using_existing_search_semantics(self):
@@ -194,7 +195,7 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
         await entered.wait()
         await backend.start({'jp_name':'second'}, 'u')
         first.set()
-        self.assertIn('已被较新', await old)
+        self.assertEqual('', await old)
         self.assertEqual(backend.sessions['u'][1], 'second')
 
     async def test_price_button_command_and_next_message_reach_real_backend(self):
@@ -212,6 +213,8 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
         source.id = 'synthetic-selection'
         await actions.handle('1', '', CONFIG, client, source, pager)
         self.assertIn('2.00 元', client._request.call_args.args[0].json['content'])
+        self.assertTrue(client._request.call_args.args[0].json['content'].endswith(HINT))
+        self.assertEqual(client._request.call_args.args[0].json['content'].count(HINT), 1)
         catalog.search.assert_called_once_with('14558127', fuzzy=True)
 
     async def test_rarity_currency_exact_version_and_expiry(self):

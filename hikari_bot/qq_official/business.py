@@ -125,7 +125,8 @@ class Queries:
                 return Result(present('calculation.business_03a7ca05', {}))
             if self.deck_renderer:
                 try:
-                    return Result(images=(await self.deck_renderer.card_list(cards),))
+                    return Result(text=present('common.card_name_hint', plain=True),
+                                  images=(await self.deck_renderer.card_list(cards),))
                 except ValueError:
                     return Result(present('calculation.business_be309d04', {}))
             heading, codes = present('calculation.business_2a9842bc', {}), "\n".join(map(str, cards))

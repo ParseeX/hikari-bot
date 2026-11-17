@@ -241,7 +241,7 @@ class CardActions:
         if self.result_delivery is None:
             self.result_delivery = ResultDelivery(pager)
         try:
-            await self.result_delivery.send(bot, event, Result(media=tuple(parts)))
+            await self.result_delivery.send(bot, event, Result(media=tuple(parts)), combine_last_caption=bool(suffix))
         except Exception as exc:
             report('card_reply_failed', exc)
             if pager.capacity(event, key[1]):

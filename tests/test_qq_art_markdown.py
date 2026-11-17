@@ -15,7 +15,7 @@ from hikari_bot.qq_official.callbacks import CallbackController
 from hikari_bot.qq_official.config import PilotConfig
 from hikari_bot.qq_official.delivery import ReplyPager
 from hikari_bot.qq_official.media import NamedFileBot
-from hikari_bot.qq_official.output_templates import OVERRIDE, default, validate
+from hikari_bot.qq_official.output_templates import present, OVERRIDE, default, validate
 
 
 CONFIG = PilotConfig('synthetic-app', 'fake', users=frozenset({'only-user'}), accept_joined_groups=True)
@@ -114,7 +114,7 @@ def test_platform_failure_never_splits_or_sends_partial_gallery(failure):
         await query(client)
         payloads = [c.args[0].json for c in client._request.call_args_list if c.args[0].url.path.endswith('/messages')]
         assert [p['msg_type'] for p in payloads] == ([0] if failure=='upload' else [2,0])
-        assert '未改成普通文字或拆开发送' in payloads[-1]['content']
+        assert '图文未能完成发送' in payloads[-1]['content']
         assert 'secret' not in payloads[-1]['content']
     asyncio.run(run())
 
@@ -129,7 +129,8 @@ def test_gallery_copy_can_move_images_but_cannot_hide_them():
             await query(client)
             payload = next(c.args[0].json for c in client._request.call_args_list if c.args[0].url.path.endswith('/messages'))
             assert payload['markdown']['content'].startswith('# 灰流丽\n共 7 张\n')
-            assert payload['markdown']['content'].endswith('\n结束')
+            assert payload['markdown']['content'].endswith('\n结束\n\n' + str(present('common.card_name_hint')))
+            assert payload['markdown']['content'].count('卡名识别有误？') == 1
         finally:
             OVERRIDE.reset(token)
     asyncio.run(run())

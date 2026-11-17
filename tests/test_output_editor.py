@@ -255,7 +255,7 @@ def test_plain_card_selection_does_not_send_rich_message_with_buttons(setup):
         '效果', '卡名', config, NamedFileBot(client), event(), ReplyPager(now=lambda: NOW)))
     payload = client._request.call_args.args[0].json
     assert payload['msg_type'] == 0 and 'keyboard' not in payload
-    assert payload['content'] == INFO['cn_name'] + '\n原文 * 与 #\n---------------\n' + INFO['text']['desc']
+    assert payload['content'] == INFO['cn_name'] + '\n原文 * 与 #\n---------------\n' + INFO['text']['desc'] + '\n\n' + str(present('common.card_name_hint'))
 
 
 @pytest.mark.parametrize('kind', ['group', 'c2c'])
