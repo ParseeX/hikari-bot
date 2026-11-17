@@ -56,6 +56,9 @@ class SrbsQQAdapter(Adapter):
         from .shared_video import shared_video
         message = payload.type in {'GROUP_MESSAGE_CREATE', 'GROUP_AT_MESSAGE_CREATE', 'C2C_MESSAGE_CREATE'}
         target = shared_video(payload.data) if message else None
+        if target == '':
+            from .share_probe import capture_missing_card
+            capture_missing_card(payload.data)
         if target is not None:
             # SDK 1.7.x 的 QQReplyMessage 丢弃 ark_data 和嵌套元素，还要求
             # 官方转发示例并未提供的字段。仅对已识别视频提取链接后交回 SDK；

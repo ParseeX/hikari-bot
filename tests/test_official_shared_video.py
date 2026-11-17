@@ -3,6 +3,7 @@ import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+import json
 import subprocess
 import sys
 
@@ -83,6 +84,57 @@ def test_official_flattened_forward_example_and_forged_extra_field():
     assert request_from_event(SimpleNamespace(self_id='app'), event).shared_video == URL
     event = shared_event(message_type=0, ark_data=None, content='ping', _hikari_shared_video=URL)
     assert request_from_event(SimpleNamespace(self_id='app'), event).shared_video is None
+
+
+@pytest.mark.parametrize('section,key', [('detail_1', 'qqdocurl'), ('news', 'jumpUrl'), ('music', 'jumpUrl')])
+@pytest.mark.parametrize('container', ['meta', 'raw', 'field_raw'])
+def test_legacy_parser_card_fields_reach_same_downloader(section, key, container):
+    original = {'meta': {section: {key: URL}}}
+    card = {'ark_type': 'miniapp', 'fields': {'tag': '哔哩哔哩'}}
+    if container == 'meta':
+        card.update(original)
+    elif container == 'raw':
+        card['raw'] = json.dumps(original)
+    else:
+        card['fields']['raw'] = json.dumps(original)
+    links = SimpleNamespace(parse=AsyncMock(return_value=Result('video result')))
+    req = request_from_event(SimpleNamespace(self_id='app'), shared_event(ark_data=card))
+    asyncio.run(Queries(None, links=links).handle(req, '', ''))
+    links.parse.assert_awaited_once_with(URL)
+
+
+def test_legacy_card_invalid_json_and_unrelated_link_do_not_guess():
+    from hikari_bot.qq_official.shared_video import legacy_video
+    for raw in ('{bad', '[' * 1200, 'x' * 16001,
+                json.dumps({'meta': {'detail_1': {'qqdocurl': 'https://evil.invalid/'}}})):
+        assert legacy_video({'raw': raw}) is None
+    assert legacy_video({'title': URL, 'fields': {'preview': URL}}) is None
+
+
+def test_probe_is_opt_in_bounded_and_never_records_payload_values(tmp_path, monkeypatch, capsys):
+    from hikari_bot.qq_official import share_probe
+    marker = tmp_path / 'until'
+    monkeypatch.setattr(share_probe, 'MARKER', marker)
+    monkeypatch.setattr(share_probe, '_samples', 0)
+    monkeypatch.setattr(share_probe.time, 'time', lambda: 1000)
+    event = {'author': {'id': 'private-user'}, 'message_scene': {'auth_token': 'private-token'},
+             'content': 'private-message', 'ark_data': {'fields': {
+                 'title': 'private-title', 'preview': 'https://other.invalid/private-path?key=private-key',
+                 'private-dynamic-key': 'private-value', 'raw': json.dumps({'meta': {
+                     'detail_1': {'qqdocurl': URL}}})}}}
+    share_probe.capture_missing_card(event)
+    assert capsys.readouterr().out == ''
+    marker.write_text('1500')
+    for _ in range(5):
+        share_probe.capture_missing_card(event)
+    output = capsys.readouterr().out
+    assert output.count('SRBS_SHARE_SHAPE') == 3
+    assert 'private' not in output and URL not in output and 'BV1' not in output
+    assert 'qqdocurl' in output and '"video_url": true' in output
+    marker.write_text('999')
+    monkeypatch.setattr(share_probe, '_samples', 0)
+    share_probe.capture_missing_card(event)
+    assert capsys.readouterr().out == ''
 
 
 def test_parser_switch_is_respected_for_shared_cards():

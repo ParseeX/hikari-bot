@@ -1,5 +1,6 @@
 """从官方卡片/转发消息中取 B 站地址，不把卡片标题当作命令或搜索词。"""
 from html import unescape
+import json
 import re
 from urllib.parse import urlsplit
 
@@ -33,11 +34,37 @@ def video_url(text):
     return None
 
 
+def legacy_video(card):
+    """复用旧 parser 2.6.6 的 meta 取址规则，不加载旧入口的事件/定时任务。
+
+    只有载荷实际保留 meta/raw 时才有效；不从标题搜索，也不伪造缺失字段。
+    """
+    for container in (card, value(card, 'fields', {})):
+        candidates = [container]
+        raw = value(container, 'raw')
+        if isinstance(raw, str) and len(raw) <= 16000:
+            try:
+                candidates.append(json.loads(raw))
+            except (ValueError, RecursionError):
+                pass
+        for candidate in candidates:
+            meta = value(candidate, 'meta', {})
+            for section, key in (('detail_1', 'qqdocurl'), ('news', 'jumpUrl'), ('music', 'jumpUrl')):
+                detail = value(meta, section)
+                if detail:
+                    # 与旧插件一致，优先使用最先出现的卡片类型。
+                    url = video_url(value(detail, key))
+                    if url:
+                        return url
+                    break
+    return None
+
+
 def shared_video(event):
     """None 为无相关分享；空串为 B 站卡片未提供地址；非空为首个视频地址。
 
     QQ 官方的 ark_data.fields.jump_url / msg_elements 与普通正文分开。
-    只遍历转发内容，忽略引用消息（101），限制深度/数量，不访问封面链接。
+    只提取卡片/消息元素中的视频地址，不展开并行消息（101），限制深度/数量。
     """
     top_card = value(event, 'ark_data')
     if not top_card and value(event, 'message_type') not in {3, 102, 103}:
@@ -53,7 +80,7 @@ def shared_video(event):
         card = value(node, 'ark_data')
         if card:
             fields = value(card, 'fields', {})
-            url = video_url(value(fields, 'jump_url'))
+            url = video_url(value(fields, 'jump_url')) or legacy_video(card)
             if url:
                 return url
             # 不凭标题猜视频；来源标签仅用于解释缺失的地址。
