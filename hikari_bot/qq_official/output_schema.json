@@ -1768,19 +1768,6 @@
       "fragment": false,
       "category": "error"
     },
-    "callback.callbacks_2": {
-      "feature": "callback",
-      "label": "按钮已使用或已过期，未重复执行。请重新查询后点击，或手动输入原查询命令。",
-      "template": "按钮已使用或已过期，未重复执行。请重新查询后点击，或手动输入原查询命令。",
-      "fields": {},
-      "samples": {},
-      "mode": "text",
-      "buttons": {},
-      "rows": [],
-      "blocks": [],
-      "fragment": false,
-      "category": "error"
-    },
     "callback.callbacks_3": {
       "feature": "callback",
       "label": "按钮确认失败，未执行查询。请重新查询后点击，或手动输入原查询命令。",

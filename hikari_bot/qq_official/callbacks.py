@@ -234,7 +234,7 @@ class CallbackController:
                  and (not resolved.message_id or resolved.message_id == action.message_id))
         if not valid or action.claimed:
             await self.ack(bot, event, 3 if valid else 1)
-            await self.hint(bot, event, present('callback.callbacks_2', {}))
+            # 无效、过期或已使用按钮只确认拒绝，不在聊天中重复提醒。
             return
         if self.inflight >= 2:
             await self.ack(bot, event, 2)

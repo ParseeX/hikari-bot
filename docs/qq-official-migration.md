@@ -115,7 +115,7 @@
 | jm、切换AI权限/切换本地模型权限、本地模型聊天 | P/jm.py、local_llm_admin.py、_local_llm_chat.py | jm 桥接原受限下载；AI保持原未启用状态 | 仅管理员；PDF 本地25 MiB上限；超时后阻止并发重复下载；不扩大原群AI权限 | 拒绝与下载取消后互斥测试 | jm 已接入待实测，未下载内容；AI未迁移 |
 | 好友/群请求、白名单前置处理 | P/base.py | 不加载 OneBot 事件处理器 | 官方不是个人 QQ 账号，好友/群关系与接口不同 | 入口白名单和身份隔离测试 | 未移植自动接受 |
 | 集换社健康通知、图片预缓存/恢复、usage_stats、Web/API | P/jihuanshe_monitor.py、mycard_image_cache.py、usage_stats.py、Web 插件 | 原后台继续拥有；官方不复制计时器/HTTP 服务 | 官方新命令尚未计入原 OneBot usage_stats；旧 Web/API 仍原服务提供 | 纯导入无旧插件/配置断言；相关旧回归 | 未切换这些后台服务 |
-| ping、帮助、继续、样式预览、输出预览、回调按钮 | Q/commands.py、delivery.py、preview.py、editor_preview.py、callbacks.py | 现网功能保留，并扩展混合媒体续页 | C2C 回调仍绑定本人、App、消息和一次性句柄；扩展群配置不取消已有私聊回调 | SDK 序列化、超时、过期、所有权、长文分页、回归 | 本次待复验 |
+| ping、帮助、继续、样式预览、输出预览、回调按钮 | Q/commands.py、delivery.py、preview.py、editor_preview.py、callbacks.py | 现网功能保留，并扩展混合媒体续页 | 回调仍绑定本人、App、消息和一次性句柄；按用户要求，无效、已使用或过期句柄只拒绝执行，不再发送聊天提示；其他错误提示尚未批量停用 | SDK 序列化、超时、过期、所有权、长文分页、静默拒绝及不重复执行回归 | 聊天提示取消已部署后以实际客户端行为为准；QQ 自身交互状态不等于机器人聊天回复 |
 
 ## 不能承诺原样复刻的体验
 

@@ -407,6 +407,12 @@ class CallbackGatewayTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.put_interaction.call_count, 1)
         await controller.handle(client, source.model_copy(update={'id': 'foreign', 'user_openid': 'u2'}))
         self.assertEqual(client.put_interaction.call_args.kwargs['code'], 1)
+        await controller.handle(client, source.model_copy(update={'id': 'already-used'}))
+        self.assertEqual(client.put_interaction.call_args.kwargs['code'], 3)
+        controller.actions['handle'].expires = controller.clock() - 1
+        await controller.handle(client, source.model_copy(update={'id': 'expired-button'}))
+        self.assertEqual(client.put_interaction.call_args.kwargs['code'], 1)
+        client.send_to_c2c.assert_not_awaited()
         process.assert_awaited_once()
 
     def test_c2c_callbacks_keep_ownership_with_group_scope_enabled(self):
