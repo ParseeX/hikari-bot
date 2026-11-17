@@ -1,5 +1,7 @@
 """独立管理员身份与私聊边界，不继承数字 QQ 或群管理员权限。"""
 from .output_templates import present
+from .diagnostics import exception_metadata
+import logging
 import httpx
 import asyncio
 import json
@@ -34,6 +36,7 @@ class AdminQueries:
                 if result:
                     return result
                 if status not in {'pending', 'processing'}:
+                    logging.getLogger(__name__).warning('Official control incomplete: %s', status)
                     prefix, suffix = present('operations.admin_992515ed', {}), present('operations.admin_b16086d4', {})
                     return Result(present('operations.admin_body_1a447932', {'content': prefix + status + suffix, 'prefix': prefix, 'status': status, 'suffix': suffix}))
                 await asyncio.sleep(1)
@@ -45,9 +48,12 @@ class AdminQueries:
         try:
             await self.power('wake' if command == '开机' else 'shutdown')
         except httpx.HTTPStatusError as error:
+            logging.getLogger(__name__).warning('NAS power rejected: HTTP %d', error.response.status_code)
             return Result(present('operations.admin_6049a7a1', {'value1': error.response.status_code}))
-        except httpx.HTTPError:
+        except httpx.HTTPError as error:
+            logging.getLogger(__name__).warning('NAS power connection failed: %s', exception_metadata(error))
             return Result(present('operations.admin_de29891b', {}))
-        except (RuntimeError, ValueError):
+        except (RuntimeError, ValueError) as error:
+            logging.getLogger(__name__).warning('NAS power invalid result: %s', exception_metadata(error))
             return Result(present('operations.admin_9e69e81d', {}))
         return Result(present('operations.admin_69f09f3b', {}) if command == '开机' else present('operations.admin_b1fd8b02', {}))

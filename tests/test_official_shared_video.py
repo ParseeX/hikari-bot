@@ -146,7 +146,7 @@ def test_parser_switch_is_respected_for_shared_cards():
     notifications = SimpleNamespace(bus=SimpleNamespace(setting=lambda *args: False))
     request = request_from_event(SimpleNamespace(self_id='app'), shared_event())
     result = asyncio.run(Queries(None, links=links, notifications=notifications).handle(request, '', ''))
-    assert '关闭' in result.text
+    assert not result.text
     links.parse.assert_not_awaited()
 
 

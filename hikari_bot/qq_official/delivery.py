@@ -80,6 +80,8 @@ class ReplyPager:
             for old in [k for k, value in self.pending.items() if value.expires <= now]:
                 del self.pending[old]
             if text is not None:
+                if not text:
+                    return
                 self.pending.pop(key, None)
                 self.pending[key] = Pending(text, 0, now + PENDING_SECONDS)
                 while len(self.pending) > 128:

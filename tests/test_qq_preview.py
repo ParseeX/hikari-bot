@@ -86,7 +86,7 @@ class PreviewTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("only-user", output)
         self.assertFalse(pager.pending)
 
-    async def test_explicit_rejection_falls_back_and_exposes_only_numeric_codes(self):
+    async def test_explicit_rejection_falls_back_and_keeps_codes_in_logs_only(self):
         client = bot()
         failure = ActionFailed(Response(403, content=json.dumps({"code": 304003, "message": "secret-payload"})))
         client._request.side_effect = [failure, {"id": "synthetic-reply", "timestamp": NOW.isoformat()}]
@@ -95,7 +95,8 @@ class PreviewTests(unittest.IsolatedAsyncioTestCase):
         payload = client._request.call_args.args[0].json
         self.assertEqual(payload["msg_type"], 0)
         self.assertEqual(payload["msg_seq"], 2)
-        self.assertIn("304003", payload["content"])
+        self.assertNotIn("304003", payload["content"])
+        self.assertIn("已改用普通文字", payload["content"])
         self.assertTrue(payload["content"].endswith(INFO["text"]["desc"]))
         from hikari_bot.services.card_text import format_card_effect
         self.assertTrue(payload["content"].endswith(format_card_effect(INFO)))

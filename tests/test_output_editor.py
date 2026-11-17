@@ -287,7 +287,7 @@ def test_effect_markdown_rejection_never_switches_template_or_format(setup, kind
             '效果', '卡名', config, wrapped, event(kind), pager)
         payloads = [call.args[0].json for call in client._request.call_args_list]
         assert len(payloads) == 2 and payloads[0]['markdown']['content'].startswith('# 同一份')
-        assert payloads[1]['msg_type'] == 0 and '尚未改成普通文字' in payloads[1]['content']
+        assert payloads[1]['msg_type'] == 0 and '消息发送失败' in payloads[1]['content']
         assert INFO['text']['desc'] not in payloads[1]['content']
         assert bool(payloads[0].get('keyboard')) == (kind == 'c2c')
         source = event(kind); source.id = 'manual-continue'
@@ -336,7 +336,7 @@ def test_markdown_rejection_reports_failure_and_keeps_original_format(delivery_t
         await delivery.send(wrapped, event(), output if delivery_type == 'pager' else Result(output))
         payloads = [call.args[0].json for call in client._request.call_args_list]
         assert [p['msg_type'] for p in payloads] == [2, 0]
-        assert '304003' in payloads[1]['content'] and '尚未改成普通文字' in payloads[1]['content']
+        assert '304003' not in payloads[1]['content'] and '消息发送失败' in payloads[1]['content']
         assert 'secret-payload' not in payloads[1]['content'] and '**完整正文**' not in payloads[1]['content']
         assert delivery.pending
         source = event(); source.id = 'new-event'
@@ -379,7 +379,8 @@ def test_catalog_covers_wired_keys_and_every_feature_has_status():
                 assert key in SCHEMA['states'], (path, key)
                 if node.func.id != 'present':
                     definition = SCHEMA['states'][key]
-                    assert ast.literal_eval(node.args[1]) in {definition['template'], definition.get('legacy_template')}, (path, key)
+                    assert ast.literal_eval(node.args[1]) in {definition['template'], definition.get('legacy_template'),
+                                                            *definition.get('previous_default_templates', [])}, (path, key)
 
 
 def test_notice_defaults_do_not_change_onebot_and_can_render_at_official_boundary(setup):

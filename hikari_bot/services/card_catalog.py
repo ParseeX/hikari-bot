@@ -95,12 +95,21 @@ class CardCatalog:
         with self.connect() as db:
             return self._info(db, self._by_id(db, value))
 
-    def alias_targets(self, keyword):
-        """只读取完整手动别名的目标，普通卡名片段不触发选择菜单。"""
+    @staticmethod
+    def _alias_rows(db, key):
+        return db.execute('SELECT DISTINCT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
+                          "WHERE n.source='manual:alias' AND n.normalized=? "
+                          'ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id', (key,)).fetchall()
+
+    def alias_targets(self, keyword, *, fuzzy=False):
+        """返回实际命中的别名目标；正式卡名不触发别名菜单。"""
+        key = normalize(keyword)
+        if not key or key.isascii() and key.isdigit():
+            return []
         with self.connect() as db:
-            rows = db.execute('SELECT DISTINCT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                              "WHERE n.source='manual:alias' AND n.normalized=? "
-                              'ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id', (normalize(keyword),)).fetchall()
+            rows, alias = self._name_rows(db, key, fuzzy=True) if fuzzy else (self._alias_rows(db, key), True)
+            if not alias:
+                return []
             return [self._info(db, row) for row in rows]
 
     @staticmethod
@@ -246,26 +255,29 @@ class CardCatalog:
         with self.connect() as db:
             if key.isascii() and key.isdigit():
                 return self._info(db, self._by_id(db, key))
-            aliases = db.execute('SELECT DISTINCT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                                 "WHERE n.source='manual:alias' AND n.normalized=? "
-                                 'ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id', (key,)).fetchall()
-            if len(aliases) > 1:
-                raise AmbiguousCardName([self._info(db, row) for row in aliases])
-            if aliases:
-                return self._info(db, aliases[0])
-            # 精确别名优先；模糊查询仅搜索卡名，百分号和下划线都是普通文字。
-            row = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                             'WHERE n.normalized=? ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
-            if row is None:
-                row = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                                 "WHERE n.source!='manual:alias' AND instr(n.normalized,?)>0 "
-                                 'ORDER BY length(n.normalized),c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
-            if row is None and fuzzy:
-                row = self._closest_name(db, key)
-            return self._info(db, row)
+            rows, alias = self._name_rows(db, key, fuzzy=fuzzy)
+            if alias and len(rows) > 1:
+                raise AmbiguousCardName([self._info(db, row) for row in rows])
+            return self._info(db, rows[0]) if rows else None
+
+    def _name_rows(self, db, key, *, fuzzy):
+        aliases = self._alias_rows(db, key)
+        if aliases:
+            return aliases, True
+        row = db.execute("SELECT c.*,'' AS matched_alias FROM cards c JOIN card_names n ON n.card_id=c.id "
+                         'WHERE n.normalized=? ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1', (key,)).fetchone()
+        if row is None:
+            row = db.execute("SELECT c.*,CASE WHEN n.source='manual:alias' THEN n.normalized ELSE '' END AS matched_alias "
+                             'FROM cards c JOIN card_names n ON n.card_id=c.id WHERE instr(n.normalized,?)>0 '
+                             "ORDER BY length(n.normalized),n.source='manual:alias',c.konami_cid IS NULL,c.konami_cid,c.id LIMIT 1", (key,)).fetchone()
+        if row is None and fuzzy:
+            row = self._closest_name(db, key)
+        if row is not None and row['matched_alias']:
+            return self._alias_rows(db, row['matched_alias']), True
+        return ([row] if row is not None else []), False
 
     def search_many(self, keyword: str):
-        """卡名按片段、手动别名按完整名称查询；按身份去重，精确名称优先。"""
+        """卡名和别名均按片段查询；按身份去重，精确名称优先。"""
         key = normalize(keyword)
         if not key:
             return []
@@ -274,11 +286,10 @@ class CardCatalog:
                 card = self._info(db, self._by_id(db, key))
                 return [card] if card else []
             rows = db.execute('SELECT c.* FROM cards c JOIN card_names n ON n.card_id=c.id '
-                              "WHERE ((n.source='manual:alias' AND n.normalized=?) "
-                              "OR (n.source!='manual:alias' AND instr(n.normalized,?)>0)) "
+                              "WHERE instr(n.normalized,?)>0 "
                               'AND (c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL) '
                               'GROUP BY c.id ORDER BY MAX(n.normalized=?) DESC,MIN(length(n.normalized)),'
-                              'c.konami_cid IS NULL,c.konami_cid,c.id', (key, key, key)).fetchall()
+                              'c.konami_cid IS NULL,c.konami_cid,c.id', (key, key)).fetchall()
             return [self._info(db, row) for row in rows]
 
     @staticmethod
@@ -290,11 +301,11 @@ class CardCatalog:
         query_counts = Counter(query)
         best = None
         best_id = None
+        best_alias = ''
         numbers = re.findall(r'\d+', query)
-        rows = db.execute('SELECT DISTINCT n.card_id,n.normalized,c.konami_cid '
+        rows = db.execute('SELECT DISTINCT n.card_id,n.normalized,n.source,c.konami_cid '
                           'FROM card_names n JOIN cards c ON c.id=n.card_id '
-                          "WHERE n.source!='manual:alias' "
-                          'AND (c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL)')
+                          'WHERE (c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL) ORDER BY n.normalized,n.source')
         for row in rows:
             name = ''.join(c for c in row['normalized'] if c.isalnum())
             if not name:
@@ -318,7 +329,8 @@ class CardCatalog:
             rank = (*score, -(row['konami_cid'] is None), -(row['konami_cid'] or 0), -row['card_id'])
             if best is None or rank > best:
                 best, best_id = rank, row['card_id']
-        return db.execute('SELECT * FROM cards WHERE id=?', (best_id,)).fetchone() if best_id is not None else None
+                best_alias = row['normalized'] if row['source'] == 'manual:alias' else ''
+        return db.execute('SELECT *,? AS matched_alias FROM cards WHERE id=?', (best_alias, best_id)).fetchone() if best_id is not None else None
 
     def random_id(self, seed=None, *, include_artworks=False):
         with self.connect() as db:

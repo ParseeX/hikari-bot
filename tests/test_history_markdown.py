@@ -102,8 +102,9 @@ def test_rejected_combined_message_stays_pending_without_split_or_plain_downgrad
             Output('# 历史', 'history.mycard_reports_body_2fe0148e', 'markdown'), (picture(),)))
         messages = [c.args[0].json for c in client._request.call_args_list if c.args[0].url.path.endswith('/messages')]
         assert [m['msg_type'] for m in messages] == [2, 0]
-        assert '40034141' in messages[1]['content'] and 'sensitive-error' not in messages[1]['content']
-        assert '未改成普通文字或拆开发送' in messages[1]['content']
+        assert '图文未能完成发送' in messages[1]['content']
+        assert '40034141' not in messages[1]['content'] and 'sensitive-error' not in messages[1]['content']
+        assert '平台拒绝' in messages[1]['content']
         assert delivery.pending
         source = event(); source.id = 'continue'
         await delivery.send(NamedFileBot(client), source)
@@ -133,7 +134,7 @@ def test_upload_failure_does_not_send_partial_history(problem):
             Output('# 历史', 'history.mycard_reports_body_2fe0148e', 'markdown'), (picture(),)))
         messages = [c.args[0].json for c in client._request.call_args_list if c.args[0].url.path.endswith('/messages')]
         assert len(messages) == 1 and messages[0]['msg_type'] == 0
-        assert 'Markdown 图文发送失败' in messages[0]['content'] and delivery.pending
+        assert '图文未能完成发送' in messages[0]['content'] and delivery.pending
         if problem == 'unsupported-url':
             client.adapter.request.assert_not_called()
     asyncio.run(run())

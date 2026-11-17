@@ -83,9 +83,11 @@ class PriceQueries:
         try:
             versions = await asyncio.wait_for(self.comparison.versions(name, rarity, prefix, aliases, catalog_id=info.get('catalog_id')), timeout=90)
         except (JhsUnavailable, TimeoutError):
+            if self.generations.get(user_id) != generation:
+                return ''
             return present('price.prices_2', {})
         if self.generations.get(user_id) != generation:
-            return present('price.prices_3', {})
+            return ''
         if not versions:
             return present('price.prices_4', {})
         groups = group_rarities(versions)

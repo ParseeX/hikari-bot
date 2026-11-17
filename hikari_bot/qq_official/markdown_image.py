@@ -127,14 +127,16 @@ async def send_images(bot, event, parts, render, *, history=False):
     except ImageDeliveryError:
         raise
     except Exception as exc:
+        from .preview import report
+        report('markdown_image_api_failed', exc)
         from nonebot.adapters.qq.exception import ActionFailed
         if isinstance(exc, ActionFailed):
             safe_release = exc.status_code in {400, 401, 403, 404, 413, 429}
             code = exc.code
             if code == 40035007:
                 raise ImageDeliveryError('官方图片素材配额已满') from None
-            if type(code) is int and 0 <= code <= 99999999:
-                raise ImageDeliveryError(f'{stage}（平台错误码 {code}）') from None
+            if safe_release:
+                raise ImageDeliveryError('图片或消息被平台拒绝，请稍后重试') from None
         raise ImageDeliveryError(stage) from None
     finally:
         if owned and safe_release:

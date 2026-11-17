@@ -1,4 +1,4 @@
-"""手动别名持久化、完整匹配、同名多卡和卡库更新回归。"""
+"""手动别名持久化、模糊匹配、同名多卡和卡库更新回归。"""
 import asyncio
 import sqlite3
 
@@ -21,17 +21,16 @@ def test_alias_is_persistent_idempotent_and_resolves_artwork(catalog):
         assert db.execute("SELECT count(*) FROM card_names WHERE source='manual:alias'").fetchone()[0] == 1
 
 
-def test_manual_alias_never_participates_in_partial_or_fuzzy_search(catalog):
-    queries = ['灰', '灰莉', '灰流莉', '流灰丽', '灰·流丽']
-    before = {q: catalog.search(q, fuzzy=True)['id'] for q in queries}
-    # 正式卡名都不含“灰流丽”，即使这个别名很接近，也不能影响模糊结果。
+def test_manual_alias_participates_in_partial_and_fuzzy_search(catalog):
     catalog.add_alias('2000', '灰流丽')
-    for query in queries:
-        assert catalog.search(query) is None
-        assert catalog.search_many(query) == []
-        assert catalog.search(query, fuzzy=True)['id'] == before[query]
-    assert catalog.search('灰流丽', fuzzy=True)['id'] == 2000
-    assert [c['id'] for c in catalog.search_many('灰流丽')] == [2000]
+    for query in ['灰', '灰流', '灰流丽']:
+        assert catalog.search(query)['id'] == 2000
+        assert [c['id'] for c in catalog.search_many(query)] == [2000]
+    for query in ['灰莉', '灰流莉', '流灰丽', '灰·流丽']:
+        assert catalog.search(query, fuzzy=True)['id'] == 2000
+        assert [c['id'] for c in catalog.alias_targets(query, fuzzy=True)] == [2000]
+    assert catalog.search('灰莉') is None
+    assert catalog.alias_targets('灰莉') == []
 
 
 def test_alias_collision_lists_every_card_without_truncation(catalog):
@@ -48,6 +47,11 @@ def test_alias_collision_lists_every_card_without_truncation(catalog):
             assert row['cn_name'] in str(error.value)
             assert f"{row['id']:08d}" in str(error.value)
     assert len(catalog.search_many('共同昵称')) == 7
+    for query in ['共同', '共同尼称']:
+        with pytest.raises(AmbiguousCardName) as error:
+            catalog.search(query, fuzzy=True)
+        assert len(error.value.cards) == 7
+        assert len(catalog.alias_targets(query, fuzzy=True)) == 7
 
 
 def test_alias_normalization_and_priority(catalog):
@@ -57,6 +61,10 @@ def test_alias_normalization_and_priority(catalog):
     with pytest.raises(ValueError, match='不能将其他卡片的完整名称设置为别名。'):
         catalog.add_alias('2000', '青眼白龙')
     assert catalog.search('青眼白龙')['id'] == 1234
+    catalog.add_alias('2000', '青眼白龙同学')
+    assert catalog.search('青眼白龙', fuzzy=True)['id'] == 1234
+    assert catalog.alias_targets('青眼白龙', fuzzy=True) == []
+    assert catalog.search('1234', fuzzy=True)['id'] == 1234
 
 
 def test_catalog_sync_preserves_alias_and_current_identity(catalog):

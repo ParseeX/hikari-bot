@@ -22,6 +22,8 @@ async def send_formatted(bot, event, message, pager, *, can_continue=True):
         else:
             await bot.send(event, message)
     except ImageDeliveryError as exc:
+        from .preview import report
+        report('markdown_image_failed', exc)
         from .delivery import context
         key = context(bot, event)
         if key and pager.capacity(event, key[1]):
@@ -29,6 +31,8 @@ async def send_formatted(bot, event, message, pager, *, can_continue=True):
                 {'reason': str(exc)}, plain=True)))
         return False
     except ActionFailed as exc:
+        from .preview import report
+        report('markdown_message_failed', exc)
         markdown = (isinstance(message, Output) and message.mode == 'markdown') or (isinstance(message, Message) and bool(message['markdown']))
         if not (markdown and exc.status_code in {400, 403}):
             raise

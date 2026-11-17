@@ -20,6 +20,8 @@ PREFIX = 'srbs:'
 TTL = 600
 ACK_SECONDS = 2.0
 BUSINESS_SECONDS = 110
+BUSY_HINTS = {'paging.plugin_e278b7fd', 'links.link_parser_ecde216f',
+              'document.official_control_617ffdd2', 'paging.media_busy'}
 
 @dataclass
 class Action:
@@ -66,6 +68,8 @@ class CallbackBot:
         group = event.group_openid if isinstance(event, GroupMessageCreateEvent) else ''
         if not self.controller.config.allows('group_at' if group else 'c2c', user, group):
             raise ValueError('Reply user is not allowed')
+        if isinstance(message, Output) and not self.controller.allow_hint(message.key, str(self.bot.self_id), user, group):
+            return
         prepared, handles = self.controller.prepare(message, str(self.bot.self_id), user, group)
         try:
             if self.interaction is None:
@@ -110,6 +114,23 @@ class CallbackController:
         self.tasks = set()
         self.inflight = 0
         self.undo_handler = undo_handler
+        self.hints = OrderedDict()
+
+    def allow_hint(self, key, app, user, group):
+        """同一会话的忙碌/空续页提示，30 秒内各至多一次。"""
+        category = 'busy' if key in BUSY_HINTS else 'empty_page' if key == 'paging.delivery_1' else None
+        if category is None:
+            return True
+        now = self.clock()
+        for old in [k for k, expiry in self.hints.items() if expiry <= now]:
+            self.hints.pop(old, None)
+        identity = (app, user, group, category)
+        if identity in self.hints:
+            return False
+        self.hints[identity] = now + 30
+        while len(self.hints) > 2048:
+            self.hints.popitem(last=False)
+        return True
 
     def prune(self):
         now = self.clock()
@@ -219,10 +240,6 @@ class CallbackController:
         except (ValueError, TypeError):
             await self.ack(bot, event, 1)
             return
-        if not -1 <= age < 2.8:
-            report('callback_event_expired')
-            await self.hint(bot, event, present('callback.callbacks_1', {}))
-            return
         resolved = event.data.resolved
         action = self.actions.get(resolved.button_data)
         actor = event.get_user_id()
@@ -232,6 +249,11 @@ class CallbackController:
                  and action.group == (event.group_openid or '')
                  and action.button_id == resolved.button_id
                  and (not resolved.message_id or resolved.message_id == action.message_id))
+        if not -1 <= age < 2.8:
+            report('callback_event_expired')
+            if valid and not action.claimed and UNDO_COMMAND.fullmatch(action.command):
+                await self.hint(bot, event, present('callback.callbacks_1', {}))
+            return
         if not valid or action.claimed:
             await self.ack(bot, event, 3 if valid else 1)
             # 无效、过期或已使用按钮只确认拒绝，不在聊天中重复提醒。
@@ -243,7 +265,8 @@ class CallbackController:
         self.inflight += 1
         if not await self.ack(bot, event, 0, timeout=min(ACK_SECONDS, 2.8 - max(0, age))):
             self.inflight -= 1
-            await self.hint(bot, event, present('callback.callbacks_3', {}))
+            if UNDO_COMMAND.fullmatch(action.command):
+                await self.hint(bot, event, present('callback.callbacks_3', {}))
             return
         task = asyncio.create_task(self.execute(bot, event, action.command))
         self.tasks.add(task)

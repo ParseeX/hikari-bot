@@ -315,11 +315,11 @@ class BusinessTests(unittest.IsolatedAsyncioTestCase):
         await queries.handle(request(kind='group'), '每日一卡', '')
         self.assertNotEqual(first, catalog.random_id.call_args.args[0])
 
-    async def test_attachment_event_is_acknowledged_without_downloading(self):
+    async def test_attachment_event_is_silent_without_downloading(self):
         req = request()
         req = Request(req.actor, req.conversation, req.event_id, '', (object(),))
         result = await Queries(None).handle(req, '', '')
-        self.assertIn('收到附件', result.text)
+        self.assertFalse(result.text)
 
     async def test_future_history_is_rejected_before_api(self):
         result = await Queries(None).handle(request('2099年1月历史 player'), '2099年1月历史', 'player')
@@ -331,7 +331,7 @@ class BusinessTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('暂缓', unavailable_reply(command, command))
             self.assertIsNone(await Queries(None).handle(request(command), command, ''))
         for command in ('开机', '广播', '重启服务器', 'MyCard文件', '卡价图报'):
-            self.assertIn('尚未', unavailable_reply(command, command))
+            self.assertIn('暂不可用', unavailable_reply(command, command))
 
 
 class PriceTests(unittest.IsolatedAsyncioTestCase):

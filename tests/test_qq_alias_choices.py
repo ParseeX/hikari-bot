@@ -153,14 +153,17 @@ def test_names_are_not_silently_shortened_and_failed_buttons_are_unusable():
     asyncio.run(run())
 
 
-def test_only_complete_alias_collisions_open_choices(catalog):
+def test_fuzzy_alias_collisions_open_choices_but_formal_names_and_writes_do_not(catalog):
     async def run():
         catalog.add_alias('1234', '小龙'); catalog.add_alias('2000', '小龙')
         chooser = AliasChoices(catalog)
         bot = AsyncMock()
-        for command, argument in [('效果', '小'), ('效果', '青眼白龙'), ('添加别名', '小龙 新别名')]:
+        for command, argument in [('效果', '青眼白龙'), ('添加别名', '小龙 新别名')]:
             assert not await chooser.handle(bot, source('c2c'), command, argument)
         bot.send.assert_not_awaited()
+        for query in ['小', '小隆']:
+            assert await chooser.handle(bot, source('c2c'), '效果', query)
+        assert bot.send.await_count == 2
     asyncio.run(run())
 
 
@@ -192,7 +195,8 @@ async def run():
     for kind in ['c2c','group','group-no-at']:
         for command in ['效果','卡图','卡密','共界计算']:
             client=transport();client.put_interaction=AsyncMock()
-            incoming=source(kind);incoming.id=f'{kind}-{command}';incoming.content=command+' 小龙'
+            query={'c2c':'小龙','group':'小','group-no-at':'小隆'}[kind]
+            incoming=source(kind);incoming.id=f'{kind}-{command}';incoming.content=command+' '+query
             await handler(client,incoming)
             first=messages(client)[0].json
             button=first['keyboard']['content']['rows'][0]['buttons'][0]

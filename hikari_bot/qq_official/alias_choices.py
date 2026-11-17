@@ -49,11 +49,9 @@ class AliasChoices:
             selection = self.pages.get(parts[0]) if len(parts) == 2 else None
             if (selection is None or selection.session != context(bot, event)
                     or not parts[1].isascii() or not parts[1].isdigit()):
-                await bot.send(event, '选择按钮已失效，请重新查询。')
                 return True
             index = int(parts[1])
             if index * PAGE_SIZE >= len(selection.choices):
-                await bot.send(event, '选择按钮已失效，请重新查询。')
                 return True
             await self.send(bot, event, parts[0], selection, index)
             return True
@@ -65,7 +63,7 @@ class AliasChoices:
             from hikari_bot.features.cardrush.parsing import parse_price_query
             query, rarity, prefix = parse_price_query(argument)
             suffix = ''.join(' '+value for value in (rarity, prefix) if value)
-        cards = await asyncio.wait_for(asyncio.to_thread(self.catalog.alias_targets, query), timeout=8)
+        cards = await asyncio.wait_for(asyncio.to_thread(self.catalog.alias_targets, query, fuzzy=True), timeout=8)
         if len(cards) < 2:
             return False
         choices = []

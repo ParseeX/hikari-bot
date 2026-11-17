@@ -1584,8 +1584,8 @@
     },
     "common.commands_5": {
       "feature": "common",
-      "label": "测试入口尚未配置卡片资料库。",
-      "template": "测试入口尚未配置卡片资料库。",
+      "label": "卡片资料库暂不可用。",
+      "template": "卡片资料库暂不可用。",
       "fields": {},
       "samples": {},
       "mode": "text",
@@ -1593,7 +1593,10 @@
       "rows": [],
       "blocks": [],
       "fragment": false,
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "测试入口尚未配置卡片资料库。"
+      ]
     },
     "common.commands_6": {
       "feature": "common",
@@ -1638,19 +1641,6 @@
       "feature": "price",
       "label": "暂时无法获取集换社版本列表，请稍后重试。",
       "template": "暂时无法获取集换社版本列表，请稍后重试。",
-      "fields": {},
-      "samples": {},
-      "mode": "text",
-      "buttons": {},
-      "rows": [],
-      "blocks": [],
-      "fragment": false,
-      "category": "error"
-    },
-    "price.prices_3": {
-      "feature": "price",
-      "label": "此查询已被较新的卡价查询替换，请使用最新的选择列表。",
-      "template": "此查询已被较新的卡价查询替换，请使用最新的选择列表。",
       "fields": {},
       "samples": {},
       "mode": "text",
@@ -1731,8 +1721,8 @@
     },
     "price.prices_9": {
       "feature": "price",
-      "label": "卡价查询超时，请稍后重试；没有把未完成结果当作最低价。",
-      "template": "卡价查询超时，请稍后重试；没有把未完成结果当作最低价。",
+      "label": "卡价查询超时，请稍后重试。",
+      "template": "卡价查询超时，请稍后重试。",
       "fields": {},
       "samples": {},
       "mode": "text",
@@ -1740,7 +1730,10 @@
       "rows": [],
       "blocks": [],
       "fragment": false,
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "卡价查询超时，请稍后重试；没有把未完成结果当作最低价。"
+      ]
     },
     "price.prices_10": {
       "feature": "price",
@@ -1757,8 +1750,8 @@
     },
     "callback.callbacks_1": {
       "feature": "callback",
-      "label": "按钮事件已超时，未执行查询。请重新点击或手动输入原查询命令。",
-      "template": "按钮事件已超时，未执行查询。请重新点击或手动输入原查询命令。",
+      "label": "操作未执行，请重新点击。",
+      "template": "操作未执行，请重新点击。",
       "fields": {},
       "samples": {},
       "mode": "text",
@@ -1766,12 +1759,15 @@
       "rows": [],
       "blocks": [],
       "fragment": false,
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "按钮事件已超时，未执行查询。请重新点击或手动输入原查询命令。"
+      ]
     },
     "callback.callbacks_3": {
       "feature": "callback",
-      "label": "按钮确认失败，未执行查询。请重新查询后点击，或手动输入原查询命令。",
-      "template": "按钮确认失败，未执行查询。请重新查询后点击，或手动输入原查询命令。",
+      "label": "操作未执行，请用「删除别名 完整卡名 别名」重试。",
+      "template": "操作未执行，请用「删除别名 完整卡名 别名」重试。",
       "fields": {},
       "samples": {},
       "mode": "text",
@@ -1779,7 +1775,10 @@
       "rows": [],
       "blocks": [],
       "fragment": false,
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "按钮确认失败，未执行查询。请重新查询后点击，或手动输入原查询命令。"
+      ]
     },
     "art.card_actions_1": {
       "feature": "art",
@@ -1878,8 +1877,8 @@
     },
     "paging.delivery_1": {
       "feature": "paging",
-      "label": "没有待发送的后续内容，或内容已过期，请重新查询。",
-      "template": "没有待发送的后续内容，或内容已过期，请重新查询。",
+      "label": "没有更多内容。",
+      "template": "没有更多内容。",
       "fields": {},
       "samples": {},
       "mode": "text",
@@ -1887,7 +1886,10 @@
       "rows": [],
       "blocks": [],
       "fragment": false,
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "没有待发送的后续内容，或内容已过期，请重新查询。"
+      ]
     },
     "preview.preview_1": {
       "feature": "preview",
@@ -1918,7 +1920,7 @@
     "paging.markdown_failed": {
       "feature": "paging",
       "label": "Markdown 发送被拒绝（固定普通文字提示）",
-      "template": "本次 Markdown 发送被 QQ 拒绝（HTTP {status}，错误码 {code}）。可能涉及内容校验、权限或平台限制；尚未改成普通文字发送。{recovery}",
+      "template": "消息发送失败。{recovery}",
       "fields": {
         "status": "安全 HTTP 状态码",
         "code": "安全平台错误码",
@@ -1932,13 +1934,16 @@
       "mode": "text",
       "fragment": true,
       "format_note": "这条错误提示固定使用普通文字，以免重复请求刚被拒绝的 Markdown；不能单独选择 Markdown。错误码不代表已确认具体原因。若回复额度已耗尽或网络异常，错误提示本身也可能无法送达。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "本次 Markdown 发送被 QQ 拒绝（HTTP {status}，错误码 {code}）。可能涉及内容校验、权限或平台限制；尚未改成普通文字发送。{recovery}"
+      ]
     },
     "paging.rejected": {
       "feature": "paging",
       "label": "Markdown 拒绝后的说明",
       "format_note": "仅用于独立的“样式预览”试点命令，固定普通文字回退说明；正常效果查询不使用此回退。不能单独选择 Markdown，也不代表 Markdown 已验收。",
-      "template": "格式预览被平台拒绝（HTTP {status}，错误码 {code}），已改为纯文本。\n\n",
+      "template": "格式发送失败，已改用普通文字。\n\n",
       "fields": {
         "status": "安全 HTTP 状态码",
         "code": "安全平台错误码"
@@ -1952,7 +1957,10 @@
       "rows": [],
       "blocks": [],
       "fragment": true,
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "格式预览被平台拒绝（HTTP {status}，错误码 {code}），已改为纯文本。\n\n"
+      ]
     },
     "art.failed": {
       "feature": "art",
@@ -2167,15 +2175,18 @@
     },
     "business.business_6b580d7a": {
       "feature": "subscriptions",
-      "label": "已取消当前官方身份的这项订阅；旧 QQ 订阅保持不变。",
-      "template": "已取消当前官方身份的这项订阅；旧 QQ 订阅保持不变。",
+      "label": "已取消本会话的全部订阅。",
+      "template": "已取消本会话的全部订阅。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "已取消当前官方身份的这项订阅；旧 QQ 订阅保持不变。"
+      ]
     },
     "calculation.business_2a9842bc": {
       "feature": "calculation",
@@ -2221,29 +2232,20 @@
       "preview_root": "ruling.business_body_4783ee60",
       "category": "part"
     },
-    "attachments.business_38bd1f82": {
-      "feature": "attachments",
-      "label": "已收到附件事件。当前可用文字或分享链接查询；附件导入尚未启用，未自动下载或写入旧数据。",
-      "template": "已收到附件事件。当前可用文字或分享链接查询；附件导入尚未启用，未自动下载或写入旧数据。",
-      "fields": {},
-      "samples": {},
-      "mode": "text",
-      "fragment": false,
-      "source": "hikari_bot/qq_official/business.py",
-      "note": "命中此场景时返回的回复。",
-      "category": "error"
-    },
     "business.business_9d5e49e4": {
       "feature": "binding",
-      "label": "官方入口独立状态库尚未配置，未修改旧记录。",
-      "template": "官方入口独立状态库尚未配置，未修改旧记录。",
+      "label": "订阅服务暂不可用。",
+      "template": "订阅服务暂不可用。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "官方入口独立状态库尚未配置，未修改旧记录。"
+      ]
     },
     "binding.business_758d5462": {
       "feature": "binding",
@@ -2263,15 +2265,18 @@
     },
     "business.business_8390b6d1": {
       "feature": "subscriptions",
-      "label": "群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。",
-      "template": "群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。",
+      "label": "群订阅尚未启用，请联系管理员。",
+      "template": "群订阅尚未启用，请联系管理员。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "群订阅尚未启用；需单独核验目标群和群内授权。未修改订阅。"
+      ]
     },
     "business.business_fd456534": {
       "feature": "subscriptions",
@@ -2427,15 +2432,18 @@
     },
     "ruling.business_a3c7e067": {
       "feature": "ruling",
-      "label": "裁定服务尚未为官方入口配置。",
-      "template": "裁定服务尚未为官方入口配置。",
+      "label": "裁定查询暂不可用。",
+      "template": "裁定查询暂不可用。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "裁定服务尚未为官方入口配置。"
+      ]
     },
     "deck.business_bdca74be": {
       "feature": "deck",
@@ -2451,15 +2459,18 @@
     },
     "links.business_ba9cbce5": {
       "feature": "links",
-      "label": "当前环境未启用 YouTube 音频下载组件；未将音频命令改成视频发送。",
-      "template": "当前环境未启用 YouTube 音频下载组件；未将音频命令改成视频发送。",
+      "label": "暂不支持 YouTube 视频下载。",
+      "template": "暂不支持 YouTube 视频下载。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "当前环境未启用 YouTube 音频下载组件；未将音频命令改成视频发送。"
+      ]
     },
     "translation.business_f10cf063": {
       "feature": "translation",
@@ -2487,15 +2498,18 @@
     },
     "binding.business_fde84002": {
       "feature": "binding",
-      "label": "官方入口只查询自己的绑定，不能从 MyCard 用户名反查旧 QQ 号。",
-      "template": "官方入口只查询自己的绑定，不能从 MyCard 用户名反查旧 QQ 号。",
+      "label": "只能查询自己的绑定。",
+      "template": "只能查询自己的绑定。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "官方入口只查询自己的绑定，不能从 MyCard 用户名反查旧 QQ 号。"
+      ]
     },
     "binding.business_4c0fc3fa": {
       "feature": "binding",
@@ -2515,27 +2529,33 @@
     },
     "links.business_d2ee8c4a": {
       "feature": "links",
-      "label": "当前官方会话的链接解析已关闭。",
-      "template": "当前官方会话的链接解析已关闭。",
+      "label": "本会话的链接解析已关闭。",
+      "template": "本会话的链接解析已关闭。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "当前官方会话的链接解析已关闭。"
+      ]
     },
     "calculation.business_be309d04": {
       "feature": "calculation",
-      "label": "部分卡图暂时无法获取，请稍后重试；未发送缺卡的计算结果。",
-      "template": "部分卡图暂时无法获取，请稍后重试；未发送缺卡的计算结果。",
+      "label": "部分卡图暂时无法获取，请稍后重试。",
+      "template": "部分卡图暂时无法获取，请稍后重试。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/business.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "部分卡图暂时无法获取，请稍后重试；未发送缺卡的计算结果。"
+      ]
     },
     "binding.business_body_96c257d5": {
       "feature": "binding",
@@ -2785,27 +2805,33 @@
     },
     "operations.admin_768af6cc": {
       "feature": "operations",
-      "label": "权限不足：管理命令仅限单独核验的官方管理员私聊使用。",
-      "template": "权限不足：管理命令仅限单独核验的官方管理员私聊使用。",
+      "label": "权限不足，仅限管理员私聊使用。",
+      "template": "权限不足，仅限管理员私聊使用。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "权限不足：管理命令仅限单独核验的官方管理员私聊使用。"
+      ]
     },
     "operations.admin_a7371c0b": {
       "feature": "operations",
-      "label": "后台尚未确认完成，请查询状态；不要重复提交写入命令。",
-      "template": "后台尚未确认完成，请查询状态；不要重复提交写入命令。",
+      "label": "操作结果尚未确认，请先查询状态，勿重复提交。",
+      "template": "操作结果尚未确认，请先查询状态，勿重复提交。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "后台尚未确认完成，请查询状态；不要重复提交写入命令。"
+      ]
     },
     "operations.admin_fc9b04d5": {
       "feature": "operations",
@@ -2845,8 +2871,8 @@
     },
     "operations.admin_6049a7a1": {
       "feature": "operations",
-      "label": "NAS 未接受请求（HTTP {value1}）。",
-      "template": "NAS 未接受请求（HTTP {value1}）。",
+      "label": "NAS 未接受请求，请先检查电源状态。",
+      "template": "NAS 未接受请求，请先检查电源状态。",
       "fields": {
         "value1": "返回状态或统计值（示例：3）"
       },
@@ -2857,31 +2883,40 @@
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "NAS 未接受请求（HTTP {value1}）。"
+      ]
     },
     "operations.admin_de29891b": {
       "feature": "operations",
-      "label": "无法连接 NAS 电源服务；未自动重试。",
-      "template": "无法连接 NAS 电源服务；未自动重试。",
+      "label": "无法连接 NAS 电源服务，请先检查电源状态。",
+      "template": "无法连接 NAS 电源服务，请先检查电源状态。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "无法连接 NAS 电源服务；未自动重试。"
+      ]
     },
     "operations.admin_9e69e81d": {
       "feature": "operations",
-      "label": "NAS 电源服务返回异常；未自动重试。",
-      "template": "NAS 电源服务返回异常；未自动重试。",
+      "label": "NAS 电源服务返回异常，请先检查电源状态。",
+      "template": "NAS 电源服务返回异常，请先检查电源状态。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/admin.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "NAS 电源服务返回异常；未自动重试。"
+      ]
     },
     "operations.admin_992515ed": {
       "feature": "operations",
@@ -2912,7 +2947,7 @@
     "operations.admin_body_1a447932": {
       "feature": "operations",
       "label": "后台操作未完成",
-      "template": "{prefix}{status}{suffix}",
+      "template": "操作未完成，请先查询状态，勿重复提交。",
       "fields": {
         "content": "本场景的完整查询内容 / 已组合的段落",
         "prefix": "状态前的提示",
@@ -2959,7 +2994,10 @@
       "hidden_fields": [
         "content"
       ],
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "{prefix}{status}{suffix}"
+      ]
     },
     "management.management_e1b0483c": {
       "feature": "operations",
@@ -3017,8 +3055,8 @@
     },
     "links.management_23c1c8c8": {
       "feature": "links",
-      "label": "当前官方私聊的链接解析已{value1}。旧群设置未改变。",
-      "template": "当前官方私聊的链接解析已{value1}。旧群设置未改变。",
+      "label": "本会话的链接解析已{value1}。",
+      "template": "本会话的链接解析已{value1}。",
       "fields": {
         "value1": "返回状态或统计值（示例：3）"
       },
@@ -3029,31 +3067,40 @@
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
       "note": "命中此场景时返回的回复。",
-      "category": "main"
+      "category": "main",
+      "previous_default_templates": [
+        "当前官方私聊的链接解析已{value1}。旧群设置未改变。"
+      ]
     },
     "whitelist.management_50fb5ef8": {
       "feature": "whitelist",
-      "label": "旧白名单管理命令已停用，不再迁移。群接入由官方机器人配置管理；此命令不修改群接入、管理员权限或旧记录。",
-      "template": "旧白名单管理命令已停用，不再迁移。群接入由官方机器人配置管理；此命令不修改群接入、管理员权限或旧记录。",
+      "label": "白名单命令已停用，请在机器人管理设置中调整。",
+      "template": "白名单命令已停用，请在机器人管理设置中调整。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
       "note": "命中此场景时返回的回复。",
-      "category": "main"
+      "category": "main",
+      "previous_default_templates": [
+        "旧白名单管理命令已停用，不再迁移。群接入由官方机器人配置管理；此命令不修改群接入、管理员权限或旧记录。"
+      ]
     },
     "ai.management_88f6db5b": {
       "feature": "ai",
-      "label": "原本地模型聊天模块当前未启用。尚未迁移官方群身份授权，未改变原权限开关。",
-      "template": "原本地模型聊天模块当前未启用。尚未迁移官方群身份授权，未改变原权限开关。",
+      "label": "聊天功能暂未启用。",
+      "template": "聊天功能暂未启用。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "原本地模型聊天模块当前未启用。尚未迁移官方群身份授权，未改变原权限开关。"
+      ]
     },
     "price_reset.management_56b8abba": {
       "feature": "price_reset",
@@ -3109,27 +3156,33 @@
     },
     "management.management_5e6b5000": {
       "feature": "operations",
-      "label": "该维护操作尚未配置；没有执行重启。",
-      "template": "该维护操作尚未配置；没有执行重启。",
+      "label": "维护服务暂不可用。",
+      "template": "维护服务暂不可用。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "该维护操作尚未配置；没有执行重启。"
+      ]
     },
     "links.management_cb370695": {
       "feature": "links",
-      "label": "该命令只管理当前官方会话，请不要填写旧 QQ 群号。",
-      "template": "该命令只管理当前官方会话，请不要填写旧 QQ 群号。",
+      "label": "请在需要设置的会话中使用此命令。",
+      "template": "请在需要设置的会话中使用此命令。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/management.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "该命令只管理当前官方会话，请不要填写旧 QQ 群号。"
+      ]
     },
     "broadcast.management_ae2f939d": {
       "feature": "broadcast",
@@ -3327,15 +3380,18 @@
     },
     "notifications.notifications_a5f2b484": {
       "feature": "notifications",
-      "label": "已关闭本会话通知，未删除旧订阅。",
-      "template": "已关闭本会话通知，未删除旧订阅。",
+      "label": "已关闭本会话通知。",
+      "template": "已关闭本会话通知。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/notifications.py",
       "note": "命中此场景时返回的回复。",
-      "category": "main"
+      "category": "main",
+      "previous_default_templates": [
+        "已关闭本会话通知，未删除旧订阅。"
+      ]
     },
     "notifications.notifications_dccaa328": {
       "feature": "notifications",
@@ -3591,15 +3647,18 @@
     },
     "operations.availability_7c8ef09b": {
       "feature": "operations",
-      "label": "此管理功能尚未在官方入口授权或启用。旧 QQ 管理员权限不会自动继承。",
-      "template": "此管理功能尚未在官方入口授权或启用。旧 QQ 管理员权限不会自动继承。",
+      "label": "此管理命令暂不可用。",
+      "template": "此管理命令暂不可用。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "此管理功能尚未在官方入口授权或启用。旧 QQ 管理员权限不会自动继承。"
+      ]
     },
     "tournament.availability_5d4f9f57": {
       "feature": "tournament",
@@ -3638,15 +3697,18 @@
     },
     "unavailable.availability_8434d50c": {
       "feature": "links",
-      "label": "该翻译或链接/视频解析功能尚未完成官方入口迁移；未下载、上传或发送预览卡片。",
-      "template": "该翻译或链接/视频解析功能尚未完成官方入口迁移；未下载、上传或发送预览卡片。",
+      "label": "暂不支持此平台的解析或下载。",
+      "template": "暂不支持此平台的解析或下载。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/qq_official/availability.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "该翻译或链接/视频解析功能尚未完成官方入口迁移；未下载、上传或发送预览卡片。"
+      ]
     },
     "paging.plugin_e278b7fd": {
       "feature": "paging",
@@ -4395,27 +4457,33 @@
     },
     "links.link_parser_abcdf26a": {
       "feature": "links",
-      "label": "链接解析或下载失败；未自动重试。需要登录的平台须另行配置，旧 Cookie 未迁移。",
-      "template": "链接解析或下载失败；未自动重试。需要登录的平台须另行配置，旧 Cookie 未迁移。",
+      "label": "解析或下载失败，请稍后重试。",
+      "template": "解析或下载失败，请稍后重试。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/link_parser.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "链接解析或下载失败；未自动重试。需要登录的平台须另行配置，旧 Cookie 未迁移。"
+      ]
     },
     "links.link_parser_1479679f": {
       "feature": "links",
-      "label": "链接解析超时；未自动重试，请稍后再试或直接打开原链接。",
-      "template": "链接解析超时；未自动重试，请稍后再试或直接打开原链接。",
+      "label": "解析超时，请稍后重试。",
+      "template": "解析超时，请稍后重试。",
       "fields": {},
       "samples": {},
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/link_parser.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "链接解析超时；未自动重试，请稍后再试或直接打开原链接。"
+      ]
     },
     "translation.translation_457fa801": {
       "feature": "translation",
@@ -5731,22 +5799,28 @@
     "paging.request_failed": {
       "feature": "paging",
       "label": "查询或发送未完成",
-      "template": "查询或媒体发送未完成，请稍后重试。未自动重发；部分内容可能已送达。",
+      "template": "查询或发送未完成，请稍后重试。部分内容可能已送达。",
       "fields": {},
       "samples": {},
       "fragment": false,
       "mode": "text",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "查询或媒体发送未完成，请稍后重试。未自动重发；部分内容可能已送达。"
+      ]
     },
     "operations.backend_failed": {
       "feature": "operations",
-      "label": "后台操作未完成，请先查询状态；未自动重试，避免重复写入。",
-      "template": "后台操作未完成，请先查询状态；未自动重试，避免重复写入。",
+      "label": "操作结果尚未确认，请先查询状态，勿重复提交。",
+      "template": "操作结果尚未确认，请先查询状态，勿重复提交。",
       "fields": {},
       "samples": {},
       "fragment": false,
       "mode": "text",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "后台操作未完成，请先查询状态；未自动重试，避免重复写入。"
+      ]
     },
     "members.row": {
       "feature": "members",
@@ -6008,8 +6082,12 @@
       "feature": "links",
       "label": "多条精确同名视频的选择提示",
       "template": "找到多条同名视频：{title}\n请通过下方按钮选择作者和时长。",
-      "fields": {"title": "卡片中的视频标题"},
-      "samples": {"title": "你在山东做混的人"},
+      "fields": {
+        "title": "卡片中的视频标题"
+      },
+      "samples": {
+        "title": "你在山东做混的人"
+      },
       "mode": "markdown",
       "fragment": false,
       "category": "main"
@@ -6018,13 +6096,21 @@
       "feature": "links",
       "label": "未找到完整同名视频",
       "template": "没有找到标题完全相同的视频，请发送原视频链接。",
-      "fields": {}, "samples": {}, "mode": "text", "fragment": false, "category": "error"
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
     },
     "links.bili_search_failed": {
       "feature": "links",
       "label": "B 站标题搜索失败",
       "template": "暂时无法搜索这个视频，请稍后再试，或发送原视频链接。",
-      "fields": {}, "samples": {}, "mode": "text", "fragment": false, "category": "error"
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
     },
     "links.shared_video_missing": {
       "feature": "links",
@@ -6054,7 +6140,7 @@
     "paging.markdown_image_failed": {
       "feature": "paging",
       "label": "Markdown 图文发送失败",
-      "template": "Markdown 图文发送失败：{reason}。未改成普通文字或拆开发送；请稍后重新查询。",
+      "template": "图文未能完成发送：{reason}。",
       "fields": {
         "reason": "不含平台原始响应的安全失败原因"
       },
@@ -6064,7 +6150,10 @@
       "mode": "text",
       "fragment": true,
       "category": "error",
-      "format_note": "固定普通文字错误提示；原图文保留待发，不降级、不自动重试。"
+      "format_note": "固定普通文字错误提示；原图文保留待发，不降级、不自动重试。",
+      "previous_default_templates": [
+        "Markdown 图文发送失败：{reason}。未改成普通文字或拆开发送；请稍后重新查询。"
+      ]
     },
     "binding.conflict": {
       "feature": "binding",

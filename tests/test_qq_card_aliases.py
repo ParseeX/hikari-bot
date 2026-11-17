@@ -31,7 +31,7 @@ def test_official_card_commands_enable_fuzzy(catalog, command):
 
 
 def test_official_calculator_enables_fuzzy(catalog):
-    result = asyncio.run(Queries(catalog).handle(None, '共界计算', '白龙青眼'))
+    result = asyncio.run(Queries(catalog).handle(request(), '共界计算', '白龙青眼'))
     assert '2000' in result.text and '100000002' in result.text
 
 
@@ -41,7 +41,7 @@ def test_official_commands_display_all_alias_targets(catalog):
     catalog.add_alias('1234', '小龙')
     catalog.add_alias('7000', '小龙')
     response = asyncio.run(reply_for('卡密 小龙', catalog))
-    result = asyncio.run(Queries(catalog).handle(None, '共界计算', '小龙'))
+    result = asyncio.run(Queries(catalog).handle(request(), '共界计算', '小龙'))
     pager = Mock(send=AsyncMock())
     asyncio.run(CardActions(catalog).handle('效果', '小龙', CONFIG, bot(), event(), pager))
     for text in [response, result.text, pager.send.call_args.args[2]]:

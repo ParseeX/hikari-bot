@@ -242,7 +242,7 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_missing_arguments_catalog_and_card(self):
         self.assertIn("用法", await commands.reply_for("卡密"))
-        self.assertIn("尚未配置", await commands.reply_for("效果 card"))
+        self.assertIn("暂不可用", await commands.reply_for("效果 card"))
         catalog = Mock()
         catalog.search.return_value = None
         self.assertIn("未找到", await commands.reply_for("卡密 card", catalog))

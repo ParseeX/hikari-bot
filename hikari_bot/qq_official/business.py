@@ -46,7 +46,7 @@ class Queries:
             if self.links is None:
                 return None
             if self.notifications and not await asyncio.to_thread(self.notifications.bus.setting, request.actor.key, 'parser'):
-                return Result(present('links.business_d2ee8c4a', {}))
+                return Result()
             if not request.shared_video:
                 if request.shared_video_title:
                     return await self.links.parse(request.shared_video_title, search_title=True)
@@ -179,8 +179,8 @@ class Queries:
                 return Result(present('links.business_ba9cbce5', {}))
             if command == 'bm' or LINK.search(request.text):
                 if self.notifications and not await asyncio.to_thread(self.notifications.bus.setting, request.actor.key, 'parser'):
-                    return Result(present('links.business_d2ee8c4a', {}))
+                    return Result(present('links.business_d2ee8c4a', {})) if command == 'bm' else Result()
                 return await self.links.parse(request.text)
         if request.attachments:
-            return Result(present('attachments.business_38bd1f82', {}))
+            return Result()
         return None

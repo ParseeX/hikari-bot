@@ -68,9 +68,11 @@ def default(key):
 
 
 def upgrade_spec(key, spec):
-    """只展开旧版默认外壳；自定义文案、格式、按钮和存储文件不覆盖。"""
+    """升级已知旧默认文案与外壳；自定义内容、格式、按钮及存储文件不覆盖。"""
     definition = SCHEMA['states'][key]
     spec = deepcopy(spec)
+    if spec.get('template') in definition.get('previous_default_templates', []):
+        spec['template'] = definition['template']
     legacy = definition.get('legacy_template')
     if legacy and spec.get('template') == legacy and legacy[1:-1] in spec.get('visible', []):
         spec['template'] = definition['template']
