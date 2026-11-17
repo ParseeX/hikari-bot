@@ -33,6 +33,7 @@ class Request:
     event_id: str = field(repr=False)
     text: str = field(repr=False)
     attachments: tuple = field(default=(), repr=False)
+    shared_video: str | None = field(default=None, repr=False)
 
     @property
     def session(self):

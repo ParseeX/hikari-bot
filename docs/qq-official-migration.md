@@ -104,7 +104,7 @@
 | 卡组 PDF | S/ygodeck.py | Q/media.py 命名文件上传；共享原模板 | 每类主卡最多20种，超出明确拒绝；不是群文件库 | 生成/渲染/上传上下文回归 | 命令生成 deck.pdf、C2C 收到并下载，Acrobat 打开显示两张测试卡，实测通过 |
 | 比赛查询、签到/比赛签到、退赛、新建比赛 | P/ygomatch_query.py | 按用户要求暂缓，未改模块 | 不执行任何比赛数据库写入 | 仅暂缓提示测试 | 暂缓 |
 | 比赛卡组提交/确认、环境统计、对阵信息、头像压缩 | 同上 | 按用户要求暂缓 | 原文件与数据保留 | 未操作比赛逻辑 | 暂缓 |
-| B站及其他链接/视频解析 | nonebot_plugin_parser；P/parser_compat.py | S/link_parser.py/link_worker.py | 单次工作进程复用原 parser/renderer；合并节点展开顺序消息；B站直接视频无前置卡片；原 Cookie 不迁移 | parser_compat；工作进程隔离与路径逃逸测试；实际样本 -404、热门索引 HTTP 412，尚无成功媒体样本 | 未验证下载到播放全链路 |
+| B站及其他链接/视频解析 | nonebot_plugin_parser；P/parser_compat.py | S/link_parser.py/link_worker.py；Q/shared_video.py/gateway.py | 提取官方卡片/转发中的首个 B 站视频地址；无地址的 B 站卡片提示复制链接，不按标题猜测；合并节点展开顺序消息；B站直接视频无前置卡片；原 Cookie 不迁移 | parser_compat；工作进程隔离与路径逃逸；原始 Dispatch 与群聊/私聊识别、去重、命令隔离；2026-11-17 服务器实际下载约 61 秒/4 MB 视频，ffprobe 确认 H.264 画面与 AAC 音轨，未生成前置卡片 | 本次真实转发卡片及 QQ 下载到播放全链路待用户验证 |
 | bm BV号 [分集] | 第三方 parser matchers | 工作进程复用原 Bili 音频下载接口 | 音频单独上传；不能把此命令误变成发视频 | 无效参数测试；有效音频待外部服务验证 | 待实测 |
 | ym、blogin | 第三方 parser matchers | 明确不可用/待配置 | ym 的可选 yt-dlp 本环境未安装；扫码 Cookie 需要独立登录，未复制旧凭据 | 不自动加载额外组件 | 未启用 |
 | 开启解析/关闭解析 | 第三方 parser filter | Q/management.py 为当前官方私聊保存开关 | 仅管理员；旧群开关未迁移，未修改其他群 | 管理拒绝、独立状态检查 | 已部署，开关命令待验 |

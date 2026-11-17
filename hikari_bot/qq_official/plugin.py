@@ -77,7 +77,7 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
         if isinstance(event, GroupMessageCreateEvent):
             if getattr(event.author, 'bot', False):
                 return
-            if not isinstance(event, GroupAtMessageCreateEvent) and not is_group_request(
+            if request.shared_video is None and not isinstance(event, GroupAtMessageCreateEvent) and not is_group_request(
                     request.text, price_active=price_backend is not None and price_backend.active(key)):
                 return
         if not gate.claim(request):
@@ -97,7 +97,7 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
 
     async def dispatch(bot, event, request):
         text = event.get_plaintext()
-        command, argument = parse_command(text)
+        command, argument = parse_command(text) if request.shared_video is None else ('', '')
         if command == "继续" and not argument and results.has_pending(bot, event):
             await results.send(bot, event)
             return

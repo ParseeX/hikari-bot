@@ -42,6 +42,14 @@ class Queries:
             return Result(present('binding.conflict'))
 
     async def _handle(self, request, command, argument):
+        if request.shared_video is not None:
+            if self.links is None:
+                return None
+            if self.notifications and not await asyncio.to_thread(self.notifications.bus.setting, request.actor.key, 'parser'):
+                return Result(present('links.business_d2ee8c4a', {}))
+            if not request.shared_video:
+                return Result(present('links.shared_video_missing'))
+            return await self.links.parse(request.shared_video)
         if command == '添加别名':
             from hikari_bot.services.card_aliases import add_alias_reply
             return Result(await add_alias_reply(self.catalog, argument, with_receipt=True))

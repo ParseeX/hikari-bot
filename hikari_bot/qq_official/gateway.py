@@ -51,6 +51,22 @@ class GatewaySocket:
 
 
 class SrbsQQAdapter(Adapter):
+    @staticmethod
+    def payload_to_event(payload):
+        from .shared_video import shared_video
+        message = payload.type in {'GROUP_MESSAGE_CREATE', 'GROUP_AT_MESSAGE_CREATE', 'C2C_MESSAGE_CREATE'}
+        target = shared_video(payload.data) if message else None
+        if target is not None:
+            # SDK 1.7.x 的 QQReplyMessage 丢弃 ark_data 和嵌套元素，还要求
+            # 官方转发示例并未提供的字段。仅对已识别视频提取链接后交回 SDK；
+            # 原始 payload 不变，作者、会话、鉴权、回复目标仍由 SDK 验证。
+            payload = payload.model_copy(update={'data': {**payload.data, 'msg_elements': None}})
+        event = Adapter.payload_to_event(payload)
+        if message:
+            # 无论载荷是否伪造同名额外字段，都以本次受限提取结果覆盖。
+            event._hikari_shared_video = target
+        return event
+
     @asynccontextmanager
     async def websocket(self, setup):
         request = copy(setup)
