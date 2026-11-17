@@ -57,20 +57,7 @@ class PriceReports:
                 import asyncio
                 info = await asyncio.to_thread(self.catalog.search, name)
                 name = (info or {}).get('jp_name') or name
-            candidates = await self.reader.search_prices(name, expand_rarity_to_jp_list(rarity) if rarity else None, prefix, self.selection_limit + 1)
-            if not candidates:
-                return Result(wording('price_history.price_reports_4c833bfa', '暂无 {name} 的价格历史记录。', {'name': name}))
-            if len(candidates) > self.selection_limit:
-                return Result(wording('price_history.price_reports_96e6379b', '找到超过{limit}条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。', {'limit': self.selection_limit}))
-            if len(candidates) == 1:
-                return await self.draw(candidates[0])
-            self.sessions[key] = (now + 180, candidates)
-            while len(self.sessions) > 128:
-                self.sessions.popitem(last=False)
-            lines = '\n'.join(wording('price_history.candidate', '{index}. {name}  {box}-{rarity}  {price}円',
-                {'index': i, 'name': item.name, 'box': (item.model_number or '').split('-')[0],
-                 'rarity': rarity_jp_to_en(item.rarity or ''), 'price': f'{item.price:,}'}) for i, item in enumerate(candidates, 1))
-            return HistoryChoices(wording('price_history.price_reports_47b24a67', '找到 {value1} 条结果，请回复编号：\n{lines}', {'value1': len(candidates), 'lines': lines, 'name': name}), candidates=tuple(candidates))
+            return await self.select(request, name, rarity, prefix)
         if key not in self.sessions:
             return None
         if command in {'取消', '退出', 'cancel'}:
@@ -86,6 +73,31 @@ class PriceReports:
         # 新命令结束旧的曲线选择，避免截获其他业务的编号。
         self.sessions.pop(key, None)
         return None
+
+    async def select(self, request, name, rarity=None, prefix=None, *, force_choice=False, exact_rarity=False):
+        """直接查询 Cardrush 候选；不依赖其他站点的商品列表或版本编号。"""
+        from hikari_bot.features.cardrush.parsing import RARITY_MAPPING
+        key, now = request.session, self.clock()
+        self.sessions.pop(key, None)
+        rarities = expand_rarity_to_jp_list(rarity) if rarity else None
+        if rarity and exact_rarity:
+            rarities = [jp for jp, en in RARITY_MAPPING.items() if en.upper() == rarity.upper()]
+        candidates = await self.reader.search_prices(name, rarities, prefix, self.selection_limit + 1)
+        if not candidates:
+            return Result(wording('price_history.price_reports_4c833bfa', '暂无 {name} 的价格历史记录。', {'name': name}))
+        if len(candidates) > self.selection_limit:
+            return Result(wording('price_history.price_reports_96e6379b', '找到超过{limit}条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。', {'limit': self.selection_limit}))
+        if len(candidates) == 1 and not force_choice:
+            return await self.draw(candidates[0])
+        self.sessions[key] = (now + 180, candidates)
+        while len(self.sessions) > 128:
+            self.sessions.popitem(last=False)
+        lines = '\n'.join(wording('price_history.candidate', '{index}. {name}  {box}-{rarity}  {price}円',
+            {'index': i, 'name': item.name, 'box': (item.model_number or '').split('-')[0],
+             'rarity': rarity_jp_to_en(item.rarity or ''), 'price': f'{item.price:,}'}) for i, item in enumerate(candidates, 1))
+        known_rarities = set(rarity_jp_to_en(item.rarity or '') for item in candidates)
+        rarity_heading = ' · '+next(iter(known_rarities)) if len(known_rarities) == 1 else ''
+        return HistoryChoices(wording('price_history.price_reports_47b24a67', '找到 {value1} 条结果，请回复编号：\n{lines}', {'value1': len(candidates), 'lines': lines, 'name': name, 'rarity_heading': rarity_heading}), candidates=tuple(candidates))
 
     async def draw(self, selected):
         from hikari_bot.features.cardrush.reporting.chart import draw_price_chart

@@ -1,11 +1,11 @@
-"""真实官方入口：报价按钮精确到版本，曲线选择分页，Markdown 图文同发。"""
+"""真实官方入口：报价按钮使用 Cardrush 自身版本，曲线选择分页，Markdown 图文同发。"""
 import subprocess
 import sys
 
 from test_catalog_service import catalog
 
 
-def test_official_price_to_exact_curve_and_manual_curve_choices(catalog):
+def test_official_quote_to_cardrush_choices_independent_of_jhs_versions(catalog):
     script = r'''
 import asyncio,sys
 from pathlib import Path
@@ -39,11 +39,10 @@ async def run():
  for kind in ['c2c','group','group-no-at']:
   for total in [1,2]:
    versions=[CardVersion(i+1,f'BOX-JP00{i+1}','UR',name) for i in range(total)]
-   products=[PriceSnapshot(i+10,name,'ウルトラ',v.number,800,'2026-11-18') for i,v in enumerate(versions)]
-   distractors=[PriceSnapshot(900,'wrong card','ウルトラ','BOX-JP001',999,'2026-11-18'),
-                PriceSnapshot(901,name,'シークレット','BOX-JP001',999,'2026-11-18'),
-                PriceSnapshot(902,name,'ウルトラ','BOX-JP001X',999,'2026-11-18')]
-   reader=Mock(search_prices=AsyncMock(return_value=distractors+products),get_price_history=AsyncMock(return_value=[PricePoint(500,'2026-11-17'),PricePoint(800,'2026-11-18')]))
+   products=[PriceSnapshot(10,name,'ウルトラ','CR-JP001',800,'2026-11-18'),
+             PriceSnapshot(11,name+'(原画)','ウルトラ','CR-JP002',900,'2026-11-18'),
+             PriceSnapshot(12,name+'(异画)','ウルトラ','CR-JP002',1000,'2026-11-18')]
+   reader=Mock(search_prices=AsyncMock(return_value=products),get_price_history=AsyncMock(return_value=[PricePoint(500,'2026-11-17'),PricePoint(800,'2026-11-18')]))
    backend=PriceQueries(None,None,None)
    backend.comparison=Mock(versions=AsyncMock(return_value=versions),compare=AsyncMock(return_value=[Comparison(v,JhsPrice(v.id,Decimal('3'),None,None),()) for v in versions]))
    handler=plugin.register(config,queries=Queries(catalog,price_reports=PriceReports(reader,catalog,selection_limit=100)),price_backend=backend).handlers[0].call
@@ -65,23 +64,27 @@ async def run():
    assert curve_button['render_data']['label']=='卡价曲线'
    actor='other' if kind!='c2c' else 'only-user'
    result=await press(curve_button,actor)
-   if total>1:
-    assert [b['render_data']['label'] for b in button_list(result)]==['UR · BOX-JP001','UR · BOX-JP002']
-    result=await press(button_list(result)[1],actor)
-   reader.get_price_history.assert_awaited_once_with(products[total-1].product_id)
+   assert [b['render_data']['label'] for b in button_list(result)]==['1 · CR-JP001','2 · CR-JP002','3 · CR-JP002']
+   menu=result['markdown']['content']
+   assert f'## {name} · UR' in menu and f'{name}(异画) · UR' in menu
+   assert 'BOX-JP' not in menu and 'UR · CR-' not in menu
+   assert reader.search_prices.await_args.args[0]==name
+   assert reader.search_prices.await_args.args[2] is None
+   result=await press(button_list(result)[2],actor)
+   reader.search_prices.assert_awaited_once()
+   reader.get_price_history.assert_awaited_once_with(12)
    content=result['markdown']['content']
-   assert f'## {name} · UR' in content and f'### BOX-JP00{total}' in content
+   assert f'## {name}(异画) · UR' in content and '### CR-JP002' in content
    assert 'Cardrush 买取价历史' in content and '（日元）' not in content
    assert content.count('qqbot-media://')==1 and content.index('最近买取价')<content.index('qqbot-media://')
    assert '添加别名' not in content and result['msg_type']==2
-   # 无同版本历史不能偷换到同盒、同名或其他罕贵。
-   reader.search_prices.return_value=distractors
+   # Cardrush 无记录时不退回集换社版本猜测。
+   reader.search_prices.return_value=[]
    incoming=source(kind);incoming.id='new-quote';incoming.content='卡价 1234'
    await handler(client,incoming)
    quote=await press(button_list(messages(client)[-1].json)[0])
    result=await press(button_list(quote)[0])
-   if total>1:result=await press(button_list(result)[0])
-   assert result['content']=='暂无该版本的 Cardrush 买取价历史记录。'
+   assert result['content']==f'暂无 {name} 的价格历史记录。'
    assert reader.get_price_history.await_count==1
    # 手动曲线查询九个版本，最后一项仍能从下一页到达。
    all_products=[PriceSnapshot(i+30,name,'ウルトラ',f'MANY-JP{i:03}',800,'2026-11-18') for i in range(9)]
@@ -92,7 +95,7 @@ async def run():
    assert '回复编号' not in menu['markdown']['content']
    assert len(button_list(menu))==9
    menu=await press(button_list(menu)[-1])
-   assert button_list(menu)[0]['render_data']['label']=='UR · MANY-JP008'
+   assert button_list(menu)[0]['render_data']['label']=='9 · MANY-JP008'
    await press(button_list(menu)[0])
    assert reader.get_price_history.await_args.args==(38,)
    incoming=source(kind);incoming.id='manual-again';incoming.content='卡价曲线 1234'
@@ -138,11 +141,11 @@ def test_unknown_expired_or_foreign_curve_target_never_queries_history():
     from test_qq_alias_choices import source
     from hikari_bot.features.card_prices.models import CardVersion
     async def run():
-        reports=Mock(exact_version=AsyncMock(),sessions={});clock=[0]
+        reports=Mock(select=AsyncMock(),sessions={});clock=[0]
         nav=HistoryButtons(reports,Mock(),clock=lambda:clock[0])
         bot=SimpleNamespace(self_id='synthetic-app',interaction=object())
         incoming=source('group');req=request_from_event(bot,incoming)
-        command=nav.bind(bot,incoming,'versions',(CardVersion(1,'TEST-JP001','UR'),),'card')
+        command=nav.bind(bot,incoming,'search',('UR',),'card')
         _,token=command.split()
         for scenario in ['unknown','foreign','expired','typed']:
             event=source('group');value=token
@@ -151,5 +154,40 @@ def test_unknown_expired_or_foreign_curve_target_never_queries_history():
             if scenario=='expired':clock[0]=601
             if scenario=='typed':clock[0]=0;bot.interaction=None
             assert await nav.handle(bot,event,req,'卡价曲线图',value)
-        reports.exact_version.assert_not_awaited()
+        reports.select.assert_not_awaited()
     asyncio.run(run())
+
+
+def test_cardrush_selection_filters_own_rarity_and_keeps_single_product_choice(tmp_path):
+    import asyncio
+    import sqlite3
+    from types import SimpleNamespace
+    from hikari_bot.features.cardrush.read_only import ReadOnlyPrices
+    from hikari_bot.services.price_reports import PriceReports, HistoryChoices
+    from hikari_bot.services.wording import using_wording
+    from hikari_bot.qq_official.output_templates import present, default, draft
+    path=tmp_path/'history.db'
+    with sqlite3.connect(path) as db:
+        db.execute('CREATE TABLE card_price_history(id INTEGER PRIMARY KEY,product_id INTEGER,name TEXT,rarity TEXT,model_number TEXT,price INTEGER,changed_at TEXT)')
+        db.executemany('INSERT INTO card_price_history VALUES(?,?,?,?,?,?,?)',[
+            (1,20,'card(原画)','プリズマティックシークレット','NATIVE-JP001',100,'2026-11-18'),
+            (2,21,'card(异画)','プリズマティックシークレット','NATIVE-JP001',200,'2026-11-18'),
+            (3,22,'card','OFプリズマティックシークレット','NATIVE-JP001',300,'2026-11-18')])
+    before=path.read_bytes()
+    async def run():
+        reports=PriceReports(ReadOnlyPrices(path),None)
+        request=SimpleNamespace(session=('test',))
+        with using_wording(present):
+            result=await reports.select(request,'card','PSER',force_choice=True,exact_rarity=True)
+            assert isinstance(result,HistoryChoices)
+            assert {r.product_id for r in result.candidates}=={20,21}
+            assert str(result.text).startswith('## card · PSER\n')
+            single=await reports.select(request,'card(异画)','PSER',force_choice=True,exact_rarity=True)
+            assert isinstance(single,HistoryChoices) and [r.product_id for r in single.candidates]==[21]
+            spec=default('price_history.price_reports_47b24a67');spec['mode']='text'
+            with draft('price_history.price_reports_47b24a67',spec):
+                plain=await reports.select(request,'card','PSER',force_choice=True,exact_rarity=True)
+                assert plain.text.mode=='text' and '回复编号' in plain.text
+                assert 'card(原画)' in plain.text and 'card(异画)' in plain.text
+    asyncio.run(run())
+    assert path.read_bytes()==before

@@ -240,7 +240,7 @@
       ],
       "status": "已接入",
       "implementation": "保留罕贵/版本选择、集换社和 Cardrush 价格展示。",
-      "differences": "默认 Markdown：卡名与罕贵度合为一行，完整版本编号分段，价格加粗，末尾新增卡价曲线按钮。单版本直达，多个版本先选择；曲线数据仅为 Cardrush 日元买取价历史。",
+      "differences": "默认 Markdown：卡名与罕贵度同一行，完整版本编号分段，价格加粗。卡价曲线按钮打开 Cardrush 自身商品选择，不再按集换社版本逐项映射；曲线仅为 Cardrush 买取价历史。",
       "qq": "已有私聊查询验证；所有选择及自定义 Markdown 分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
@@ -265,7 +265,7 @@
       ],
       "status": "已接入",
       "implementation": "旧数据库只读查询，复用原曲线与选择规则。",
-      "differences": "默认 Markdown 说明与曲线合为一条消息；候选用罕贵度和完整版本编号按钮选择。曲线为 Cardrush 日元买取价历史，不是集换社历史价格。缺失同版本历史时明确提示，不改查其他版本。普通文字保留编号选择和原图文布局。",
+      "differences": "曲线候选直接使用 Cardrush 商品信息，卡名和罕贵度同一行，保留画面标注，按商品选择历史。默认 Markdown 说明和曲线合为一条消息；普通文字保留编号选择及原图文布局。",
       "qq": "全部曲线/候选选择分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
@@ -278,7 +278,7 @@
           "key": "paging.request_failed"
         }
       ],
-      "reason": "直接沿用既有 Cardrush 历史数据；报价到曲线按卡名、完整编号和罕贵度核对。同一报价包含多个版本时需先选择。",
+      "reason": "两站商品版本并非一一对应；报价按钮只带卡名和所选罕贵度，随后按 Cardrush 商品选择，不使用集换社编号或原画异画映射。",
       "pending_work": ""
     },
     "price_daily": {
@@ -1370,7 +1370,7 @@
           }
         }
       ],
-      "format_note": "群聊和私聊均为 Markdown：卡名与罕贵度同一行、完整版本编号分段、价格加粗。底部卡价曲线按钮：单版本直接查询，多个版本先选择；只绘制匹配版本的 Cardrush 日元买取价历史，暂无记录时明确提示。长回复按钮放在最后一段。"
+      "format_note": "卡名与罕贵度同一行，完整版本编号分段。底部卡价曲线按钮打开该卡、该罕贵度的 Cardrush 商品选择，原画和异画以 Cardrush 标注为准。曲线是买取价历史，不是集换社历史。"
     },
     "price.heading": {
       "feature": "price",
@@ -4199,16 +4199,18 @@
     "price_history.price_reports_47b24a67": {
       "feature": "price_history",
       "label": "卡价曲线版本选择",
-      "template": "## {name}\n> Cardrush 买取价历史",
+      "template": "## {name}{rarity_heading}\n> Cardrush 买取价历史",
       "fields": {
         "value1": "返回状态或统计值（示例：3）",
         "lines": "返回状态或统计值（示例：3）",
-        "name": "查询卡名"
+        "name": "查询卡名",
+        "rarity_heading": "同一罕贵度时显示在卡名后的内容"
       },
       "samples": {
         "value1": "3",
         "lines": "3",
-        "name": "青眼の白龍"
+        "name": "青眼の白龍",
+        "rarity_heading": " · PSER"
       },
       "mode": "markdown",
       "fragment": false,
@@ -4233,9 +4235,10 @@
       "plain_template": "找到 {value1} 条结果，请回复编号：\n{lines}",
       "previous_default_templates": [
         "找到 {value1} 条结果，请回复编号：\n{lines}",
-        "## {name}\n> Cardrush 买取价历史（日元）"
+        "## {name}\n> Cardrush 买取价历史（日元）",
+        "## {name}\n> Cardrush 买取价历史"
       ],
-      "format_note": "Markdown 使用罕贵度与完整版本编号按钮，超过八项可翻页；最多列出一百个匹配版本。普通文字保留编号列表。"
+      "format_note": "直接列出 Cardrush 自身商品，每项卡名与罕贵度同一行，下方列完整编号与最近买取价；按钮以序号对应详情，每页八项。普通文字保留编号选择。"
     },
     "price_history.price_reports_f3bd1277": {
       "feature": "price_history",
@@ -6328,6 +6331,29 @@
       "mode": "text",
       "fragment": false,
       "category": "error"
+    },
+    "price_history.choice_detail": {
+      "feature": "price_history",
+      "label": "每个 Cardrush 版本详情",
+      "template": "{index}. **{name} · {rarity}**\n{number} · {price} 円",
+      "fields": {
+        "index": "选项序号",
+        "name": "Cardrush 完整商品卡名及画面标注",
+        "rarity": "罕贵度",
+        "number": "Cardrush 完整编号",
+        "price": "最近买取价数值"
+      },
+      "samples": {
+        "index": "2",
+        "name": "[新]灰流うらら(座り)",
+        "rarity": "PSER",
+        "number": "PAC1-JP016",
+        "price": "8,000"
+      },
+      "mode": "text",
+      "fragment": true,
+      "preview_root": "price_history.price_reports_47b24a67",
+      "category": "part"
     }
   }
 }

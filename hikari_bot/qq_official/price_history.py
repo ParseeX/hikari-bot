@@ -1,4 +1,4 @@
-"""报价到同版本曲线，以及曲线候选按钮；目标保存在原会话内存中。"""
+"""按 Cardrush 自身商品选择曲线；目标保存在原会话内存中。"""
 from collections import OrderedDict
 from dataclasses import dataclass
 import secrets
@@ -8,12 +8,12 @@ from nonebot.adapters.qq import MessageSegment
 from nonebot.adapters.qq.models import MessageKeyboard
 
 from hikari_bot.features.cardrush.parsing import rarity_jp_to_en
-from hikari_bot.services.platform import Result
+from hikari_bot.services.price_reports import HistoryChoices
 from hikari_bot.services.wording import using_wording
 from .alias_choices import AliasChoices
 from .card_actions import command_button
 from .delivery import context
-from .output_templates import present, escape
+from .output_templates import present
 
 
 @dataclass(frozen=True)
@@ -49,30 +49,24 @@ class HistoryButtons:
         rows = getattr(quote, 'comparisons', ())
         if self.reports is None or not rows or quote.mode != 'markdown':
             return None
-        command = self.bind(bot, event, 'versions', [row.version for row in rows], quote.name, shared=True)
+        # 仅携带卡名和所选罕贵度，不把集换社版本列表当作 Cardrush 候选。
+        command = self.bind(bot, event, 'search', (rows[0].version.rarity,), quote.name, shared=True)
         button = command_button('price_history', '卡价曲线', command, event.get_user_id(), shared=True)
         return MessageSegment.keyboard(MessageKeyboard.model_validate({'content': {'rows': [{'buttons': [button]}]}}))
 
-    async def offer(self, bot, event, items, *, versions=False, name='', prompt=None):
+    async def offer(self, bot, event, items, *, prompt):
         items = tuple(items)
-        labels, details, choices = [], [], []
+        details, choices = [], []
         for index, item in enumerate(items, 1):
-            rarity = item.rarity if versions else rarity_jp_to_en(item.rarity or '')
-            number = item.number if versions else item.model_number
-            label = f'{rarity} · {number or "编号未知"}'
-            labels.append(label)
-            detail = f'{index}. {name if versions else item.name} · {label}'
-            if not versions:
-                detail += f' · {item.price:,} 円'
-            details.append(escape(detail))
-            command = self.bind(bot, event, 'versions' if versions else 'product', (item,), name)
+            rarity = rarity_jp_to_en(item.rarity or '')
+            number = item.model_number or '编号未知'
+            label = f'{index} · {number}'
+            details.append(str(present('price_history.choice_detail', {'index': index,
+                'name': item.name, 'rarity': rarity, 'number': number, 'price': f'{item.price:,}'})))
+            command = self.bind(bot, event, 'product', (item,))
             choices.append((label[:24], command))
-        # 同名版本或过长标签保留完整详情，避免看不出按钮对应哪一项。
-        show_details = (len(set(labels)) != len(labels) or any(len(label) > 24 for label in labels)
-                        or (not versions and len({item.name for item in items}) > 1))
         await self.pages.offer(bot, event, choices,
-            prompt=str(prompt or present('price_history.version_prompt', {'name': name or items[0].name})),
-            details=details if show_details else ())
+            prompt=str(prompt), details=details)
 
     async def handle(self, bot, event, request, command, argument):
         if command not in {'卡价曲线图', '曲线页'}:
@@ -89,19 +83,13 @@ class HistoryButtons:
             return True
         self.reports.sessions.pop(request.session, None)
         with using_wording(present):
-            if target.kind == 'versions':
-                if len(target.items) > 1:
-                    await self.offer(bot, event, target.items, versions=True, name=target.name)
-                    return True
-                products = await self.reports.exact_version(target.name, target.items[0])
-                if not products:
-                    await self.results.send(bot, event, Result(present('price_history.version_missing')))
-                    return True
-                if len(products) > 1:
-                    await self.offer(bot, event, products, name=target.name)
-                    return True
-                selected = products[0]
+            if target.kind == 'search':
+                result = await self.reports.select(request, target.name, target.items[0],
+                    force_choice=True, exact_rarity=True)
+                if isinstance(result, HistoryChoices) and result.text.mode == 'markdown':
+                    await self.offer(bot, event, result.candidates, prompt=result.text)
+                else:
+                    await self.results.send(bot, event, result)
             else:
-                selected = target.items[0]
-            await self.results.send(bot, event, await self.reports.draw(selected))
+                await self.results.send(bot, event, await self.reports.draw(target.items[0]))
         return True
