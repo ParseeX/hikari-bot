@@ -19,7 +19,7 @@ URL = 'https://www.bilibili.com/video/BV1xx411c7mD?p=2'
 def shared_event(kind='group', **extra):
     data = dict(id='synthetic-event', content='[分享] https://m.q.qq.com/a/s/synthetic',
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                author=dict(id='u', user_openid='u', member_openid='u', bot=False),
+                author=dict(id='u', user_openid='u', member_openid='u', bot=False, member_role='member'),
                 group_id='g', group_openid='g', message_type=3,
                 ark_data=dict(ark_type='miniapp', fields=dict(tag='哔哩哔哩', jump_url=URL)))
     data.update(extra)
