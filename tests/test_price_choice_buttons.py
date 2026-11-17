@@ -111,8 +111,8 @@ def test_rarity_click_returns_price_once_without_alias_notice_or_pack_in_options
         await controller.handle(NamedFileBot(client), event.model_copy(update={'id': 'duplicate'}))
         backend.comparison.compare.assert_awaited_once_with(INFO['jp_name'], [versions[1]], japanese=False)
         result = messages(client)[-1].json
-        assert '2.00 元' in result['content'] and 'BOX-002' in result['content']
-        assert '添加别名' not in result['content']
+        assert '2.00 元' in result['markdown']['content'] and 'BOX-002' in result['markdown']['content']
+        assert '添加别名' not in result['markdown']['content']
         assert len(messages(client)) == 2
     asyncio.run(run())
 
@@ -171,8 +171,8 @@ async def run():
         await ctl.handle(NamedFileBot(client),click(buttons[0],kind,id=kind+'-select'))
         await asyncio.gather(*ctl.tasks)
         result=messages(client)[-1].json
-        assert '3.00 元' in result['content'] and 'BOX-8' in result['content']
-        assert '添加别名' not in result['content']
+        assert '3.00 元' in result['markdown']['content'] and 'BOX-8' in result['markdown']['content']
+        assert '添加别名' not in result['markdown']['content']
         assert len(messages(client))==3
 asyncio.run(run())
 """

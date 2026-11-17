@@ -240,7 +240,7 @@
       ],
       "status": "已接入",
       "implementation": "保留罕贵/版本选择、集换社和 Cardrush 价格展示。",
-      "differences": "罕贵选择默认用 Markdown 按钮，仅显示罕贵名称；普通文字模式保留编号选择。最终报价保留版本编号和币种，不附带添加别名提示。",
+      "differences": "卡价选择及最终报价默认均为 Markdown：标题、罕贵度引用、按版本分段、价格加粗；保留币种与版本编号。选择页仍用罕贵按钮，最终报价不附添加别名提示。长结果按额度分页。",
       "qq": "已有私聊查询验证；所有选择及自定义 Markdown 分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
@@ -1168,7 +1168,7 @@
       },
       "samples": {
         "body": "【灰流うらら】请选择罕贵：",
-        "heading": "【灰流うらら】请选择罕贵：",
+        "heading": "## 灰流うらら",
         "options": "",
         "hint": ""
       },
@@ -1246,10 +1246,10 @@
       },
       "samples": {
         "body": "【灰流うらら｜UR】\nRC04-JP009\n集换社最低价：12.34 元\n集换价：18.00 元\nCardrush 买取价：1,200 円",
-        "heading": "3",
-        "versions": "QCCP-JP001、QCCP-JP002"
+        "heading": "## 灰流うらら\n> 罕贵度：UR\n\n",
+        "versions": "### RC04-JP009\n\n- 集换社最低价：**12.50 元**\n- 集换价：**13.20 元**\n- Cardrush 买取价：**1,500 円**"
       },
-      "mode": "text",
+      "mode": "markdown",
       "buttons": {},
       "rows": [],
       "blocks": [
@@ -1369,12 +1369,13 @@
             }
           }
         }
-      ]
+      ],
+      "format_note": "群聊和私聊均使用 Markdown：卡名标题、罕贵度引用、版本小标题、价格加粗。报价和币种不变；多个版本依次排列，长结果按现有额度分页。切回普通文字时，默认模板使用原文字排版。"
     },
     "price.heading": {
       "feature": "price",
       "label": "价格结果标题",
-      "template": "【{name}｜{rarity}】\n",
+      "template": "## {name}\n> 罕贵度：{rarity}\n\n",
       "fields": {
         "name": "日文卡名",
         "rarity": "罕贵"
@@ -1389,12 +1390,16 @@
       "blocks": [],
       "fragment": true,
       "preview_root": "price.result",
-      "category": "part"
+      "category": "part",
+      "plain_template": "【{name}｜{rarity}】\n",
+      "previous_default_templates": [
+        "【{name}｜{rarity}】\n"
+      ]
     },
     "price.version": {
       "feature": "price",
       "label": "每个版本编号",
-      "template": "{version}",
+      "template": "### {version}",
       "fields": {
         "version": "版本编号"
       },
@@ -1407,12 +1412,16 @@
       "blocks": [],
       "fragment": true,
       "preview_root": "price.result",
-      "category": "part"
+      "category": "part",
+      "plain_template": "{version}",
+      "previous_default_templates": [
+        "{version}"
+      ]
     },
     "price.jhs": {
       "feature": "price",
       "label": "集换社价格字段",
-      "template": "集换社最低价：{minimum}\n集换价：{market}",
+      "template": "- 集换社最低价：**{minimum}**\n- 集换价：**{market}**",
       "fields": {
         "minimum": "带人民币单位的最低价/无数据",
         "market": "带人民币单位的参考价/无数据"
@@ -1427,12 +1436,16 @@
       "blocks": [],
       "fragment": true,
       "preview_root": "price.result",
-      "category": "part"
+      "category": "part",
+      "plain_template": "集换社最低价：{minimum}\n集换价：{market}",
+      "previous_default_templates": [
+        "集换社最低价：{minimum}\n集换价：{market}"
+      ]
     },
     "price.japanese": {
       "feature": "price",
       "label": "日版报价字段",
-      "template": "日版最低价：{value}",
+      "template": "- 日版最低价：**{value}**",
       "fields": {
         "value": "带人民币单位的合规报价/无数据"
       },
@@ -1445,12 +1458,16 @@
       "blocks": [],
       "fragment": true,
       "preview_root": "price.result",
-      "category": "part"
+      "category": "part",
+      "plain_template": "日版最低价：{value}",
+      "previous_default_templates": [
+        "日版最低价：{value}"
+      ]
     },
     "price.cardrush": {
       "feature": "price",
       "label": "Cardrush 价格字段",
-      "template": "Cardrush 买取价：{value}",
+      "template": "- Cardrush 买取价：**{value}**",
       "fields": {
         "value": "带日元单位的收取价/无数据"
       },
@@ -1463,12 +1480,16 @@
       "blocks": [],
       "fragment": true,
       "preview_root": "price.result",
-      "category": "part"
+      "category": "part",
+      "plain_template": "Cardrush 买取价：{value}",
+      "previous_default_templates": [
+        "Cardrush 买取价：{value}"
+      ]
     },
     "price.rarity_header": {
       "feature": "price",
       "label": "罕贵列表标题",
-      "template": "【{name}】请选择罕贵：",
+      "template": "## {name}",
       "fields": {
         "name": "日文卡名"
       },
@@ -1481,7 +1502,11 @@
       "blocks": [],
       "fragment": true,
       "preview_root": "price.prompt",
-      "category": "part"
+      "category": "part",
+      "plain_template": "【{name}】请选择罕贵：",
+      "previous_default_templates": [
+        "【{name}】请选择罕贵："
+      ]
     },
     "price.rarity_row": {
       "feature": "price",
@@ -5968,7 +5993,7 @@
     "price.version_block": {
       "feature": "price",
       "label": "单个卡片版本：国内报价与买取价",
-      "template": "{version}\n{domestic}\n{buyback}\n\n",
+      "template": "{version}\n\n{domestic}\n{buyback}\n\n",
       "fields": {
         "version": "版本编号段落",
         "domestic": "国内价格段落",
@@ -6031,7 +6056,11 @@
       "hidden_fields": [],
       "category": "part",
       "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
-      "preview_root": "price.result"
+      "preview_root": "price.result",
+      "plain_template": "{version}\n{domestic}\n{buyback}\n\n",
+      "previous_default_templates": [
+        "{version}\n{domestic}\n{buyback}\n\n"
+      ]
     },
     "price_history.candidate": {
       "feature": "price_history",

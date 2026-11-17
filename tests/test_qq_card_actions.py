@@ -209,15 +209,16 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
         catalog = Mock()
         catalog.search.return_value = INFO
         actions = CardActions(catalog, price_backend=backend)
-        client, pager = bot(), ReplyPager(now=lambda: NOW)
+        from hikari_bot.qq_official.media import NamedFileBot
+        client, pager = NamedFileBot(bot()), ReplyPager(now=lambda: NOW)
         await actions.handle('卡价', '14558127', CONFIG, client, event(), pager)
-        self.assertIn('请选择罕贵', client._request.call_args.args[0].json['markdown']['content'])
+        self.assertIn('## ', client._request.call_args.args[0].json['markdown']['content'])
         source = event()
         source.id = 'synthetic-selection'
         await actions.handle('1', '', CONFIG, client, source, pager)
-        self.assertIn('2.00 元', client._request.call_args.args[0].json['content'])
-        self.assertNotIn(HINT, client._request.call_args.args[0].json['content'])
-        self.assertEqual(client._request.call_args.args[0].json['content'].count(HINT), 0)
+        self.assertIn('**2.00 元**', client._request.call_args.args[0].json['markdown']['content'])
+        self.assertNotIn(HINT, client._request.call_args.args[0].json['markdown']['content'])
+        self.assertEqual(client._request.call_args.args[0].json['markdown']['content'].count(HINT), 0)
         catalog.search.assert_called_once_with('14558127', fuzzy=True)
 
     async def test_rarity_currency_exact_version_and_expiry(self):

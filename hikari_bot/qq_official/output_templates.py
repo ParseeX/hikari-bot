@@ -226,7 +226,11 @@ def present(key,values=None,*,plain=False):
     root_spec = (overrides.get(root) if overrides and root in overrides else Store().active(root)) if root else spec
     if root_spec['mode']=='markdown' and not plain:
         cooked={k:(v if k in SCHEMA['states'][key].get('blocks',[]) else escape(v)) for k,v in cooked.items()}
-    text = spec['template'].format_map(cooked)
+    template = spec['template']
+    if (plain or root_spec['mode'] == 'text') and template == definition['template']:
+        # 默认富文本可切回普通文字；用户自行编写的模板保持原样。
+        template = definition.get('plain_template', template)
+    text = template.format_map(cooked)
     notice = definition.get('notice')
     if notice and not (notice == 'common.card_name_hint' and CARD_NAME_CONFIRMED.get()):
         hint = notice_text(notice, markdown=not plain and spec['mode'] == 'markdown')
