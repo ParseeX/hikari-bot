@@ -37,7 +37,7 @@ config=PilotConfig('synthetic-app','fake',users=frozenset({'only-user','other'})
 def button_list(payload):return [b for row in payload['keyboard']['content']['rows'] for b in row['buttons']]
 async def run():
  for kind in ['c2c','group','group-no-at']:
-  for total in [1,2]:
+  for total in [1,40]:
    versions=[CardVersion(i+1,f'BOX-JP00{i+1}','UR',name) for i in range(total)]
    products=[PriceSnapshot(10,name,'ウルトラ','CR-JP001',800,'2026-11-18'),
              PriceSnapshot(11,name+'(原画)','ウルトラ','CR-JP002',900,'2026-11-18'),
@@ -57,7 +57,12 @@ async def run():
     return messages(client)[-1].json
    incoming=source(kind);incoming.content='卡价 1234'
    await handler(client,incoming)
+   before_quote=len(messages(client))
    quote=await press(button_list(messages(client)[-1].json)[0])
+   assert len(messages(client))==before_quote+1
+   assert quote['markdown']['content'].count(f'## {name} | UR')==1
+   assert quote['markdown']['content'].count('### BOX-JP')==total
+   if total==40:assert len(quote['markdown']['content'])>2800
    assert '罕贵度：' not in quote['markdown']['content']
    assert f'## {name} | UR' in quote['markdown']['content'] and '### BOX-JP001' in quote['markdown']['content']
    curve_button=button_list(quote)[0]

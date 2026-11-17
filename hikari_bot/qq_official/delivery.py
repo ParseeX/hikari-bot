@@ -117,6 +117,10 @@ class ReplyPager:
                 if not self.capacity(event, kind):
                     return
                 size = TEXT_CHARS
+                if (preview is None and isinstance(state.text, Output)
+                        and state.text.key == 'price.result' and state.text.mode == 'markdown'):
+                    # 报价的全部版本和末尾曲线按钮必须在同一条消息中，重试也不拆分。
+                    size = len(state.text)
                 if index == slots - 1 and len(state.text) - state.offset > size:
                     size -= len(hint)
                 end = chunk_end(state.text, state.offset, size)

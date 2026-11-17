@@ -69,3 +69,36 @@ def test_default_upgrade_adds_new_version_fields_without_revealing_hidden_old_fi
     assert result['template']=='## {name} | {rarity}\n\n'
     custom=default('price.version');custom.update(template='我的版本 {version}',visible=['version'])
     assert upgrade_spec('price.version',custom)==custom
+
+
+@pytest.mark.parametrize('status',[400,403])
+def test_failed_long_quote_retries_whole_content_and_curve_button(status):
+    import json
+    from unittest.mock import Mock
+    from nonebot.adapters.qq.exception import ActionFailed
+    from nonebot.drivers import Response
+    from hikari_bot.qq_official.prices import PriceQuote
+    from hikari_bot.qq_official.price_history import HistoryButtons
+    from hikari_bot.qq_official.delivery import context
+    async def run():
+        pages=format_comparison('card','UR',prices()*20)
+        assert len(pages)==1 and len(pages[0])>2800 and pages[0].count('## card | UR')==1
+        quote=PriceQuote(pages[0],'markdown','card',prices()*20)
+        client=transport()
+        client._request.side_effect=[ActionFailed(Response(status,content=json.dumps({'code':304003,'message':'rejected'}))),
+                                     {'id':'notice','timestamp':NOW.isoformat()},
+                                     {'id':'retried','timestamp':NOW.isoformat()}]
+        bot=NamedFileBot(client);event=source('c2c');pager=ReplyPager(now=lambda:NOW)
+        keyboard=HistoryButtons(Mock(),None).quote_keyboard(bot,event,quote)
+        await pager.send(bot,event,quote,keyboard=keyboard)
+        sent=messages(client)
+        assert len(sent)==2 and sent[0].json['markdown']['content']==quote
+        assert sent[0].json['keyboard']['content']['rows'][0]['buttons'][0]['render_data']['label']=='卡价曲线'
+        pending=pager.pending[context(bot,event)]
+        assert pending.offset==0 and pending.text==quote and pending.keyboard==keyboard
+        retry=source('c2c');retry.id='retry'
+        await pager.send(bot,retry)
+        assert messages(client)[-1].json['markdown']==sent[0].json['markdown']
+        assert messages(client)[-1].json['keyboard']==sent[0].json['keyboard']
+        assert not pager.pending
+    asyncio.run(run())

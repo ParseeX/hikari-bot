@@ -13,6 +13,7 @@ def rarity_prompt(name_jp,groups):
         'heading': lines[0], 'options': '\n'.join(lines[1:]), 'hint': hint})
 
 def format_comparison(name_jp,rarity,rows,*,japanese=False):
+    markdown = present('price.result').mode == 'markdown'
     header=str(present('price.heading',{'name':name_jp,'rarity':rarity}))
     pages=[];text=header;blocks=[]
     def page():
@@ -32,7 +33,7 @@ def format_comparison(name_jp,rarity,rows,*,japanese=False):
         else:
             lines.extend(str(present('price.cardrush',{'value':f'{record.price:,} 円'})) for record in row.cardrush)
         block=present('price.version_block', {'version': lines[0], 'domestic': lines[1], 'buyback': '\n'.join(lines[2:])})
-        if len(text)+len(block)>2800 and text!=header:
+        if not markdown and len(text)+len(block)>2800 and text!=header:
             pages.append(page());text=header;blocks=[]
         text+=block
         blocks.append(str(block))
