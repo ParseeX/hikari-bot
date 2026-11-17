@@ -60,6 +60,26 @@ def legacy_video(card):
     return None
 
 
+def shared_title(event):
+    """只取 B 站来源卡片的标题，普通正文和其他应用不触发标题搜索。"""
+    queue = [(event, 0)]
+    visited = 0
+    while queue and visited < 64:
+        node, depth = queue.pop(0)
+        visited += 1
+        if value(node, 'message_type') == 101:
+            continue
+        fields = value(value(node, 'ark_data'), 'fields', {})
+        source = ' '.join(str(value(fields, k, ''))[:256] for k in ('tag', 'tags', 'source')).lower()
+        title = value(fields, 'title')
+        if any(name in source for name in SOURCES) and isinstance(title, str) and 1 <= len(title.strip()) <= 200:
+            return title.strip()
+        children = value(node, 'msg_elements')
+        if depth < 4 and isinstance(children, (list, tuple)):
+            queue.extend((child, depth + 1) for child in children[:64 - visited - len(queue)])
+    return ''
+
+
 def shared_video(event):
     """None 为无相关分享；空串为 B 站卡片未提供地址；非空为首个视频地址。
 

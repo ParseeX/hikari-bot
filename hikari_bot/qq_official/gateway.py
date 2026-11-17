@@ -53,9 +53,10 @@ class GatewaySocket:
 class SrbsQQAdapter(Adapter):
     @staticmethod
     def payload_to_event(payload):
-        from .shared_video import shared_video
+        from .shared_video import shared_video, shared_title
         message = payload.type in {'GROUP_MESSAGE_CREATE', 'GROUP_AT_MESSAGE_CREATE', 'C2C_MESSAGE_CREATE'}
         target = shared_video(payload.data) if message else None
+        title = shared_title(payload.data) if target == '' else ''
         if target == '':
             from .share_probe import capture_missing_card
             capture_missing_card(payload.data)
@@ -68,6 +69,7 @@ class SrbsQQAdapter(Adapter):
         if message:
             # 无论载荷是否伪造同名额外字段，都以本次受限提取结果覆盖。
             event._hikari_shared_video = target
+            event._hikari_shared_video_title = title
         return event
 
     @asynccontextmanager

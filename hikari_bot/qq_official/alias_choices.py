@@ -30,18 +30,21 @@ class Selection:
     session: tuple
     choices: tuple
     expires: float
+    prompt: str = PROMPT
+    details: tuple = ()
 
 
 class AliasChoices:
-    def __init__(self, catalog, *, clock=time.monotonic):
+    def __init__(self, catalog, *, clock=time.monotonic, page_command='候选页'):
         self.catalog, self.clock = catalog, clock
+        self.page_command = page_command
         self.pages = OrderedDict()
 
     async def handle(self, bot, event, command, argument):
         now = self.clock()
         for key in [k for k, v in self.pages.items() if v.expires <= now]:
             self.pages.pop(key, None)
-        if command == '候选页':
+        if command == self.page_command:
             parts = argument.split()
             selection = self.pages.get(parts[0]) if len(parts) == 2 else None
             if (selection is None or selection.session != context(bot, event)
@@ -73,13 +76,16 @@ class AliasChoices:
                 return True
             name = card.get('cn_name') or card.get('jp_name') or card.get('en_name') or code
             choices.append((name, f'{canonical} {code}{suffix}'))
+        await self.offer(bot, event, choices)
+        return True
+
+    async def offer(self, bot, event, choices, *, prompt=PROMPT, details=()):
         key = secrets.token_urlsafe(18)
-        selection = Selection(context(bot, event), tuple(choices), now + 600)
+        selection = Selection(context(bot, event), tuple(choices), self.clock() + 600, prompt, tuple(details))
         self.pages[key] = selection
         while len(self.pages) > 128:
             self.pages.popitem(last=False)
         await self.send(bot, event, key, selection, 0)
-        return True
 
     async def send(self, bot, event, key, selection, index):
         start = index * PAGE_SIZE
@@ -91,10 +97,13 @@ class AliasChoices:
                                        (start+PAGE_SIZE < len(selection.choices), 1, '下一页')):
             if available:
                 navigation.append(command_button(f'alias_page_{index+step}', label,
-                    f'候选页 {key} {index+step}', event.get_user_id()))
+                    f'{self.page_command} {key} {index+step}', event.get_user_id()))
         if navigation:
             rows.append({'buttons': navigation})
-        message = Message(MessageSegment.markdown(PROMPT))
+        text = selection.prompt
+        if selection.details:
+            text += '\n\n' + '\n'.join(selection.details[start:start+PAGE_SIZE])
+        message = Message(MessageSegment.markdown(text))
         message += MessageSegment.keyboard(MessageKeyboard.model_validate({'content': {'rows': rows}}))
         try:
             await asyncio.wait_for(bot.send(event, message), timeout=20)

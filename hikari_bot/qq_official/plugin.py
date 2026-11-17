@@ -30,6 +30,7 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
     results = ResultDelivery(pager)
     from .alias_choices import AliasChoices
     choices = AliasChoices(catalog)
+    video_choices = AliasChoices(None, page_command='视频候选页')
     cards = CardActions(catalog, image_loader=image_loader, price_backend=price_backend, result_delivery=results)
     gate = EventGate()
     inflight = set()
@@ -104,6 +105,8 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
         if command != "继续":
             results.pending.pop(context(bot, event), None)
         try:
+            if await video_choices.handle(bot, event, command, argument):
+                return
             if await choices.handle(bot, event, command, argument):
                 return
             result = await asyncio.wait_for(queries.handle(request, command, argument), timeout=120)
@@ -115,6 +118,18 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
                 if isinstance(result.text, AliasAdded):
                     from .alias_undo import send_added
                     await send_added(bot, event, result.text)
+                    return
+                from hikari_bot.services.bilibili_search import VideoChoices
+                if isinstance(result, VideoChoices):
+                    from .output_templates import escape
+                    labels = [f"{i+1}. {video['author'] or '未知作者'} · {video['duration']}"
+                              for i, video in enumerate(result.candidates)]
+                    buttons = [(labels[i][:24],
+                                'https://www.bilibili.com/video/' + video['bvid'])
+                               for i, video in enumerate(result.candidates)]
+                    await video_choices.offer(bot, event, buttons,
+                        prompt=present('links.video_choices', {'title': result.title}),
+                        details=[escape(label) for label in labels])
                     return
                 await results.send(bot, event, result,
                                    markdown_images=command in {'每日一卡', '随机一卡'})

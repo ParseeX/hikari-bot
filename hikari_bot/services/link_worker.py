@@ -27,7 +27,20 @@ async def run(directory):
     install_compat(StreamDownloader, ImageRenderer, VideoContent)
     # 合并转发节点只在工作进程展开为顺序消息；不会伪造真人身份发送。
     current_bot.set(SimpleNamespace(self_id="link-worker"))
-    text = json.loads((directory / "request.json").read_text(encoding="utf-8"))["text"]
+    request = json.loads((directory / "request.json").read_text(encoding="utf-8"))
+    text = request['text']
+    if request.get('search_title') is True:
+        from hikari_bot.services.bilibili_search import search_title
+        try:
+            candidates = await asyncio.wait_for(search_title(text), timeout=20)
+        except Exception:
+            candidates = None
+        if not candidates or len(candidates) > 1:
+            rows = ([{'kind': 'video_choices', 'title': text, 'candidates': candidates}]
+                    if candidates else [{'kind': 'text', 'code': 'bili_search_failed' if candidates is None else 'bili_title_missing'}])
+            (directory / 'result.json').write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
+            return
+        text = 'https://www.bilibili.com/video/' + candidates[0]['bvid']
     rows, total = [], 0
 
     def append(message):

@@ -21,6 +21,8 @@ WORKER_MESSAGES = {
     'partial': '部分媒体下载或渲染失败；已保留可用内容。',
     'empty_result': '解析未得到可发送内容；可能超过媒体大小/时长限制，请直接打开原链接。',
     'unsupported': '此链接暂无可用解析器，请直接打开原链接。',
+    'bili_title_missing': '没有找到标题完全相同的视频，请发送原视频链接。',
+    'bili_search_failed': '暂时无法搜索这个视频，请稍后再试，或发送原视频链接。',
 }
 
 
@@ -33,6 +35,16 @@ def load_result(directory):
     rows = json.loads(manifest.read_text(encoding="utf-8"))
     if not isinstance(rows, list) or len(rows) > MAX_PARTS:
         raise ValueError("解析结果过多")
+    if len(rows) == 1 and rows[0].get('kind') == 'video_choices':
+        from .bilibili_search import exact_videos, VideoChoices
+        row = rows[0]
+        title, candidates = row.get('title'), row.get('candidates')
+        if not isinstance(title, str) or not 1 <= len(title) <= 200 or not isinstance(candidates, list) or not 2 <= len(candidates) <= 60:
+            raise ValueError('视频候选无效')
+        videos = exact_videos(title, candidates)
+        if len(videos) != len(candidates):
+            raise ValueError('视频候选不匹配')
+        return VideoChoices(title=title, candidates=tuple(videos))
     parts, size = [], 0
     for row in rows:
         if row["kind"] == "text":
@@ -59,7 +71,7 @@ class LinkParser:
         self.timeout = timeout
         self.lock = asyncio.Lock()
 
-    async def parse(self, text):
+    async def parse(self, text, *, search_title=False):
         if len(text) > 16000:
             return Result(wording('links.link_parser_89428994', '链接消息过长。', {}))
         if self.lock.locked():
@@ -67,7 +79,7 @@ class LinkParser:
         async with self.lock:
             with TemporaryDirectory(prefix="hikari-parser-") as directory:
                 root = Path(directory)
-                (root / "request.json").write_text(json.dumps({"text": text}), encoding="utf-8")
+                (root / "request.json").write_text(json.dumps({"text": text, "search_title": search_title}), encoding="utf-8")
                 # 不继承 Bot 凭据、代理密码、旧插件 Cookie 或原配置目录。
                 env = {key: value for key, value in os.environ.items()
                        if key.upper() in {"PATH", "SYSTEMROOT", "WINDIR", "COMSPEC"}}

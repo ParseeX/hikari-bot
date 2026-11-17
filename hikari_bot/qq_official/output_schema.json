@@ -500,8 +500,8 @@
         "关闭解析"
       ],
       "status": "部分接入",
-      "implementation": "隔离进程复用原解析器；官方 B 站卡片与转发记录提取视频地址，保留直接发视频、不先发预览卡片和下载修复。",
-      "differences": "合并节点展开；转发记录仅解析首个识别到的 B 站视频。卡片无可用地址时需复制链接，不按标题猜视频。旧 Cookie 不迁移。文件受本地体积、时长和超时限制；解析开关只管理管理员当前私聊。",
+      "implementation": "隔离进程复用原解析器；提取官方及旧格式卡片地址。B 站卡片缺链接时搜索完整标题，唯一同名自动下载，多条用按钮选择；保留直接发视频、不先发预览卡片和下载修复。",
+      "differences": "官方小程序卡片可能只有标题、来源和图片，没有旧插件使用的原链接。按用户选择，以搜索前三页最多 60 条结果判断：唯一完整同名自动下载，多条按作者和时长选择；不能保证与卡片原视频相同，可能遇到同名或搬运。按钮仅发起者可用，10 分钟过期；长作者名按钮缩短，正文保留完整作者和时长。无同名结果或无标题时需原链接。转发记录仅处理首个识别到的视频；旧 Cookie 不迁移，原媒体限制保留。",
       "qq": "3 秒测试视频曾可播放；2026-11-17 服务器下载并检查通过约 61 秒、4 MB 的 B 站音视频，无前置预览卡片；本次真实转发卡片和 QQ 播放待用户验收。",
       "remaining": "YouTube 音频下载组件、旧群解析开关及需登录站点配置。",
       "coverage": "此字段是第三方解析器已经生成的内容，当前只能添加前后文字和选择发送格式，不能重排第三方内部字段；程序自身的用法、下载失败等提示已另列可编辑。B 站视频仍不先发送预览卡片。",
@@ -514,7 +514,7 @@
           "key": "paging.request_failed"
         }
       ],
-      "reason": "继续使用隔离的第三方解析器，未迁移旧登录凭据；下载组件、体积和超时限制仍生效。",
+      "reason": "已实测此类官方 B 站小程序卡片缺少原视频地址，无法照搬 NapCat 的精确取址；标题搜索是用户确认的替代方式，不是原链接解析。继续使用隔离下载器，未迁移旧登录凭据。",
       "pending_work": "YouTube 音频下载组件、旧群解析开关及需登录站点配置。"
     },
     "translation": {
@@ -6016,6 +6016,28 @@
       "mode": "text",
       "fragment": false,
       "category": "error"
+    },
+    "links.video_choices": {
+      "feature": "links",
+      "label": "多条精确同名视频的选择提示",
+      "template": "找到多条同名视频：{title}\n请通过下方按钮选择作者和时长。",
+      "fields": {"title": "卡片中的视频标题"},
+      "samples": {"title": "你在山东做混的人"},
+      "mode": "markdown",
+      "fragment": false,
+      "category": "main"
+    },
+    "links.bili_title_missing": {
+      "feature": "links",
+      "label": "未找到完整同名视频",
+      "template": "没有找到标题完全相同的视频，请发送原视频链接。",
+      "fields": {}, "samples": {}, "mode": "text", "fragment": false, "category": "error"
+    },
+    "links.bili_search_failed": {
+      "feature": "links",
+      "label": "B 站标题搜索失败",
+      "template": "暂时无法搜索这个视频，请稍后再试，或发送原视频链接。",
+      "fields": {}, "samples": {}, "mode": "text", "fragment": false, "category": "error"
     },
     "links.shared_video_missing": {
       "feature": "links",

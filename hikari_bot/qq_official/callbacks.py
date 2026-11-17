@@ -13,7 +13,8 @@ from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupMessageCreateE
 from nonebot.adapters.qq.models import MessageKeyboard
 from .preview import report
 COMMAND = re.compile('^(效果|卡图|卡价|卡密|日版价格查询|共界计算) ([0-9]{1,10})(?: (.{1,80}))?$')
-PAGE_COMMAND = re.compile(r'^候选页 [A-Za-z0-9_-]{24} [0-9]{1,6}$')
+PAGE_COMMAND = re.compile(r'^(?:候选页|视频候选页) [A-Za-z0-9_-]{24} [0-9]{1,6}$')
+VIDEO_COMMAND = re.compile(r'^https://www\.bilibili\.com/video/BV[0-9A-Za-z]{10}$')
 UNDO_COMMAND = re.compile(r'^撤销别名 ([0-9a-f]{32})$')
 PREFIX = 'srbs:'
 TTL = 600
@@ -35,7 +36,7 @@ class Action:
 
 
 def supported_command(command):
-    if PAGE_COMMAND.fullmatch(command) or UNDO_COMMAND.fullmatch(command):
+    if PAGE_COMMAND.fullmatch(command) or UNDO_COMMAND.fullmatch(command) or VIDEO_COMMAND.fullmatch(command):
         return True
     match = COMMAND.fullmatch(command)
     if not match or not 0 < int(match[2]) <= 2147483647:

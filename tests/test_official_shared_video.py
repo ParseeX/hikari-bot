@@ -55,7 +55,7 @@ def test_forwarded_elements_and_short_link_escape(kind):
     'https://b23.tv:123/a', 'https://bilibili.com/irrelevant', 'https://b23.tv:bad/a'])
 def test_card_without_usable_url_explains_copy_link_and_never_searches_title(url):
     event = shared_event(ark_data=dict(ark_type='miniapp', fields=dict(
-        tag='哔哩哔哩', title='绑定 some-player', preview=URL, jump_url=url)))
+        tag='哔哩哔哩', preview=URL, jump_url=url)))
     links = SimpleNamespace(parse=AsyncMock())
     state = SimpleNamespace(bind=AsyncMock())
     request = request_from_event(SimpleNamespace(self_id='app'), event)

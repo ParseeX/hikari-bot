@@ -48,6 +48,8 @@ class Queries:
             if self.notifications and not await asyncio.to_thread(self.notifications.bus.setting, request.actor.key, 'parser'):
                 return Result(present('links.business_d2ee8c4a', {}))
             if not request.shared_video:
+                if request.shared_video_title:
+                    return await self.links.parse(request.shared_video_title, search_title=True)
                 return Result(present('links.shared_video_missing'))
             return await self.links.parse(request.shared_video)
         if command == '添加别名':

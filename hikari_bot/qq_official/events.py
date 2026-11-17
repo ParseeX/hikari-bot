@@ -4,7 +4,7 @@ import time
 
 from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupMessageCreateEvent
 from hikari_bot.services.platform import Identity, Request
-from .shared_video import shared_video
+from .shared_video import shared_video, shared_title
 
 
 def request_from_event(bot, event):
@@ -18,7 +18,8 @@ def request_from_event(bot, event):
         raise ValueError("不支持此事件")
     return Request(actor, conversation, event.id, event.get_plaintext(),
                    tuple(event.attachments or ()),
-                   getattr(event, '_hikari_shared_video', shared_video(event)))
+                   getattr(event, '_hikari_shared_video', shared_video(event)),
+                   getattr(event, '_hikari_shared_video_title', shared_title(event)))
 
 
 class EventGate:
