@@ -10,6 +10,7 @@ import re
 import string
 import tempfile
 import time
+from urllib.parse import quote
 
 ROOT = Path(__file__).parent
 SCHEMA = json.loads((ROOT/'output_schema.json').read_text(encoding='utf-8'))
@@ -183,6 +184,17 @@ class Output(str):
     def __new__(cls,value,key,mode):
         obj=super().__new__(cls,value); obj.key=key; obj.mode=mode; return obj
 
+def notice_text(key, *, markdown=False):
+    """普通文字保留说明；Markdown 将固定的别名命令转为输入框填充链接。"""
+    text = str(present(key, plain=True))
+    if markdown and key == 'common.card_name_hint':
+        command = '添加别名 卡名 别名'
+        # 固定命令示例，不拼入卡名或用户输入；只填入，不自动发送或引用。
+        url = 'mqqapi://aio/inlinecmd?command=' + quote(command, safe='') + '&enter=false&reply=false'
+        text = text.replace(' ' + command + ' ', f' [{command}]({url}) ', 1)
+    return text
+
+
 def present(key,values=None,*,plain=False):
     overrides=OVERRIDE.get()
     spec=overrides.get(key) if overrides and key in overrides else Store().active(key)
@@ -198,7 +210,7 @@ def present(key,values=None,*,plain=False):
     text = spec['template'].format_map(cooked)
     notice = definition.get('notice')
     if notice:
-        hint = str(present(notice, plain=True))
+        hint = notice_text(notice, markdown=not plain and spec['mode'] == 'markdown')
         if hint and not text.rstrip().endswith(hint):
             text += '\n\n' + hint
     return Output(text,key,'text' if plain else spec['mode'])

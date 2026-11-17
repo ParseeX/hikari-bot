@@ -1,5 +1,7 @@
-HINT = '> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！'
+HINT = '> 卡名识别有误？可使用 添加别名 卡名 别名 指令为卡片添加别名！'
 import importlib.util
+from hikari_bot.qq_official.output_templates import notice_text
+HINT_MD = notice_text('common.card_name_hint', markdown=True)
 import asyncio
 import io
 from datetime import datetime, timezone
@@ -266,7 +268,7 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
         catalog.search.assert_not_called()
         catalog.search.return_value = {"text": {"desc": "a" * 3000}}
         result = await commands.reply_for("效果 card", catalog)
-        self.assertTrue(result.endswith("a" * 3000 + "\n\n" + HINT))
+        self.assertTrue(result.endswith("a" * 3000 + "\n\n" + HINT_MD))
         self.assertGreater(len(result), 3000)
 
 

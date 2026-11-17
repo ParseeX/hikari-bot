@@ -1,4 +1,6 @@
-HINT = '> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！'
+HINT = '> 卡名识别有误？可使用 添加别名 卡名 别名 指令为卡片添加别名！'
+from hikari_bot.qq_official.output_templates import notice_text
+HINT_MD = notice_text('common.card_name_hint', markdown=True)
 import asyncio
 import copy
 from decimal import Decimal
@@ -96,7 +98,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
             if info.get('jp_name'):
                 self.assertIn('> 日本語\n\n', content)
             else:
-                self.assertNotIn('> ', content.removesuffix('\n\n' + HINT))
+                self.assertNotIn('> ', content.removesuffix('\n\n' + HINT_MD))
             self.assertFalse(rich['keyboard'])
         rich, _, _ = card_message({'id': 0}, 'only-user', images=True, prices=True)
         self.assertFalse(rich['keyboard'])
@@ -121,16 +123,17 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         spec = default('effect.card')
         spec.update(template='{official}', mode='markdown')
         with draft('effect.card', spec):
-            self.assertEqual(card_text(info), '灰流うらら（はるうらら）' + '\n\n' + HINT)
+            self.assertEqual(card_text(info), '灰流うらら（はるうらら）' + '\n\n' + HINT_MD)
 
     def test_pendulum_link_and_long_text_preserved(self):
         info = copy.deepcopy(INFO)
         info['text'] = {'types': '[怪兽|链接] 2300/LINK-3 [↙↓↘]', 'pdesc': '灵摆完整\n第二行', 'desc': '怪兽完整'*2000}
         _, plain, content = card_message(info, 'only-user')
         self.assertIn(escape_markdown(info['text']['types']), content)
-        self.assertIn('## 灵摆效果\n灵摆完整\n第二行', content)
+        self.assertIn('灵摆完整\n第二行\n\n***\n\n', content)
+        self.assertNotIn('## 灵摆效果', content)
         self.assertNotIn('## 效果', content)
-        self.assertTrue(content.endswith('怪兽完整'*2000 + '\n\n' + HINT))
+        self.assertTrue(content.endswith('怪兽完整'*2000 + '\n\n' + HINT_MD))
         self.assertTrue(plain.endswith('怪兽完整'*2000))
 
     async def test_effect_resolves_once_using_existing_search_semantics(self):

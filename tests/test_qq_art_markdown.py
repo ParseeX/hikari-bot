@@ -15,7 +15,7 @@ from hikari_bot.qq_official.callbacks import CallbackController
 from hikari_bot.qq_official.config import PilotConfig
 from hikari_bot.qq_official.delivery import ReplyPager
 from hikari_bot.qq_official.media import NamedFileBot
-from hikari_bot.qq_official.output_templates import present, OVERRIDE, default, validate
+from hikari_bot.qq_official.output_templates import present, notice_text, OVERRIDE, default, validate
 
 
 CONFIG = PilotConfig('synthetic-app', 'fake', users=frozenset({'only-user'}), accept_joined_groups=True)
@@ -129,7 +129,7 @@ def test_gallery_copy_can_move_images_but_cannot_hide_them():
             await query(client)
             payload = next(c.args[0].json for c in client._request.call_args_list if c.args[0].url.path.endswith('/messages'))
             assert payload['markdown']['content'].startswith('# 灰流丽\n共 7 张\n')
-            assert payload['markdown']['content'].endswith('\n结束\n\n' + str(present('common.card_name_hint')))
+            assert payload['markdown']['content'].endswith('\n结束\n\n' + notice_text('common.card_name_hint', markdown=True))
             assert payload['markdown']['content'].count('卡名识别有误？') == 1
         finally:
             OVERRIDE.reset(token)

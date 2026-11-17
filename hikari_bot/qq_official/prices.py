@@ -1,5 +1,5 @@
 """Existing price semantics with isolated srbs sessions and version cache."""
-from .output_templates import present, Output
+from .output_templates import present, Output, notice_text
 from .price_outputs import format_comparison, rarity_prompt
 import asyncio
 from dataclasses import asdict
@@ -116,7 +116,7 @@ class PriceQueries:
             rows = await asyncio.wait_for(self.comparison.compare(name, groups[rarity], japanese=japanese), timeout=90)
             pages = format_comparison(name, rarity, rows, japanese=japanese)
             if pages:
-                hint = str(present('common.card_name_hint', plain=True))
+                hint = notice_text('common.card_name_hint', markdown=pages[0].mode == 'markdown')
                 # 多个价格块合为一个待发结果，只在整份结果底部保留提示。
                 body = '\n\n'.join(str(page).removesuffix('\n\n' + hint) for page in pages)
                 return Output(body + '\n\n' + hint, 'price.result', pages[0].mode)

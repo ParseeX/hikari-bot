@@ -1,5 +1,5 @@
 """Text parity and passive paging; synthetic inputs, no live APIs or plugins."""
-HINT = '> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！'
+HINT = '> 卡名识别有误？可使用 添加别名 卡名 别名 指令为卡片添加别名！'
 import ast
 from datetime import datetime, timedelta, timezone
 from pathlib import Path

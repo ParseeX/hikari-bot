@@ -70,7 +70,7 @@ def card_values(info):
             'original':('> '+escape_markdown(jp)) if jp else escape_markdown(info.get('en_name') or ''),
             # 假名与日文名连续两行，共用同一个引用块。
             'reading':''.join('> '+escape_markdown(line)+'\n' for line in reading.splitlines()),
-            'pendulum':('## 灵摆效果\n'+escape_markdown(texts['pdesc'])+'\n\n***\n\n') if texts.get('pdesc') else '',
+            'pendulum':(escape_markdown(texts['pdesc'])+'\n\n***\n\n') if texts.get('pdesc') else '',
             'effect':texts.get('desc') or '暂无效果资料。', 'body':format_card_effect(info)}
 
 def card_message(info, user_id, *, images=False, prices=False):

@@ -53,7 +53,7 @@ def test_default_query_sends_whole_set_without_navigation(kind, total):
         assert [p['msg_type'] for p in payloads] == [7] * total
         assert [p['msg_seq'] for p in payloads] == list(range(1, total + 1))
         assert all(p['msg_id'] == source.id for p in payloads)
-        assert payloads[-1]['content'].endswith('> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！')
+        assert payloads[-1]['content'].endswith('> 卡名识别有误？可使用 添加别名 卡名 别名 指令为卡片添加别名！')
         assert sum(p.get('content', '').count('卡名识别有误？') for p in payloads) == 1
         assert not action.result_delivery.has_pending(value, source)
     asyncio.run(run())
