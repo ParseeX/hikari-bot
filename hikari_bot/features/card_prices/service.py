@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from hikari_bot.features.cardrush.service import CardrushService
 from .client import JhsClient, JhsUnavailable
 from .models import CardVersion, JhsPrice, normalized
+from .identity import cardrush_identity
 
 
 @dataclass(frozen=True)
@@ -24,9 +25,10 @@ class Comparison:
 
 def matches_version(record, name_jp, version):
     """报价与曲线共用完整编号、卡名及罕贵核对，禁止用盒号前缀代替。"""
+    name, number = cardrush_identity(name_jp, version)
     return (bool(version.number)
-            and normalized(record.model_number or '') == normalized(version.number)
-            and clean_card_name(record.name) == clean_card_name(name_jp)
+            and normalized(record.model_number or '') == normalized(number)
+            and clean_card_name(record.name) == clean_card_name(name)
             and rarity_jp_to_en(record.rarity or '').upper() == version.rarity.upper())
 
 
@@ -79,7 +81,8 @@ class ComparisonService:
         async def local(version: CardVersion):
             if not version.number:
                 return ()
-            records = await self.cardrush.search_prices("", None, version.number, 200)
+            _, number = cardrush_identity(name_jp, version)
+            records = await self.cardrush.search_prices("", None, number, 200)
             return tuple(r for r in records if matches_version(r, name_jp, version))
 
         values = await asyncio.gather(

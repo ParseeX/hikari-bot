@@ -60,7 +60,7 @@ async def run():
    await handler(client,incoming)
    quote=await press(button_list(messages(client)[-1].json)[0])
    assert '罕贵度：' not in quote['markdown']['content']
-   assert '### UR · BOX-JP001' in quote['markdown']['content']
+   assert f'## {name} · UR' in quote['markdown']['content'] and '### BOX-JP001' in quote['markdown']['content']
    curve_button=button_list(quote)[0]
    assert curve_button['render_data']['label']=='卡价曲线'
    actor='other' if kind!='c2c' else 'only-user'
@@ -70,7 +70,8 @@ async def run():
     result=await press(button_list(result)[1],actor)
    reader.get_price_history.assert_awaited_once_with(products[total-1].product_id)
    content=result['markdown']['content']
-   assert f'UR · BOX-JP00{total}' in content and 'Cardrush 买取价历史（日元）' in content
+   assert f'## {name} · UR' in content and f'### BOX-JP00{total}' in content
+   assert 'Cardrush 买取价历史' in content and '（日元）' not in content
    assert content.count('qqbot-media://')==1 and content.index('最近买取价')<content.index('qqbot-media://')
    assert '添加别名' not in content and result['msg_type']==2
    # 无同版本历史不能偷换到同盒、同名或其他罕贵。

@@ -28,9 +28,11 @@ class PriceReports:
 
     async def exact_version(self, name, version):
         from hikari_bot.features.card_prices.service import matches_version
+        from hikari_bot.features.card_prices.identity import cardrush_identity
         if not version.number:
             return []
-        records = await self.reader.search_prices('', None, version.number, 200)
+        _, number = cardrush_identity(name, version)
+        records = await self.reader.search_prices('', None, number, 200)
         return [record for record in records if matches_version(record, name, version)]
 
     async def handle(self, request, command, argument):
