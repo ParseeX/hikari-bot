@@ -57,6 +57,13 @@ class IsolatedVersionCache(VersionCatalog):
         finally:
             db.close()
 
+class PriceQuote(Output):
+    def __new__(cls, text, mode, name, rows):
+        value = super().__new__(cls, text, 'price.result', mode)
+        value.name, value.comparisons = name, tuple(rows)
+        return value
+
+
 class PriceQueries:
 
     def __init__(self, jhs, cardrush, cache, *, clock=time.monotonic):
@@ -127,7 +134,7 @@ class PriceQueries:
             rows = await asyncio.wait_for(self.comparison.compare(name, groups[rarity], japanese=japanese), timeout=90)
             pages = format_comparison(name, rarity, rows, japanese=japanese)
             if pages:
-                return Output('\n\n'.join(pages), 'price.result', pages[0].mode)
+                return PriceQuote('\n\n'.join(pages), pages[0].mode, name, rows)
             return present('price.result', {'body': '', 'heading': '', 'versions': ''})
         except TimeoutError:
             return present('price.prices_9', {})

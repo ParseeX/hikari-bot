@@ -22,6 +22,14 @@ class Comparison:
     cardrush_error: bool = False
 
 
+def matches_version(record, name_jp, version):
+    """报价与曲线共用完整编号、卡名及罕贵核对，禁止用盒号前缀代替。"""
+    return (bool(version.number)
+            and normalized(record.model_number or '') == normalized(version.number)
+            and clean_card_name(record.name) == clean_card_name(name_jp)
+            and rarity_jp_to_en(record.rarity or '').upper() == version.rarity.upper())
+
+
 def group_rarities(versions: list[CardVersion]) -> dict[str, list[CardVersion]]:
     groups: dict[str, list[CardVersion]] = {}
     seen: set[int] = set()
@@ -72,10 +80,7 @@ class ComparisonService:
             if not version.number:
                 return ()
             records = await self.cardrush.search_prices("", None, version.number, 200)
-            return tuple(r for r in records
-                         if normalized(r.model_number or "") == normalized(version.number)
-                         and clean_card_name(r.name) == clean_card_name(name_jp)
-                         and rarity_jp_to_en(r.rarity or "").upper() == version.rarity)
+            return tuple(r for r in records if matches_version(r, name_jp, version))
 
         values = await asyncio.gather(
             self.jhs.japanese_prices(versions) if japanese else self.jhs.prices([v.id for v in versions]),

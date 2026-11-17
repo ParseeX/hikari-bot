@@ -81,7 +81,11 @@ def upgrade_spec(key, spec):
             if key == 'art.gallery' and not spec.get('rows'):
                 spec['rows'] = deepcopy(definition['rows'])
     if spec.get('template') in definition.get('previous_default_templates', []):
+        old_fields = {name for _, name, _, _ in string.Formatter().parse(spec['template']) if name}
+        new_fields = {name for _, name, _, _ in string.Formatter().parse(definition['template']) if name}
         spec['template'] = definition['template']
+        spec['visible'] = list(dict.fromkeys([*spec.get('visible', []),
+            *(name for name in definition['fields'] if name in new_fields - old_fields)]))
     legacy = definition.get('legacy_template')
     if legacy and spec.get('template') == legacy and legacy[1:-1] in spec.get('visible', []):
         spec['template'] = definition['template']

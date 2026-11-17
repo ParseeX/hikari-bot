@@ -1,6 +1,7 @@
 """只读卡价曲线与日报；复用原来的选择规则、统计和图表。"""
 from hikari_bot.services.wording import wording
 from collections import OrderedDict
+from dataclasses import dataclass
 from datetime import datetime
 import time
 from zoneinfo import ZoneInfo
@@ -10,10 +11,27 @@ from hikari_bot.features.cardrush.reporting.text import format_daily_report, par
 from .platform import Result
 
 
+@dataclass(frozen=True)
+class HistoryChoices(Result):
+    candidates: tuple = ()
+
+
 class PriceReports:
-    def __init__(self, reader, catalog, *, clock=time.monotonic):
+    def __init__(self, reader, catalog, *, clock=time.monotonic, selection_limit=10):
         self.reader, self.catalog, self.clock = reader, catalog, clock
         self.sessions = OrderedDict()
+        self.selection_limit = selection_limit
+
+    def active(self, session):
+        value = self.sessions.get(session)
+        return value is not None and value[0] > self.clock()
+
+    async def exact_version(self, name, version):
+        from hikari_bot.features.card_prices.service import matches_version
+        if not version.number:
+            return []
+        records = await self.reader.search_prices('', None, version.number, 200)
+        return [record for record in records if matches_version(record, name, version)]
 
     async def handle(self, request, command, argument):
         now = self.clock()
@@ -37,11 +55,11 @@ class PriceReports:
                 import asyncio
                 info = await asyncio.to_thread(self.catalog.search, name)
                 name = (info or {}).get('jp_name') or name
-            candidates = await self.reader.search_prices(name, expand_rarity_to_jp_list(rarity) if rarity else None, prefix, 11)
+            candidates = await self.reader.search_prices(name, expand_rarity_to_jp_list(rarity) if rarity else None, prefix, self.selection_limit + 1)
             if not candidates:
                 return Result(wording('price_history.price_reports_4c833bfa', '暂无 {name} 的价格历史记录。', {'name': name}))
-            if len(candidates) > 10:
-                return Result(wording('price_history.price_reports_96e6379b', '找到超过10条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。', {}))
+            if len(candidates) > self.selection_limit:
+                return Result(wording('price_history.price_reports_96e6379b', '找到超过{limit}条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。', {'limit': self.selection_limit}))
             if len(candidates) == 1:
                 return await self.draw(candidates[0])
             self.sessions[key] = (now + 180, candidates)
@@ -50,7 +68,7 @@ class PriceReports:
             lines = '\n'.join(wording('price_history.candidate', '{index}. {name}  {box}-{rarity}  {price}円',
                 {'index': i, 'name': item.name, 'box': (item.model_number or '').split('-')[0],
                  'rarity': rarity_jp_to_en(item.rarity or ''), 'price': f'{item.price:,}'}) for i, item in enumerate(candidates, 1))
-            return Result(wording('price_history.price_reports_47b24a67', '找到 {value1} 条结果，请回复编号：\n{lines}', {'value1': len(candidates), 'lines': lines}))
+            return HistoryChoices(wording('price_history.price_reports_47b24a67', '找到 {value1} 条结果，请回复编号：\n{lines}', {'value1': len(candidates), 'lines': lines, 'name': name}), candidates=tuple(candidates))
         if key not in self.sessions:
             return None
         if command in {'取消', '退出', 'cancel'}:
@@ -76,5 +94,5 @@ class PriceReports:
         if not image:
             return Result(wording('price_history.price_reports_3c320fec', '绘制图表失败。', {}))
         box = selected.model_number.split('-')[0] if selected.model_number else '未知'
-        text = (wording('price_history.price_reports_8de07ef2', '{value1}  {box}-{value3}\n当前买取价：{value4}円（共 {value5} 条记录）', {'value1': selected.name, 'box': box, 'value3': rarity_jp_to_en(selected.rarity or ''), 'value4': f'{history[-1].price:,}', 'value5': len(history)}))
+        text = (wording('price_history.price_reports_8de07ef2', '{value1}  {box}-{value3}\n当前买取价：{value4}円（共 {value5} 条记录）', {'value1': selected.name, 'box': box, 'version': selected.model_number or '编号未知', 'value3': rarity_jp_to_en(selected.rarity or ''), 'value4': f'{history[-1].price:,}', 'value5': len(history)}))
         return Result(wording('price_history.price_reports_body_372ea08c', '{content}', {'content': text}), (image,))

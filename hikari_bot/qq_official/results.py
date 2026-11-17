@@ -65,7 +65,7 @@ class ResultDelivery:
                 else:
                     parts.extend(MessageSegment.file_image(data) for data in result.images)
                 if (isinstance(result.text, Output) and result.text.mode == 'markdown'
-                        and result.text.key == 'history.mycard_reports_body_2fe0148e'
+                        and result.text.key in {'history.mycard_reports_body_2fe0148e', 'price_history.price_reports_body_372ea08c'}
                         and len(result.images) == 1):
                     # 历史曲线作为 Markdown 素材引用；保留整份用户正文。
                     parts = [MarkdownImage(str(result.text), result.images[0])]

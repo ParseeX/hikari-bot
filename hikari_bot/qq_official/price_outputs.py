@@ -18,7 +18,7 @@ def format_comparison(name_jp,rarity,rows,*,japanese=False):
     def page():
         return present('price.result', {'body': text.rstrip(), 'heading': header, 'versions': ''.join(blocks).rstrip()})
     for row in rows:
-        lines=[str(present('price.version',{'version':row.version.number or str(present('price.number_unknown'))}))]
+        lines=[str(present('price.version',{'version':row.version.number or str(present('price.number_unknown')), 'rarity':rarity}))]
         if row.jhs is None or row.jhs.error:
             lines.append(str(present('price.japanese_unavailable' if japanese else 'price.jhs_unavailable')))
         elif japanese:

@@ -31,7 +31,9 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
     from .alias_choices import AliasChoices
     choices = AliasChoices(catalog)
     video_choices = AliasChoices(None, page_command='视频候选页')
-    cards = CardActions(catalog, image_loader=image_loader, price_backend=price_backend, result_delivery=results)
+    from .price_history import HistoryButtons
+    history_buttons = HistoryButtons(queries.price_reports, results)
+    cards = CardActions(catalog, image_loader=image_loader, price_backend=price_backend, result_delivery=results, price_history=history_buttons)
     gate = EventGate()
     inflight = set()
 
@@ -79,7 +81,8 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
             if getattr(event.author, 'bot', False):
                 return
             if request.shared_video is None and not isinstance(event, GroupAtMessageCreateEvent) and not is_group_request(
-                    request.text, price_active=price_backend is not None and price_backend.active(key)):
+                    request.text, price_active=(price_backend is not None and price_backend.active(key))
+                    or (queries.price_reports is not None and queries.price_reports.active(request.session))):
                 return
         if not gate.claim(request):
             return
@@ -105,6 +108,10 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
         if command != "继续":
             results.pending.pop(context(bot, event), None)
         try:
+            if await history_buttons.handle(bot, event, request, command, argument):
+                if price_backend is not None:
+                    price_backend.cancel(context(bot, event))
+                return
             if await video_choices.handle(bot, event, command, argument):
                 return
             if await choices.handle(bot, event, command, argument):
@@ -114,6 +121,10 @@ def register(config, *, image_loader=None, price_backend=None, queries=None):
                 cancel_price = getattr(price_backend, 'cancel', None)
                 if callable(cancel_price):
                     cancel_price(context(bot, event))
+                from hikari_bot.services.price_reports import HistoryChoices
+                if isinstance(result, HistoryChoices) and getattr(result.text, 'mode', 'text') == 'markdown':
+                    await history_buttons.offer(bot, event, result.candidates, prompt=result.text)
+                    return
                 from hikari_bot.services.card_aliases import AliasAdded
                 if isinstance(result.text, AliasAdded):
                     from .alias_undo import send_added

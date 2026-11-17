@@ -240,7 +240,7 @@
       ],
       "status": "已接入",
       "implementation": "保留罕贵/版本选择、集换社和 Cardrush 价格展示。",
-      "differences": "卡价选择及最终报价默认均为 Markdown：标题、罕贵度引用、按版本分段、价格加粗；保留币种与版本编号。选择页仍用罕贵按钮，最终报价不附添加别名提示。长结果按额度分页。",
+      "differences": "默认 Markdown：罕贵度与完整版本编号合为一行，价格加粗，末尾新增卡价曲线按钮。单版本直达，多个版本先选择；曲线数据仅为 Cardrush 日元买取价历史。",
       "qq": "已有私聊查询验证；所有选择及自定义 Markdown 分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
@@ -265,7 +265,7 @@
       ],
       "status": "已接入",
       "implementation": "旧数据库只读查询，复用原曲线与选择规则。",
-      "differences": "普通图文按 QQ 布局；Markdown 文字与上传图片分开发送。",
+      "differences": "默认 Markdown 说明与曲线合为一条消息；候选用罕贵度和完整版本编号按钮选择。曲线为 Cardrush 日元买取价历史，不是集换社历史价格。缺失同版本历史时明确提示，不改查其他版本。普通文字保留编号选择和原图文布局。",
       "qq": "全部曲线/候选选择分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
@@ -278,7 +278,7 @@
           "key": "paging.request_failed"
         }
       ],
-      "reason": "QQ 决定普通图文布局；上传图片内嵌 Markdown 尚未接入。",
+      "reason": "直接沿用既有 Cardrush 历史数据；报价到曲线按卡名、完整编号和罕贵度核对。同一报价包含多个版本时需先选择。",
       "pending_work": ""
     },
     "price_daily": {
@@ -1246,8 +1246,8 @@
       },
       "samples": {
         "body": "【灰流うらら｜UR】\nRC04-JP009\n集换社最低价：12.34 元\n集换价：18.00 元\nCardrush 买取价：1,200 円",
-        "heading": "## 灰流うらら\n> 罕贵度：UR\n\n",
-        "versions": "### RC04-JP009\n\n- 集换社最低价：**12.50 元**\n- 集换价：**13.20 元**\n- Cardrush 买取价：**1,500 円**"
+        "heading": "## 灰流うらら\n\n",
+        "versions": "### UR · RC04-JP009\n\n- 集换社最低价：**12.50 元**\n- 集换价：**13.20 元**\n- Cardrush 买取价：**1,500 円**"
       },
       "mode": "markdown",
       "buttons": {},
@@ -1370,12 +1370,12 @@
           }
         }
       ],
-      "format_note": "群聊和私聊均使用 Markdown：卡名标题、罕贵度引用、版本小标题、价格加粗。报价和币种不变；多个版本依次排列，长结果按现有额度分页。切回普通文字时，默认模板使用原文字排版。"
+      "format_note": "群聊和私聊均为 Markdown：卡名标题、罕贵度与完整版本编号同一行、价格加粗。底部卡价曲线按钮：单版本直接查询，多个版本先选择；只绘制匹配版本的 Cardrush 日元买取价历史，暂无记录时明确提示。长回复按钮放在最后一段。"
     },
     "price.heading": {
       "feature": "price",
       "label": "价格结果标题",
-      "template": "## {name}\n> 罕贵度：{rarity}\n\n",
+      "template": "## {name}\n\n",
       "fields": {
         "name": "日文卡名",
         "rarity": "罕贵"
@@ -1391,20 +1391,23 @@
       "fragment": true,
       "preview_root": "price.result",
       "category": "part",
-      "plain_template": "【{name}｜{rarity}】\n",
+      "plain_template": "【{name}】\n",
       "previous_default_templates": [
-        "【{name}｜{rarity}】\n"
+        "【{name}｜{rarity}】\n",
+        "## {name}\n> 罕贵度：{rarity}\n\n"
       ]
     },
     "price.version": {
       "feature": "price",
       "label": "每个版本编号",
-      "template": "### {version}",
+      "template": "### {rarity} · {version}",
       "fields": {
-        "version": "版本编号"
+        "version": "版本编号",
+        "rarity": "罕贵"
       },
       "samples": {
-        "version": "RC04-JP009"
+        "version": "RC04-JP009",
+        "rarity": "UR"
       },
       "mode": "text",
       "buttons": {},
@@ -1413,9 +1416,10 @@
       "fragment": true,
       "preview_root": "price.result",
       "category": "part",
-      "plain_template": "{version}",
+      "plain_template": "{rarity} · {version}",
       "previous_default_templates": [
-        "{version}"
+        "{version}",
+        "### {version}"
       ]
     },
     "price.jhs": {
@@ -4161,41 +4165,49 @@
     "price_history.price_reports_8de07ef2": {
       "feature": "price_history",
       "label": "卡名、版本和当前买取价",
-      "template": "{value1}  {box}-{value3}\n当前买取价：{value4}円（共 {value5} 条记录）",
+      "template": "## {value1}\n\n### {value3} · {version}\n\n- 最近买取价：**{value4} 円**\n- 历史记录：{value5} 条\n\n> Cardrush 买取价历史（日元）",
       "fields": {
         "value1": "卡名",
         "box": "系列编号",
         "value3": "罕贵",
         "value4": "当前买取价（日元数值）",
-        "value5": "历史记录条数"
+        "value5": "历史记录条数",
+        "version": "完整版本编号"
       },
       "samples": {
         "value1": "青眼白龙",
         "box": "QCCP",
         "value3": "UR",
         "value4": "1,500",
-        "value5": "30"
+        "value5": "30",
+        "version": "QCCP-JP001"
       },
       "mode": "text",
       "fragment": true,
       "source": "hikari_bot/services/price_reports.py",
       "note": "组合回复中的文字段落；随完整回复一起发送。",
       "preview_root": "price_history.price_reports_body_372ea08c",
-      "category": "part"
+      "category": "part",
+      "plain_template": "{value1}\n{value3} · {version}\n最近买取价：{value4}円（共 {value5} 条记录）\nCardrush 买取价历史（日元）",
+      "previous_default_templates": [
+        "{value1}  {box}-{value3}\n当前买取价：{value4}円（共 {value5} 条记录）"
+      ]
     },
     "price_history.price_reports_47b24a67": {
       "feature": "price_history",
-      "label": "找到 {value1} 条结果，请回复编号：",
-      "template": "找到 {value1} 条结果，请回复编号：\n{lines}",
+      "label": "卡价曲线版本选择",
+      "template": "## {name}\n> Cardrush 买取价历史（日元）",
       "fields": {
         "value1": "返回状态或统计值（示例：3）",
-        "lines": "返回状态或统计值（示例：3）"
+        "lines": "返回状态或统计值（示例：3）",
+        "name": "查询卡名"
       },
       "samples": {
         "value1": "3",
-        "lines": "3"
+        "lines": "3",
+        "name": "青眼の白龍"
       },
-      "mode": "text",
+      "mode": "markdown",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
       "note": "命中此场景时返回的回复。",
@@ -4214,7 +4226,12 @@
       "blocks": [
         "lines"
       ],
-      "category": "main"
+      "category": "main",
+      "plain_template": "找到 {value1} 条结果，请回复编号：\n{lines}",
+      "previous_default_templates": [
+        "找到 {value1} 条结果，请回复编号：\n{lines}"
+      ],
+      "format_note": "Markdown 使用罕贵度与完整版本编号按钮，超过八项可翻页；最多列出一百个匹配版本。普通文字保留编号列表。"
     },
     "price_history.price_reports_f3bd1277": {
       "feature": "price_history",
@@ -4282,15 +4299,23 @@
     },
     "price_history.price_reports_96e6379b": {
       "feature": "price_history",
-      "label": "找到超过10条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。",
-      "template": "找到超过10条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。",
-      "fields": {},
-      "samples": {},
+      "label": "候选版本过多",
+      "template": "找到超过{limit}条匹配结果，请附加罕贵度或盒子编号缩小范围。",
+      "fields": {
+        "limit": "候选版本上限"
+      },
+      "samples": {
+        "limit": "100"
+      },
       "mode": "text",
       "fragment": false,
       "source": "hikari_bot/services/price_reports.py",
       "note": "命中此场景时返回的回复。",
-      "category": "error"
+      "category": "error",
+      "previous_default_templates": [
+        "找到超过10条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。",
+        "找到超过{limit}条匹配结果，请附加稀有度（如 UR）或盒子编号（如 ALIN）缩小范围。"
+      ]
     },
     "price_history.price_reports_13b68db8": {
       "feature": "price_history",
@@ -4320,7 +4345,7 @@
         "content": "3",
         "caption": "3"
       },
-      "mode": "text",
+      "mode": "markdown",
       "source": "hikari_bot/services/price_reports.py",
       "note": "这是实际发送的主要回复。可直接修改文字和变量顺序，也可用下方段落的上移/下移调整顺序；点段落名称进入详细编辑。示例不查询真实用户数据。",
       "legacy_template": "{content}",
@@ -4345,7 +4370,8 @@
       "hidden_fields": [
         "content"
       ],
-      "category": "main"
+      "category": "main",
+      "format_note": "Markdown 说明与曲线合为一条消息，文字在上、曲线在下；数据为 Cardrush 日元买取价历史。普通文字保留原图文发送方式。"
     },
     "price_daily.price_reports_body_d0bac120": {
       "feature": "price_daily",
@@ -6271,6 +6297,30 @@
       "previous_default_templates": [
         "> 卡名识别有误？可使用[添加别名 卡名 别名]指令为卡片添加别名！"
       ]
+    },
+    "price_history.version_prompt": {
+      "feature": "price_history",
+      "label": "报价中版本选择",
+      "template": "## {name}\n> Cardrush 买取价历史（日元）",
+      "fields": {
+        "name": "卡名"
+      },
+      "samples": {
+        "name": "灰流うらら"
+      },
+      "mode": "markdown",
+      "fragment": false,
+      "category": "main"
+    },
+    "price_history.version_missing": {
+      "feature": "price_history",
+      "label": "同版本无曲线",
+      "template": "暂无该版本的 Cardrush 买取价历史记录。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "fragment": false,
+      "category": "error"
     }
   }
 }

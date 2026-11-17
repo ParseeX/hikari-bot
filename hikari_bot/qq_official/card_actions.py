@@ -100,11 +100,16 @@ def card_content(key, info):
 
 class CardActions:
 
-    def __init__(self, catalog, *, image_loader=None, price_backend=None, result_delivery=None):
+    def __init__(self, catalog, *, image_loader=None, price_backend=None, result_delivery=None, price_history=None):
         from .alias_choices import AliasChoices
         self.catalog, self.image_loader, self.price_backend = (catalog, image_loader, price_backend)
         self.result_delivery = result_delivery
         self.price_choices = AliasChoices(None, page_command='罕贵页')
+        self.price_history = price_history
+
+    async def send_price(self, bot, event, response, pager):
+        keyboard = self.price_history.quote_keyboard(bot, event, response) if self.price_history else None
+        await pager.send(bot, event, response, keyboard=keyboard)
 
     async def handle(self, command, argument, config, bot, event, pager):
         group = isinstance(event, GroupMessageCreateEvent)
@@ -124,7 +129,7 @@ class CardActions:
                         index, session, expected_generation=int(generation)), timeout=95)
                 except TimeoutError:
                     response = present('price.prices_9')
-                await pager.send(bot, event, response)
+                await self.send_price(bot, event, response, pager)
             return True
         command = {'卡图查询': '卡图', '游戏王卡图': '卡图', '查卡图': '卡图', '查效果': '效果'}.get(command, command)
         price_commands = {'卡价', '卡价查询', '价格查询', '日版价格查询', '日版卡价查询'}
@@ -135,7 +140,7 @@ class CardActions:
                     response = await asyncio.wait_for(self.price_backend.choose(command, session), timeout=95)
                 except TimeoutError:
                     response = present('price.prices_9')
-                await pager.send(bot, event, response)
+                await self.send_price(bot, event, response, pager)
                 return True
             return False
         try:

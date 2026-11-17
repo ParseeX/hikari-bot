@@ -14,7 +14,8 @@ from nonebot.adapters.qq.models import MessageKeyboard
 from .preview import report
 COMMAND = re.compile('^(效果|卡图|卡价|卡密|日版价格查询|共界计算) ([0-9]{1,10})(?: (.{1,80}))?$')
 SHARED_CARD_COMMAND = re.compile(r'^(?:效果|卡图|卡价) [0-9]{1,10}(?: [0-9]{1,4})?$')
-PAGE_COMMAND = re.compile(r'^(?:候选页|视频候选页|罕贵页) [A-Za-z0-9_-]{24} [0-9]{1,6}$')
+PAGE_COMMAND = re.compile(r'^(?:候选页|视频候选页|罕贵页|曲线页) [A-Za-z0-9_-]{24} [0-9]{1,6}$')
+HISTORY_COMMAND = re.compile(r'^卡价曲线图 [A-Za-z0-9_-]{24}$')
 RARITY_COMMAND = re.compile(r'^罕贵选择 [0-9]{1,16} [0-9]{1,6}$')
 VIDEO_COMMAND = re.compile(r'^https://www\.bilibili\.com/video/BV[0-9A-Za-z]{10}$')
 UNDO_COMMAND = re.compile(r'^撤销别名 ([0-9a-f]{32})$')
@@ -42,7 +43,7 @@ class Action:
 
 
 def supported_command(command):
-    if PAGE_COMMAND.fullmatch(command) or UNDO_COMMAND.fullmatch(command) or VIDEO_COMMAND.fullmatch(command) or RARITY_COMMAND.fullmatch(command):
+    if PAGE_COMMAND.fullmatch(command) or UNDO_COMMAND.fullmatch(command) or VIDEO_COMMAND.fullmatch(command) or RARITY_COMMAND.fullmatch(command) or HISTORY_COMMAND.fullmatch(command):
         return True
     match = COMMAND.fullmatch(command)
     if not match or not 0 < int(match[2]) <= 2147483647:
@@ -169,9 +170,9 @@ class CallbackController:
                             raise ValueError('Unsupported callback action')
                         handle = PREFIX + secrets.token_urlsafe(18)
                         admins = self.config.admins if group and UNDO_COMMAND.fullmatch(command) else frozenset()
-                        # 仅卡图/效果结果显式标为共享的只读按钮可放开群内点击。
+                        # 仅卡图、效果及报价结果显式标为共享的只读按钮可放开群内点击。
                         shared = bool(group and action.get('permission', {}).get('type') == 2
-                                      and SHARED_CARD_COMMAND.fullmatch(command))
+                                      and (SHARED_CARD_COMMAND.fullmatch(command) or HISTORY_COMMAND.fullmatch(command)))
                         self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL, group=group, admins=admins, shared=shared)
                         handles.append(handle)
                         permission = {'type': 2} if shared else {'type': 0, 'specify_user_ids': [user, *sorted(admins - {user})]}

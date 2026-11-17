@@ -107,5 +107,5 @@ def build_migration_queries(home, catalog, *, price_backend=None, config=None, c
                    deck_renderer=DeckRenderer(catalog, media.full) if media else None,
                    ruling=partial(conclusion, url='https://ocg-ruling-assistant.vercel.app/api/answer'),
                    state=state, links=LinkParser(), notifications=notifications,
-                   price_reports=PriceReports(price_backend.comparison.cardrush, catalog) if price_backend else None,
+                   price_reports=PriceReports(price_backend.comparison.cardrush, catalog, selection_limit=100) if price_backend else None,
                    admin=AdminQueries(config, power=power, bus=bus, management=management) if config else None)
