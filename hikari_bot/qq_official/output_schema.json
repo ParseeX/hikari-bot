@@ -6049,16 +6049,6 @@
       "fragment": false,
       "category": "error"
     },
-    "links.unsupported": {
-      "feature": "links",
-      "label": "此链接暂无可用解析器，请直接打开原链接。",
-      "template": "此链接暂无可用解析器，请直接打开原链接。",
-      "fields": {},
-      "samples": {},
-      "mode": "text",
-      "fragment": false,
-      "category": "error"
-    },
     "links.parsed_text": {
       "feature": "links",
       "label": "解析器返回的文字",

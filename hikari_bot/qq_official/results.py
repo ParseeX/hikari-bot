@@ -84,6 +84,8 @@ class ResultDelivery:
                             offset = end
                     else:
                         parts.append(getattr(MessageSegment, 'file_' + media.kind)(media.data, file_name=media.name or None))
+                if not parts:
+                    return
                 size = sum(payload_size(part) for part in parts)
                 if size > 100 * 1024 * 1024:
                     parts, size = [present('paging.media_size')], 0

@@ -20,7 +20,6 @@ WORKER_MESSAGES = {
     'audio_missing': '未找到可下载的音频',
     'partial': '部分媒体下载或渲染失败；已保留可用内容。',
     'empty_result': '解析未得到可发送内容；可能超过媒体大小/时长限制，请直接打开原链接。',
-    'unsupported': '此链接暂无可用解析器，请直接打开原链接。',
     'bili_title_missing': '没有找到标题完全相同的视频，请发送原视频链接。',
     'bili_search_failed': '暂时无法搜索这个视频，请稍后再试，或发送原视频链接。',
 }
@@ -48,6 +47,9 @@ def load_result(directory):
     parts, size = [], 0
     for row in rows:
         if row["kind"] == "text":
+            if row.get('code') == 'unsupported':
+                # 未匹配到解析器的普通链接静默，不走可编辑的错误提示文案。
+                continue
             if row.get('code') in WORKER_MESSAGES:
                 parts.append(wording('links.' + row['code'], WORKER_MESSAGES[row['code']]))
                 continue

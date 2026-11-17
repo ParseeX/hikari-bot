@@ -363,7 +363,12 @@ class ParserTests(unittest.IsolatedAsyncioTestCase):
     async def test_worker_does_not_start_driver_or_import_plugins_in_parent(self):
         from hikari_bot.services.link_parser import LinkParser
         result = await LinkParser().parse('https://example.com/unsupported')
-        self.assertEqual(result.media, ('此链接暂无可用解析器，请直接打开原链接。',))
+        self.assertEqual(result, Result())
+        for kind in ('c2c', 'group'):
+            client = bot()
+            await ResultDelivery(ReplyPager()).send(client, event(kind, text='https://example.com/unsupported'), result)
+            client.send_to_c2c.assert_not_awaited()
+            client.send_to_group.assert_not_awaited()
         self.assertNotIn('nonebot_plugin_parser', sys.modules)
         invalid = await LinkParser().parse('bm invalid')
         self.assertIn('正确的 BV', invalid.media[0])
