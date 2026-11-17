@@ -131,6 +131,10 @@ def test_probe_is_opt_in_bounded_and_never_records_payload_values(tmp_path, monk
     assert output.count('SRBS_SHARE_SHAPE') == 3
     assert 'private' not in output and URL not in output and 'BV1' not in output
     assert 'qqdocurl' in output and '"video_url": true' in output
+    result = share_probe.shape({'ark_data': {'fields': {'unknown-key': URL,
+                              'source_logo': 'https://thirdqq.qlogo.cn/private-path'}}})
+    assert result['ark_data']['fields']['unknown_shapes'][0]['video_url'] is True
+    assert result['ark_data']['fields']['source_logo']['url_categories'] == ['qq_image']
     marker.write_text('999')
     monkeypatch.setattr(share_probe, '_samples', 0)
     share_probe.capture_missing_card(event)

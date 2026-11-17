@@ -1,5 +1,6 @@
 """按需启用的卡片结构诊断：只输出字段类型和地址类别，不输出字段值。"""
 import json
+import re
 from pathlib import Path
 import time
 from urllib.parse import unquote, urlsplit
@@ -10,7 +11,8 @@ from .shared_video import URL, video_url
 MARKER = Path.home() / '.local/share/srbs/shared-video-probe-until'
 KNOWN = frozenset('ark_data ark_type ark_name fields prompt tag tags source title desc preview '
                   'jump_url url raw meta detail_1 news music qqdocurl jumpUrl app appid app_id '
-                  'path view config extra content msg_elements message_type'.split())
+                  'path view config extra content msg_elements message_type source_logo tag_icon '
+                  'nickname avatar address bvid avid aid cid'.split())
 _samples = 0
 
 
@@ -25,6 +27,9 @@ def shape(event):
             # 仅输出固定字段名，防止动态字典键本身含有账号或凭据。
             out = {k: visit(v, depth + 1) for k, v in obj.items() if k in KNOWN}
             out['unknown_fields'] = len(set(obj) - KNOWN)
+            # 未知键不输出名字，但仍检查其值是否含有漏识别的地址。
+            out['unknown_shapes'] = [visit(v, depth + 1) for k, v in list(obj.items())[:80]
+                                     if k not in KNOWN][:8]
             return out
         if isinstance(obj, list):
             return [visit(v, depth + 1) for v in obj[:8]]
@@ -35,12 +40,16 @@ def shape(event):
             return {**out, 'too_long': True}
         out['video_url'] = bool(video_url(obj))
         out['encoded_video_url'] = bool(video_url(unquote(unquote(obj))))
+        out['has_bvid'] = bool(re.search(r'\bBV[0-9A-Za-z]{10}\b', obj))
         hosts = set()
         for match in URL.finditer(obj.replace(r'\/', '/')):
             try:
                 host = (urlsplit(match[0]).hostname or '').lower()
                 hosts.add('bilibili' if host in {'b23.tv', 'bili2233.cn', 'www.bilibili.com', 'bilibili.com', 'm.bilibili.com'}
-                          else 'qq' if host == 'qq.com' or host.endswith('.qq.com') else 'other')
+                          else 'qq' if host == 'qq.com' or host.endswith('.qq.com')
+                          else 'qq_image' if any(host == root or host.endswith('.' + root) for root in ('qpic.cn', 'ugcimg.cn', 'qlogo.cn'))
+                          else 'bili_image' if any(host == root or host.endswith('.' + root) for root in ('hdslb.com', 'biliimg.com'))
+                          else 'other')
             except ValueError:
                 hosts.add('invalid')
         out['url_categories'] = sorted(hosts)
