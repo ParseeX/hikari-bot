@@ -33,17 +33,18 @@ def escape_markdown(value):
     text = re.sub('(?m)^(?=\\s*(?:#{1,6}\\s|>\\s|[-+]\\s|\\d+[.)]\\s))', '\u200b', text)
     return text
 
-def command_button(key, label, command, user_id, style=0):
-    return {'id': key, 'render_data': {'label': label, 'visited_label': label, 'style': style}, 'action': {'type': 1, 'permission': {'type': 0, 'specify_user_ids': [user_id]}, 'data': command, 'unsupport_tips': '请在支持按钮的 QQ 客户端打开'}}
+def command_button(key, label, command, user_id, style=0, *, shared=False):
+    permission = {'type': 2} if shared else {'type': 0, 'specify_user_ids': [user_id]}
+    return {'id': key, 'render_data': {'label': label, 'visited_label': label, 'style': style}, 'action': {'type': 1, 'permission': permission, 'data': command, 'unsupport_tips': '请在支持按钮的 QQ 客户端打开'}}
 
 def primary_buttons(code, user_id, *, images, prices, effects=False):
-    return [command_button(key + '_' + code, label, f'{command} {code}', user_id, style) for available, key, label, command, style in ((effects, 'effect', '查看效果', '效果', 1), (images, 'image', '查看卡图', '卡图', 1), (prices, 'price', '查询卡价', '卡价', 0)) if code and available]
+    return [command_button(key + '_' + code, label, f'{command} {code}', user_id, style, shared=True) for available, key, label, command, style in ((effects, 'effect', '查看效果', '效果', 1), (images, 'image', '查看卡图', '卡图', 1), (prices, 'price', '查询卡价', '卡价', 0)) if code and available]
 
 def image_navigation(info, user_id, offset, total, *, prices=False, buttons=True):
     code = stable_code(info)
     available_buttons=[]
     for enabled,step,label,role in ((offset>0,-1,'上一张','previous'),(offset+1<total,1,'下一张','next')):
-        if enabled: available_buttons.append((role,command_button(f'art_{code}_{offset+step}',label,f'卡图 {code} {offset+step}',user_id)))
+        if enabled: available_buttons.append((role,command_button(f'art_{code}_{offset+step}',label,f'卡图 {code} {offset+step}',user_id,shared=True)))
     available_buttons.extend((b['id'].split('_')[0],b) for b in primary_buttons(code,user_id,images=True,prices=prices,effects=True))
     navigation = present('art.next_hint', {'command': f'卡图 {code} {offset+1}'}) if offset+1 < total else present('art.last_hint')
     text=present('art.page',{'name':info.get('cn_name') or info.get('jp_name') or '卡图','index':offset+1,'total':total,'navigation':navigation})

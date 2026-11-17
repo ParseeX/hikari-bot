@@ -88,7 +88,7 @@ class CardTests(unittest.IsolatedAsyncioTestCase):
         buttons = rich['keyboard'][0].data['keyboard'].content.rows[0].buttons
         self.assertEqual([b.render_data.label for b in buttons], ['查看卡图', '查询卡价'])
         self.assertEqual([b.action.data for b in buttons], ['卡图 01455812', '卡价 01455812'])
-        self.assertTrue(all(b.action.permission.specify_user_ids == ['only-user'] for b in buttons))
+        self.assertTrue(all(b.action.permission.type == 2 for b in buttons))
 
     def test_missing_names_readings_and_unavailable_backends(self):
         for info in ({'en_name': 'English', 'jp_ruby': 'unused'}, {}, {'jp_name': '日本語'}):

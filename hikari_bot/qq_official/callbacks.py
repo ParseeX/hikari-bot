@@ -3,7 +3,7 @@ from .output_templates import present, Output, CARD_NAME_CONFIRMED
 import asyncio
 from collections import OrderedDict
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import re
 import secrets
@@ -13,6 +13,7 @@ from nonebot.adapters.qq.event import C2CMessageCreateEvent, GroupMessageCreateE
 from nonebot.adapters.qq.models import MessageKeyboard
 from .preview import report
 COMMAND = re.compile('^(效果|卡图|卡价|卡密|日版价格查询|共界计算) ([0-9]{1,10})(?: (.{1,80}))?$')
+SHARED_CARD_COMMAND = re.compile(r'^(?:效果|卡图|卡价) [0-9]{1,10}(?: [0-9]{1,4})?$')
 PAGE_COMMAND = re.compile(r'^(?:候选页|视频候选页|罕贵页) [A-Za-z0-9_-]{24} [0-9]{1,6}$')
 RARITY_COMMAND = re.compile(r'^罕贵选择 [0-9]{1,16} [0-9]{1,6}$')
 VIDEO_COMMAND = re.compile(r'^https://www\.bilibili\.com/video/BV[0-9A-Za-z]{10}$')
@@ -36,6 +37,8 @@ class Action:
     claimed: bool = False
     group: str = ''
     admins: frozenset[str] = frozenset()
+    shared: bool = False
+    claimed_users: set[str] = field(default_factory=set)
 
 
 def supported_command(command):
@@ -166,9 +169,13 @@ class CallbackController:
                             raise ValueError('Unsupported callback action')
                         handle = PREFIX + secrets.token_urlsafe(18)
                         admins = self.config.admins if group and UNDO_COMMAND.fullmatch(command) else frozenset()
-                        self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL, group=group, admins=admins)
+                        # 仅卡图/效果结果显式标为共享的只读按钮可放开群内点击。
+                        shared = bool(group and action.get('permission', {}).get('type') == 2
+                                      and SHARED_CARD_COMMAND.fullmatch(command))
+                        self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL, group=group, admins=admins, shared=shared)
                         handles.append(handle)
-                        button['action'] = {'type': 1, 'data': handle, 'permission': {'type': 0, 'specify_user_ids': [user, *sorted(admins - {user})]}, 'unsupport_tips': str(present('callback.unsupported', plain=True))}
+                        permission = {'type': 2} if shared else {'type': 0, 'specify_user_ids': [user, *sorted(admins - {user})]}
+                        button['action'] = {'type': 1, 'data': handle, 'permission': permission, 'unsupport_tips': str(present('callback.unsupported', plain=True))}
                 segment.data['keyboard'] = MessageKeyboard.model_validate(keyboard)
             self.prune()
             return (prepared, handles)
@@ -245,7 +252,7 @@ class CallbackController:
         action = self.actions.get(resolved.button_data)
         actor = event.get_user_id()
         valid = (action is not None and action.ready and action.app == event.application_id
-                 and (action.user == actor or (action.group and UNDO_COMMAND.fullmatch(action.command)
+                 and (action.shared or action.user == actor or (action.group and UNDO_COMMAND.fullmatch(action.command)
                                                and actor in action.admins and actor in self.config.admins))
                  and action.group == (event.group_openid or '')
                  and action.button_id == resolved.button_id
@@ -255,14 +262,18 @@ class CallbackController:
             if valid and not action.claimed and UNDO_COMMAND.fullmatch(action.command):
                 await self.hint(bot, event, present('callback.callbacks_1', {}))
             return
-        if not valid or action.claimed:
+        used = valid and (actor in action.claimed_users if action.shared else action.claimed)
+        if not valid or used:
             await self.ack(bot, event, 3 if valid else 1)
             # 无效、过期或已使用按钮只确认拒绝，不在聊天中重复提醒。
             return
         if self.inflight >= 2:
             await self.ack(bot, event, 2)
             return
-        action.claimed = True
+        if action.shared:
+            action.claimed_users.add(actor)
+        else:
+            action.claimed = True
         self.inflight += 1
         if not await self.ack(bot, event, 0, timeout=min(ACK_SECONDS, 2.8 - max(0, age))):
             self.inflight -= 1
