@@ -7,6 +7,8 @@ def rarity_prompt(name_jp,groups):
         numbers='、'.join(dict.fromkeys(v.number or str(present('price.number_unknown')) for v in versions))
         lines.append(str(present('price.rarity_row',{'index':index,'rarity':rarity,'versions':numbers})))
     hint = str(present('price.rarity_hint'))
+    if present('price.prompt').mode == 'markdown':
+        lines = lines[:1]
     return present('price.prompt', {'body': '\n'.join(lines)+'\n'+hint,
         'heading': lines[0], 'options': '\n'.join(lines[1:]), 'hint': hint})
 

@@ -13,7 +13,7 @@ from hikari_bot.qq_official.prices import PriceQueries
 
 
 @pytest.mark.parametrize('key', ['effect.card', 'art.gallery', 'art.page', 'common.passcode',
-                                     'price.prompt', 'price.result', 'calculation.business_body_82946755'])
+                                     'price.prompt', 'calculation.business_body_82946755'])
 def test_notice_is_editable_command_link_only_in_markdown(key):
     for mode in ['text', 'markdown']:
         spec = default(key)
@@ -35,7 +35,7 @@ def test_notice_is_editable_command_link_only_in_markdown(key):
             assert '任意卡名' not in target and ' ' not in target
 
 
-def test_multiple_price_blocks_keep_only_one_inline_hint(monkeypatch):
+def test_multiple_price_blocks_have_no_alias_hint(monkeypatch):
     import hikari_bot.qq_official.prices as prices
     async def run():
         backend = PriceQueries(None, None, None, clock=lambda: 0)
@@ -48,7 +48,7 @@ def test_multiple_price_blocks_keep_only_one_inline_hint(monkeypatch):
         with draft('price.result', spec):
             result = await backend.choose('UR', 'u')
         assert '价格一' in result and '价格二' in result
-        assert result.count('mqqapi://aio/inlinecmd') == 1
+        assert result.count('mqqapi://aio/inlinecmd') == 0
         assert result.mode == 'markdown'
     asyncio.run(run())
 

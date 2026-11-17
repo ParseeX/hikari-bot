@@ -17,6 +17,7 @@ class Pending:
     text: str
     offset: int
     expires: float
+    keyboard: object = None
 
 def context(bot, event):
     app = str(getattr(bot, 'self_id', ''))
@@ -57,7 +58,7 @@ class ReplyPager:
             return 0
         return max(0, limit - event._reply_seq)
 
-    async def send(self, bot, event, text=None, *, preview=None, report=None, allow_text_fallback=True):
+    async def send(self, bot, event, text=None, *, preview=None, report=None, allow_text_fallback=True, keyboard=None):
         """text=None continues this user's pending result using a NEW event budget.
 
         Failed sends are never retried automatically. Their unconfirmed text stays
@@ -83,7 +84,7 @@ class ReplyPager:
                 if not text:
                     return
                 self.pending.pop(key, None)
-                self.pending[key] = Pending(text, 0, now + PENDING_SECONDS)
+                self.pending[key] = Pending(text, 0, now + PENDING_SECONDS, keyboard)
                 while len(self.pending) > 128:
                     self.pending.popitem(last=False)
             state = self.pending.get(key)
@@ -127,6 +128,9 @@ class ReplyPager:
                     payload += hint
                 if isinstance(state.text,Output) and preview is None:
                     payload=Output(payload,state.text.key,state.text.mode)
+                    if end == len(state.text) and state.text.mode == 'markdown' and state.keyboard is not None:
+                        from nonebot.adapters.qq import Message, MessageSegment
+                        payload = Message(MessageSegment.markdown(str(payload))) + state.keyboard
                 from .media import send_formatted
                 if not await send_formatted(bot, event, payload, self):
                     return

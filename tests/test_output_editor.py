@@ -289,7 +289,7 @@ def test_effect_markdown_rejection_never_switches_template_or_format(setup, kind
         assert len(payloads) == 2 and payloads[0]['markdown']['content'].startswith('# 同一份')
         assert payloads[1]['msg_type'] == 0 and '消息发送失败' in payloads[1]['content']
         assert INFO['text']['desc'] not in payloads[1]['content']
-        assert bool(payloads[0].get('keyboard')) == (kind == 'c2c')
+        assert bool(payloads[0].get('keyboard'))
         source = event(kind); source.id = 'manual-continue'
         await pager.send(wrapped, source)
         assert client._request.call_args.args[0].json['markdown']['content'] == payloads[0]['markdown']['content']

@@ -38,6 +38,8 @@ def render_example(store, key, spec, example=None):
             choices = selected.get('parts', {}) if name == root else selected.get('nested_parts', {}).get(name, {})
             items = choices.get(field, part['items'])
             values[field] = part.get('separator', '').join(str(render(item['key'], item.get('values'), depth+1)) for item in items)
+        if name == 'price.prompt' and overrides[name]['mode'] == 'markdown':
+            values['options'] = ''  # 实际选项由罕贵按钮显示，正文不重复列出。
         # 兼容用户已有的前后缀 + {content}，但新页面不再只显示整个黑盒。
         if d.get('legacy_template') in {'{content}', '{body}'}:
             old_field = d['legacy_template'][1:-1]

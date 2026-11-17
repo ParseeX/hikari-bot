@@ -100,8 +100,10 @@ def card_content(key, info):
 class CardActions:
 
     def __init__(self, catalog, *, image_loader=None, price_backend=None, result_delivery=None):
+        from .alias_choices import AliasChoices
         self.catalog, self.image_loader, self.price_backend = (catalog, image_loader, price_backend)
         self.result_delivery = result_delivery
+        self.price_choices = AliasChoices(None, page_command='罕贵页')
 
     async def handle(self, command, argument, config, bot, event, pager):
         group = isinstance(event, GroupMessageCreateEvent)
@@ -109,6 +111,20 @@ class CardActions:
         if not isinstance(event, (C2CMessageCreateEvent, GroupMessageCreateEvent)) or not config.allows(kind, event.get_user_id(), event.group_openid if group else ''):
             return False
         session = context(bot, event)
+        if command in {'罕贵选择', '罕贵页'}:
+            if getattr(bot, 'interaction', None) is None:
+                return True
+            if command == '罕贵页':
+                await self.price_choices.handle(bot, event, command, argument)
+            elif self.price_backend is not None and re.fullmatch(r'[0-9]{1,16} [0-9]{1,6}', argument):
+                generation, index = argument.split()
+                try:
+                    response = await asyncio.wait_for(self.price_backend.choose(
+                        index, session, expected_generation=int(generation)), timeout=95)
+                except TimeoutError:
+                    response = present('price.prices_9')
+                await pager.send(bot, event, response)
+            return True
         command = {'卡图查询': '卡图', '游戏王卡图': '卡图', '查卡图': '卡图', '查效果': '效果'}.get(command, command)
         price_commands = {'卡价', '卡价查询', '价格查询', '日版价格查询', '日版卡价查询'}
         known = EFFECT_COMMANDS | {'卡图'} | price_commands
@@ -143,16 +159,28 @@ class CardActions:
                 await pager.send(bot, event, present('art.card_actions_3', {}))
             elif command in EFFECT_COMMANDS:
                 rich, _, content = card_message(info, event.get_user_id(), images=self.image_loader is not None, prices=self.price_backend is not None)
-                if not group and len(content) <= TEXT_CHARS and content.mode == 'markdown':
-                    await pager.send(bot, event, content, preview=rich, report=report, allow_text_fallback=False)
+                keyboards = rich['keyboard']
+                keyboard = keyboards[0] if keyboards else None
+                if len(content) <= TEXT_CHARS and content.mode == 'markdown':
+                    await pager.send(bot, event, content, preview=rich, report=report, allow_text_fallback=False, keyboard=keyboard)
                 else:
-                    await pager.send(bot, event, content)
+                    await pager.send(bot, event, content, keyboard=keyboard)
             elif command in price_commands:
                 if self.price_backend is None:
                     await pager.send(bot, event, present('art.card_actions_4', {}))
                 else:
                     response = await asyncio.wait_for(self.price_backend.start(info, session, rarity=rarity, prefix=prefix, japanese=command in {'日版价格查询', '日版卡价查询'}), timeout=95)
-                    await pager.send(bot, event, response)
+                    if getattr(response, 'key', None) == 'price.prompt' and response.mode == 'markdown':
+                        selection = self.price_backend.selection_options(session)
+                        if selection:
+                            async with pager.lock:
+                                pager.pending.pop(session, None)
+                            generation, rarities = selection
+                            await self.price_choices.offer(bot, event,
+                                [(name, f'罕贵选择 {generation} {index}') for index, name in enumerate(rarities, 1)],
+                                prompt=str(response))
+                    else:
+                        await pager.send(bot, event, response)
             else:
                 await self.images(info, offset, bot, event, pager)
         except AmbiguousCardName as exc:

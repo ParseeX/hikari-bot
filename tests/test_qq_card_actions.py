@@ -211,13 +211,13 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
         actions = CardActions(catalog, price_backend=backend)
         client, pager = bot(), ReplyPager(now=lambda: NOW)
         await actions.handle('卡价', '14558127', CONFIG, client, event(), pager)
-        self.assertIn('请选择罕贵', client._request.call_args.args[0].json['content'])
+        self.assertIn('请选择罕贵', client._request.call_args.args[0].json['markdown']['content'])
         source = event()
         source.id = 'synthetic-selection'
         await actions.handle('1', '', CONFIG, client, source, pager)
         self.assertIn('2.00 元', client._request.call_args.args[0].json['content'])
-        self.assertTrue(client._request.call_args.args[0].json['content'].endswith(HINT))
-        self.assertEqual(client._request.call_args.args[0].json['content'].count(HINT), 1)
+        self.assertNotIn(HINT, client._request.call_args.args[0].json['content'])
+        self.assertEqual(client._request.call_args.args[0].json['content'].count(HINT), 0)
         catalog.search.assert_called_once_with('14558127', fuzzy=True)
 
     async def test_rarity_currency_exact_version_and_expiry(self):
@@ -228,7 +228,8 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
         rush.search_prices = AsyncMock(return_value=[PriceSnapshot(7, INFO['jp_name'], 'ノーマル', 'ABC-001', 200, '2026-10-13'),
             PriceSnapshot(8, 'wrong-card', 'ノーマル', 'ABC-001', 9999, '2026-10-13')])
         backend = PriceQueries(jhs, rush, None, clock=lambda: clock[0])
-        self.assertIn('ABC-001', await backend.start(INFO, 'only-user'))
+        self.assertNotIn('ABC-001', await backend.start(INFO, 'only-user'))
+        self.assertEqual(backend.selection_options('only-user'), (1, ('N',)))
         self.assertIn('请先发送', await backend.choose('1', 'other'))
         result = await backend.choose('1', 'only-user')
         self.assertIn('1.20 元', result)

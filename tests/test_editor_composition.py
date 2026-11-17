@@ -116,7 +116,7 @@ def test_nested_price_fragments_respect_parent_order_and_escape_dynamic_data(sto
     publish(store,'price.prompt',template='{hint}\n{options}\n{heading}',mode='markdown')
     publish(store,'price.rarity_header',template='**卡名** {name}')
     text=rarity_prompt('[unsafe](https://example.invalid)',{'UR':[CardVersion(1,'QCCP-JP001','UR','name')]})
-    assert text.startswith('回复编号') and '**卡名**' in text
+    assert text.startswith('请选择罕贵度') and '**卡名**' in text
     assert '](https' not in text and text.mode=='markdown'
 
 

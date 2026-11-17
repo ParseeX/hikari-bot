@@ -1,5 +1,5 @@
 """Existing price semantics with isolated srbs sessions and version cache."""
-from .output_templates import present, Output, notice_text
+from .output_templates import present, Output
 from .price_outputs import format_comparison, rarity_prompt
 import asyncio
 from dataclasses import asdict
@@ -68,6 +68,12 @@ class PriceQueries:
     def active(self, user_id):
         return user_id in self.sessions
 
+    def selection_options(self, user_id):
+        state = self.sessions.get(user_id)
+        if state is not None and self.clock() <= state[0]:
+            return self.generations[user_id], tuple(state[2])
+        return None
+
     def cancel(self, user_id):
         self.sessions.pop(user_id, None)
         self.generations[user_id] = self.generations.get(user_id, 0) + 1
@@ -94,8 +100,13 @@ class PriceQueries:
         self.sessions[user_id] = (self.clock() + 180, name, groups, japanese)
         return rarity_prompt(name, groups)
 
-    async def choose(self, value, user_id):
+    async def choose(self, value, user_id, *, expected_generation=None):
         state = self.sessions.get(user_id)
+        # 按钮只操作生成它的查询，过期或被新查询替换后静默忽略。
+        if expected_generation is not None and (state is None
+                or self.generations.get(user_id) != expected_generation
+                or self.clock() > state[0]):
+            return ''
         if state is None:
             return present('price.prices_5', {})
         if value.casefold() in {'取消', '退出', 'cancel'}:
@@ -116,10 +127,7 @@ class PriceQueries:
             rows = await asyncio.wait_for(self.comparison.compare(name, groups[rarity], japanese=japanese), timeout=90)
             pages = format_comparison(name, rarity, rows, japanese=japanese)
             if pages:
-                hint = notice_text('common.card_name_hint', markdown=pages[0].mode == 'markdown')
-                # 多个价格块合为一个待发结果，只在整份结果底部保留提示。
-                body = '\n\n'.join(str(page).removesuffix('\n\n' + hint) for page in pages)
-                return Output(body + '\n\n' + hint, 'price.result', pages[0].mode)
+                return Output('\n\n'.join(pages), 'price.result', pages[0].mode)
             return present('price.result', {'body': '', 'heading': '', 'versions': ''})
         except TimeoutError:
             return present('price.prices_9', {})
