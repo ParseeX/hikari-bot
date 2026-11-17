@@ -96,7 +96,7 @@ class PriceReports:
             {'index': i, 'name': item.name, 'box': (item.model_number or '').split('-')[0],
              'rarity': rarity_jp_to_en(item.rarity or ''), 'price': f'{item.price:,}'}) for i, item in enumerate(candidates, 1))
         known_rarities = set(rarity_jp_to_en(item.rarity or '') for item in candidates)
-        rarity_heading = ' · '+next(iter(known_rarities)) if len(known_rarities) == 1 else ''
+        rarity_heading = ' | '+next(iter(known_rarities)) if len(known_rarities) == 1 else ''
         return HistoryChoices(wording('price_history.price_reports_47b24a67', '找到 {value1} 条结果，请回复编号：\n{lines}', {'value1': len(candidates), 'lines': lines, 'name': name, 'rarity_heading': rarity_heading}), candidates=tuple(candidates))
 
     async def draw(self, selected):

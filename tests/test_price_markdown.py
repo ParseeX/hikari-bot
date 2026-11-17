@@ -27,7 +27,7 @@ def prices():
 def test_result_sends_markdown_with_all_versions_and_explicit_missing_prices(kind):
     async def run():
         result=format_comparison('card', 'UR', prices())[0]
-        assert result.mode=='markdown' and result.startswith('## card · UR\n\n### TEST-JP001')
+        assert result.mode=='markdown' and result.startswith('## card | UR\n\n### TEST-JP001')
         assert result.count('### TEST-JP')==3
         assert '- 集换社最低价：**12.50 元**' in result
         assert '- Cardrush 买取价：**1,500 円**' in result
@@ -45,7 +45,7 @@ def test_plain_text_defaults_have_no_markdown_and_custom_copy_is_not_stripped():
     spec=default('price.result');spec['mode']='text'
     with draft('price.result',spec):
         result=format_comparison('card','UR',prices())[0]
-        assert result.startswith('【card · UR】\nTEST-JP001')
+        assert result.startswith('【card | UR】\nTEST-JP001')
         assert '**' not in result and '###' not in result and '> ' not in result
         assert '集换社最低价：12.50 元' in result
     spec=default('price.jhs');spec['template']='我的报价 **{minimum}**'
@@ -66,6 +66,6 @@ def test_default_upgrade_adds_new_version_fields_without_revealing_hidden_old_fi
     old=default('price.heading');old.update(template='## {name}\n\n',visible=[])
     result=upgrade_spec('price.heading',old)
     assert result['visible']==['rarity']
-    assert result['template']=='## {name} · {rarity}\n\n'
+    assert result['template']=='## {name} | {rarity}\n\n'
     custom=default('price.version');custom.update(template='我的版本 {version}',visible=['version'])
     assert upgrade_spec('price.version',custom)==custom

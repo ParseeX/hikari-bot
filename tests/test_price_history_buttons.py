@@ -59,22 +59,24 @@ async def run():
    await handler(client,incoming)
    quote=await press(button_list(messages(client)[-1].json)[0])
    assert '罕贵度：' not in quote['markdown']['content']
-   assert f'## {name} · UR' in quote['markdown']['content'] and '### BOX-JP001' in quote['markdown']['content']
+   assert f'## {name} | UR' in quote['markdown']['content'] and '### BOX-JP001' in quote['markdown']['content']
    curve_button=button_list(quote)[0]
    assert curve_button['render_data']['label']=='卡价曲线'
    actor='other' if kind!='c2c' else 'only-user'
    result=await press(curve_button,actor)
-   assert [b['render_data']['label'] for b in button_list(result)]==['1 · CR-JP001','2 · CR-JP002','3 · CR-JP002']
+   assert [b['render_data']['label'] for b in button_list(result)]==['1. CR-JP001','2. CR-JP002','3. CR-JP002']
    menu=result['markdown']['content']
-   assert f'## {name} · UR' in menu and f'{name}(异画) · UR' in menu
-   assert 'BOX-JP' not in menu and 'UR · CR-' not in menu
+   assert f'## {name} | UR' in menu and f'{name}(异画) | CR-JP002' in menu
+   assert menu.count('UR')==1 and '·' not in menu
+   assert '**\nCR-JP' not in menu and '**\n1,000 円' in menu
+   assert 'BOX-JP' not in menu and 'UR | CR-' not in menu
    assert reader.search_prices.await_args.args[0]==name
    assert reader.search_prices.await_args.args[2] is None
    result=await press(button_list(result)[2],actor)
    reader.search_prices.assert_awaited_once()
    reader.get_price_history.assert_awaited_once_with(12)
    content=result['markdown']['content']
-   assert f'## {name}(异画) · UR' in content and '### CR-JP002' in content
+   assert f'## {name}(异画) | UR' in content and '### CR-JP002' in content
    assert 'Cardrush 买取价历史' in content and '（日元）' not in content
    assert content.count('qqbot-media://')==1 and content.index('最近买取价')<content.index('qqbot-media://')
    assert '添加别名' not in content and result['msg_type']==2
@@ -95,7 +97,7 @@ async def run():
    assert '回复编号' not in menu['markdown']['content']
    assert len(button_list(menu))==9
    menu=await press(button_list(menu)[-1])
-   assert button_list(menu)[0]['render_data']['label']=='9 · MANY-JP008'
+   assert button_list(menu)[0]['render_data']['label']=='9. MANY-JP008'
    await press(button_list(menu)[0])
    assert reader.get_price_history.await_args.args==(38,)
    incoming=source(kind);incoming.id='manual-again';incoming.content='卡价曲线 1234'
@@ -181,7 +183,7 @@ def test_cardrush_selection_filters_own_rarity_and_keeps_single_product_choice(t
             result=await reports.select(request,'card','PSER',force_choice=True,exact_rarity=True)
             assert isinstance(result,HistoryChoices)
             assert {r.product_id for r in result.candidates}=={20,21}
-            assert str(result.text).startswith('## card · PSER\n')
+            assert str(result.text).startswith('## card | PSER\n')
             single=await reports.select(request,'card(异画)','PSER',force_choice=True,exact_rarity=True)
             assert isinstance(single,HistoryChoices) and [r.product_id for r in single.candidates]==[21]
             spec=default('price_history.price_reports_47b24a67');spec['mode']='text'

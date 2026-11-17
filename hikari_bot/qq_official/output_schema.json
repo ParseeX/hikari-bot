@@ -265,7 +265,7 @@
       ],
       "status": "已接入",
       "implementation": "旧数据库只读查询，复用原曲线与选择规则。",
-      "differences": "曲线候选直接使用 Cardrush 商品信息，卡名和罕贵度同一行，保留画面标注，按商品选择历史。默认 Markdown 说明和曲线合为一条消息；普通文字保留编号选择及原图文布局。",
+      "differences": "曲线候选使用 Cardrush 商品信息，顶部卡名 | 罕贵度；各项卡名 | 编号，下行价格，同一罕贵不重复标注。默认 Markdown 说明和曲线合为一条消息；普通文字保留编号选择及原图文布局。",
       "qq": "全部曲线/候选选择分支待验收。",
       "remaining": "无新增待接入命令；QQ 未验证项以上述记录为准。",
       "coverage": "主要回复、引用段落和错误提示分开列出。点击引用段落可编辑内部字样；主要回复可调整段落及变量顺序。查询数值、第三方原文与图片/PDF内部内容仍由原服务生成。",
@@ -1246,7 +1246,7 @@
       },
       "samples": {
         "body": "【灰流うらら｜UR】\nRC04-JP009\n集换社最低价：12.34 元\n集换价：18.00 元\nCardrush 买取价：1,200 円",
-        "heading": "## 灰流うらら · UR\n\n",
+        "heading": "## 灰流うらら | UR\n\n",
         "versions": "### RC04-JP009\n\n- 集换社最低价：**12.50 元**\n- 集换价：**13.20 元**\n- Cardrush 买取价：**1,500 円**"
       },
       "mode": "markdown",
@@ -1375,7 +1375,7 @@
     "price.heading": {
       "feature": "price",
       "label": "价格结果标题",
-      "template": "## {name} · {rarity}\n\n",
+      "template": "## {name} | {rarity}\n\n",
       "fields": {
         "name": "日文卡名",
         "rarity": "罕贵"
@@ -1391,11 +1391,12 @@
       "fragment": true,
       "preview_root": "price.result",
       "category": "part",
-      "plain_template": "【{name} · {rarity}】\n",
+      "plain_template": "【{name} | {rarity}】\n",
       "previous_default_templates": [
         "【{name}｜{rarity}】\n",
         "## {name}\n> 罕贵度：{rarity}\n\n",
-        "## {name}\n\n"
+        "## {name}\n\n",
+        "## {name} · {rarity}\n\n"
       ]
     },
     "price.version": {
@@ -4167,7 +4168,7 @@
     "price_history.price_reports_8de07ef2": {
       "feature": "price_history",
       "label": "卡名、版本和当前买取价",
-      "template": "## {value1} · {value3}\n\n### {version}\n\n- 最近买取价：**{value4} 円**\n- 历史记录：{value5} 条\n\n> Cardrush 买取价历史",
+      "template": "## {value1} | {value3}\n\n### {version}\n\n- 最近买取价：**{value4} 円**\n- 历史记录：{value5} 条\n\n> Cardrush 买取价历史",
       "fields": {
         "value1": "卡名",
         "box": "系列编号",
@@ -4190,10 +4191,11 @@
       "note": "组合回复中的文字段落；随完整回复一起发送。",
       "preview_root": "price_history.price_reports_body_372ea08c",
       "category": "part",
-      "plain_template": "{value1} · {value3}\n{version}\n最近买取价：{value4}円（共 {value5} 条记录）\nCardrush 买取价历史",
+      "plain_template": "{value1} | {value3}\n{version}\n最近买取价：{value4}円（共 {value5} 条记录）\nCardrush 买取价历史",
       "previous_default_templates": [
         "{value1}  {box}-{value3}\n当前买取价：{value4}円（共 {value5} 条记录）",
-        "## {value1}\n\n### {value3} · {version}\n\n- 最近买取价：**{value4} 円**\n- 历史记录：{value5} 条\n\n> Cardrush 买取价历史（日元）"
+        "## {value1}\n\n### {value3} · {version}\n\n- 最近买取价：**{value4} 円**\n- 历史记录：{value5} 条\n\n> Cardrush 买取价历史（日元）",
+        "## {value1} · {value3}\n\n### {version}\n\n- 最近买取价：**{value4} 円**\n- 历史记录：{value5} 条\n\n> Cardrush 买取价历史"
       ]
     },
     "price_history.price_reports_47b24a67": {
@@ -4210,7 +4212,7 @@
         "value1": "3",
         "lines": "3",
         "name": "青眼の白龍",
-        "rarity_heading": " · PSER"
+        "rarity_heading": " | PSER"
       },
       "mode": "markdown",
       "fragment": false,
@@ -4238,7 +4240,7 @@
         "## {name}\n> Cardrush 买取价历史（日元）",
         "## {name}\n> Cardrush 买取价历史"
       ],
-      "format_note": "直接列出 Cardrush 自身商品，每项卡名与罕贵度同一行，下方列完整编号与最近买取价；按钮以序号对应详情，每页八项。普通文字保留编号选择。"
+      "format_note": "同一罕贵度只在顶部显示；各项标题为卡名 | 完整版本编号，下面只放价格。混合罕贵度查询保留每项罕贵度以便区分。按钮为序号加英文句点，每页八项。"
     },
     "price_history.price_reports_f3bd1277": {
       "feature": "price_history",
@@ -6335,25 +6337,30 @@
     "price_history.choice_detail": {
       "feature": "price_history",
       "label": "每个 Cardrush 版本详情",
-      "template": "{index}. **{name} · {rarity}**\n{number} · {price} 円",
+      "template": "{index}. **{name} | {number}{rarity_suffix}**\n{price} 円",
       "fields": {
         "index": "选项序号",
         "name": "Cardrush 完整商品卡名及画面标注",
         "rarity": "罕贵度",
         "number": "Cardrush 完整编号",
-        "price": "最近买取价数值"
+        "price": "最近买取价数值",
+        "rarity_suffix": "混合罕贵度时显示的后缀；顶部已显示同一罕贵度时留空"
       },
       "samples": {
         "index": "2",
         "name": "[新]灰流うらら(座り)",
         "rarity": "PSER",
         "number": "PAC1-JP016",
-        "price": "8,000"
+        "price": "8,000",
+        "rarity_suffix": ""
       },
       "mode": "text",
       "fragment": true,
       "preview_root": "price_history.price_reports_47b24a67",
-      "category": "part"
+      "category": "part",
+      "previous_default_templates": [
+        "{index}. **{name} · {rarity}**\n{number} · {price} 円"
+      ]
     }
   }
 }

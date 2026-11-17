@@ -56,13 +56,15 @@ class HistoryButtons:
 
     async def offer(self, bot, event, items, *, prompt):
         items = tuple(items)
+        mixed_rarities = len({rarity_jp_to_en(item.rarity or '') for item in items}) > 1
         details, choices = [], []
         for index, item in enumerate(items, 1):
             rarity = rarity_jp_to_en(item.rarity or '')
             number = item.model_number or '编号未知'
-            label = f'{index} · {number}'
+            label = f'{index}. {number}'
             details.append(str(present('price_history.choice_detail', {'index': index,
-                'name': item.name, 'rarity': rarity, 'number': number, 'price': f'{item.price:,}'})))
+                'name': item.name, 'rarity': rarity, 'number': number, 'price': f'{item.price:,}',
+                'rarity_suffix': f' | {rarity}' if mixed_rarities else ''})))
             command = self.bind(bot, event, 'product', (item,))
             choices.append((label[:24], command))
         await self.pages.offer(bot, event, choices,
