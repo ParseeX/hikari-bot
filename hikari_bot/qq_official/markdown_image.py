@@ -8,7 +8,7 @@ import re
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from nonebot.adapters.qq import MessageSegment
+from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.adapters.qq.models import MessageMarkdown
 from nonebot.drivers import Request
 from PIL import Image
@@ -81,7 +81,7 @@ async def upload_image(bot, data, label, owned):
     return f'![{label} #{width}px #{height}px]({reference})'
 
 
-async def send_images(bot, event, parts, render, *, history=False):
+async def send_images(bot, event, parts, render, *, history=False, keyboard=None):
     """所有上传成功后只发一次；上传失败不发不完整图集。"""
     owned = []
     safe_release = True
@@ -115,7 +115,10 @@ async def send_images(bot, event, parts, render, *, history=False):
             raise ImageDeliveryError('图片上传后本条消息的回复时效或额度已用完')
         stage = '发送结果未确认，重新查询可能重复收到回复'
         safe_release = False
-        await bot.send(event, MessageSegment.markdown(VerifiedMarkdown(content=content)))
+        message = Message(MessageSegment.markdown(VerifiedMarkdown(content=content)))
+        if keyboard is not None:
+            message += keyboard
+        await bot.send(event, message)
         safe_release = True
 
     async def cleanup(image_id, filename):
@@ -167,9 +170,10 @@ GALLERY_MARKER = 'HIKARIGALLERYIMAGESPLACEHOLDER'
 class MarkdownGallery:
     template: str
     parts: tuple
+    keyboard: object = None
 
     async def send(self, bot, event):
         if self.template.count(GALLERY_MARKER) != 1:
             raise ImageDeliveryError('整组卡图文案必须包含一次图片字段')
         await send_images(bot, event, self.parts,
-                          lambda parts: self.template.replace(GALLERY_MARKER, '\n\n'.join(parts)))
+                          lambda parts: self.template.replace(GALLERY_MARKER, '\n\n'.join(parts)), keyboard=self.keyboard)

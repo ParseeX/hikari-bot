@@ -101,6 +101,7 @@ def test_rarity_click_returns_price_once_without_alias_notice_or_pack_in_options
         await action.handle('卡价', 'card', CONFIG, controller.wrap(NamedFileBot(client), incoming), incoming, pager)
         payload = messages(client)[0].json
         assert payload['msg_type'] == 2 and 'mqqapi://aio/inlinecmd?' in payload['markdown']['content']
+        assert '也可回复编号' not in payload['markdown']['content']
         assert 'BOX-' not in payload['markdown']['content']
         buttons = [b for row in payload['keyboard']['content']['rows'] for b in row['buttons']]
         assert [b['render_data']['label'] for b in buttons] == ['SR', 'UR']
@@ -164,6 +165,7 @@ async def run():
         await ctl.handle(NamedFileBot(client),click(buttons[-1],kind,id=kind+'-page'))
         await asyncio.gather(*ctl.tasks)
         last=messages(client)[-1].json
+        assert '卡名识别有误？' not in last['markdown']['content']
         buttons=[b for row in last['keyboard']['content']['rows'] for b in row['buttons']]
         assert [b['render_data']['label'] for b in buttons]==['UR','上一页']
         await ctl.handle(NamedFileBot(client),click(buttons[0],kind,id=kind+'-select'))

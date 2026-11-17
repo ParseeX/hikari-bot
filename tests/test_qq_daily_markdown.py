@@ -103,7 +103,8 @@ def test_failed_draw_keeps_markdown_for_explicit_continue(failure):
         messages = [c.args[0].json for c in client._request.call_args_list
                     if c.args[0].url.path.endswith('/messages')]
         assert [p['msg_type'] for p in messages] == ([0] if failure == 'upload' else [2, 0])
-        assert '未改成普通文字或拆开发送' in messages[-1]['content']
+        assert '图文未能完成发送' in messages[-1]['content']
+        assert 'private-detail' not in messages[-1]['content']
         assert delivery.has_pending(wrapper, source)
         client._request.side_effect = original
         source.id = 'continue'

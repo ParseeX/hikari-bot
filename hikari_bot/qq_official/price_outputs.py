@@ -9,7 +9,7 @@ def rarity_prompt(name_jp,groups):
     hint = str(present('price.rarity_hint'))
     if present('price.prompt').mode == 'markdown':
         lines = lines[:1]
-    return present('price.prompt', {'body': '\n'.join(lines)+'\n'+hint,
+    return present('price.prompt', {'body': '\n'.join(lines),
         'heading': lines[0], 'options': '\n'.join(lines[1:]), 'hint': hint})
 
 def format_comparison(name_jp,rarity,rows,*,japanese=False):

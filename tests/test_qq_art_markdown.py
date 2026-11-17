@@ -139,3 +139,59 @@ def test_gallery_copy_can_move_images_but_cannot_hide_them():
         with pytest.raises(ValueError): validate('art.gallery',spec)
     spec = default('art.gallery'); spec['visible'].remove('images')
     with pytest.raises(ValueError): validate('art.gallery',spec)
+
+
+@pytest.mark.parametrize('kind', ['c2c', 'group', 'group-no-at'])
+def test_gallery_buttons_query_effect_and_price_without_name_hint(kind):
+    from hikari_bot.features.card_prices.models import CardVersion
+    from hikari_bot.qq_official.commands import parse_command
+    from hikari_bot.qq_official.prices import PriceQueries
+    from test_qq_alias_choices import source, click, messages
+    async def run():
+        client = gallery_transport(); client.put_interaction = AsyncMock()
+        pager = ReplyPager(now=lambda: NOW)
+        backend = PriceQueries(None, None, None)
+        backend.comparison = Mock(versions=AsyncMock(return_value=[CardVersion(1, 'BOX-001', 'UR', INFO['jp_name'])]))
+        actions = CardActions(Mock(search=Mock(return_value=INFO), image_ids=Mock(return_value=[1,2])),
+                              image_loader=AsyncMock(side_effect=picture), price_backend=backend)
+        async def process(proxy, event):
+            command, argument = parse_command(event.get_plaintext())
+            await actions.handle(command, argument, CONFIG, proxy, event, pager)
+        controller = CallbackController(CONFIG, process)
+        incoming = source(kind)
+        await actions.handle('卡图', '卡名', CONFIG, controller.wrap(NamedFileBot(client), incoming), incoming, pager)
+        first = messages(client)[-1].json
+        assert first['markdown']['force_verify_image_resource'] is True
+        assert first['markdown']['content'].count('qqbot-media://') == 2
+        assert '卡名识别有误？' in first['markdown']['content']
+        buttons = first['keyboard']['content']['rows'][0]['buttons']
+        assert [b['render_data']['label'] for b in buttons] == ['查看效果', '查询卡价']
+        for index, button in enumerate(buttons):
+            event = click(button, kind, id=f'gallery-click-{index}')
+            event.data.resolved.message_id = 'reply'
+            await controller.handle(NamedFileBot(client), event)
+            await asyncio.gather(*controller.tasks)
+            result = messages(client)[-1].json
+            assert result['msg_type'] == 2
+            assert '卡名识别有误？' not in result['markdown']['content']
+            assert '添加别名' not in result['markdown']['content']
+            if index == 0:
+                assert INFO['cn_name'] in result['markdown']['content']
+                # 从效果按钮再次进入卡图，同一条图集也不带识别提示。
+                art_button = result['keyboard']['content']['rows'][0]['buttons'][0]
+                art_event = click(art_button, kind, id='back-to-art')
+                art_event.data.resolved.message_id = 'reply'
+                await controller.handle(NamedFileBot(client), art_event)
+                await asyncio.gather(*controller.tasks)
+                gallery = messages(client)[-1].json
+                assert 'qqbot-media://' in gallery['markdown']['content']
+                assert '卡名识别有误？' not in gallery['markdown']['content']
+                assert gallery['keyboard']['content']['rows'][0]['buttons']
+            else:
+                assert result['keyboard']['content']['rows'][0]['buttons'][0]['render_data']['label'] == 'UR'
+                assert '也可回复编号' not in result['markdown']['content']
+        # 按钮执行上下文不能泄漏到后续手动查询。
+        manual = source(kind); manual.id = 'manual-again'
+        await actions.handle('效果', '卡名', CONFIG, controller.wrap(NamedFileBot(client), manual), manual, pager)
+        assert '卡名识别有误？' in messages(client)[-1].json['markdown']['content']
+    asyncio.run(run())

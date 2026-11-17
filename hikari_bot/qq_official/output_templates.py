@@ -15,6 +15,7 @@ from urllib.parse import quote
 ROOT = Path(__file__).parent
 SCHEMA = json.loads((ROOT/'output_schema.json').read_text(encoding='utf-8'))
 OVERRIDE = ContextVar('srbs_output_preview',default=None)
+CARD_NAME_CONFIRMED = ContextVar('srbs_card_name_confirmed', default=False)
 HOME = Path.home()
 
 
@@ -72,6 +73,13 @@ def upgrade_spec(key, spec):
     """升级已知旧默认文案与外壳；自定义内容、格式、按钮及存储文件不覆盖。"""
     definition = SCHEMA['states'][key]
     spec = deepcopy(spec)
+    # 新增查询按钮补齐旧模板的标签，保留用户已有文案和排列。
+    if key in {'art.gallery', 'art.page'}:
+        added = [role for role in definition.get('buttons', {}) if role not in spec.get('labels', {})]
+        if added:
+            spec.setdefault('labels', {}).update({role: definition['buttons'][role] for role in added})
+            if key == 'art.gallery' and not spec.get('rows'):
+                spec['rows'] = deepcopy(definition['rows'])
     if spec.get('template') in definition.get('previous_default_templates', []):
         spec['template'] = definition['template']
     legacy = definition.get('legacy_template')
@@ -195,7 +203,18 @@ def notice_text(key, *, markdown=False):
     return text
 
 
+def without_card_name_hint(text):
+    """缓存选择页时保存不带识别提示的版本，供后续按钮翻页使用。"""
+    for markdown in (False, True):
+        hint = notice_text('common.card_name_hint', markdown=markdown)
+        if hint:
+            text = str(text).removesuffix('\n\n' + hint)
+    return str(text)
+
+
 def present(key,values=None,*,plain=False):
+    if key == 'common.card_name_hint' and CARD_NAME_CONFIRMED.get():
+        return Output('', key, 'text')
     overrides=OVERRIDE.get()
     spec=overrides.get(key) if overrides and key in overrides else Store().active(key)
     values=dict(values or {})
@@ -209,7 +228,7 @@ def present(key,values=None,*,plain=False):
         cooked={k:(v if k in SCHEMA['states'][key].get('blocks',[]) else escape(v)) for k,v in cooked.items()}
     text = spec['template'].format_map(cooked)
     notice = definition.get('notice')
-    if notice:
+    if notice and not (notice == 'common.card_name_hint' and CARD_NAME_CONFIRMED.get()):
         hint = notice_text(notice, markdown=not plain and spec['mode'] == 'markdown')
         if hint and not text.rstrip().endswith(hint):
             text += '\n\n' + hint

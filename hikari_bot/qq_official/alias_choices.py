@@ -11,6 +11,7 @@ from nonebot.adapters.qq.models import MessageKeyboard
 from .card_actions import command_button, stable_code
 from .delivery import context
 from .preview import report
+from .output_templates import CARD_NAME_CONFIRMED, without_card_name_hint
 
 
 PROMPT = '该别名对应多张卡片，请通过下方按钮进行选择。'
@@ -32,6 +33,7 @@ class Selection:
     expires: float
     prompt: str = PROMPT
     details: tuple = ()
+    confirmed_prompt: str = ''
 
 
 class AliasChoices:
@@ -79,7 +81,7 @@ class AliasChoices:
 
     async def offer(self, bot, event, choices, *, prompt=PROMPT, details=()):
         key = secrets.token_urlsafe(18)
-        selection = Selection(context(bot, event), tuple(choices), self.clock() + 600, prompt, tuple(details))
+        selection = Selection(context(bot, event), tuple(choices), self.clock() + 600, prompt, tuple(details), without_card_name_hint(prompt))
         self.pages[key] = selection
         while len(self.pages) > 128:
             self.pages.popitem(last=False)
@@ -98,7 +100,7 @@ class AliasChoices:
                     f'{self.page_command} {key} {index+step}', event.get_user_id()))
         if navigation:
             rows.append({'buttons': navigation})
-        text = selection.prompt
+        text = selection.confirmed_prompt if CARD_NAME_CONFIRMED.get() else selection.prompt
         if selection.details:
             text += '\n\n' + '\n'.join(selection.details[start:start+PAGE_SIZE])
         message = Message(MessageSegment.markdown(text))

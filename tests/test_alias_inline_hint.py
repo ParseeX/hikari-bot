@@ -61,3 +61,32 @@ def test_editor_preview_matches_inline_link_but_custom_notice_is_preserved(tmp_p
     spec = default('common.card_name_hint'); spec['template'] = '> 我的自定义提示'
     with draft('common.card_name_hint', spec):
         assert present('effect.card').endswith('> 我的自定义提示')
+
+
+def test_button_notice_context_is_task_local_and_plain_fragment_is_suppressed():
+    from hikari_bot.qq_official.output_templates import CARD_NAME_CONFIRMED
+    async def run():
+        async def clicked():
+            token = CARD_NAME_CONFIRMED.set(True)
+            try:
+                await asyncio.sleep(0)
+                assert present('common.card_name_hint', plain=True) == ''
+                assert '卡名识别有误？' not in present('effect.card')
+            finally:
+                CARD_NAME_CONFIRMED.reset(token)
+        async def manual():
+            await asyncio.sleep(0)
+            assert '卡名识别有误？' in present('effect.card')
+        await asyncio.gather(clicked(), manual())
+        assert '卡名识别有误？' in present('effect.card')
+    asyncio.run(run())
+
+
+def test_existing_gallery_template_gains_buttons_without_changing_copy():
+    from hikari_bot.qq_official.output_templates import upgrade_spec, validate
+    spec = default('art.gallery')
+    spec.update(template='我的卡图\n{images}', rows=[], labels={})
+    upgraded = validate('art.gallery', upgrade_spec('art.gallery', spec))
+    assert upgraded['template'] == spec['template']
+    assert upgraded['rows'] == [['effect', 'price']]
+    assert upgraded['labels'] == {'effect': '查看效果', 'price': '查询卡价'}

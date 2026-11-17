@@ -36,15 +36,15 @@ def escape_markdown(value):
 def command_button(key, label, command, user_id, style=0):
     return {'id': key, 'render_data': {'label': label, 'visited_label': label, 'style': style}, 'action': {'type': 1, 'permission': {'type': 0, 'specify_user_ids': [user_id]}, 'data': command, 'unsupport_tips': '请在支持按钮的 QQ 客户端打开'}}
 
-def primary_buttons(code, user_id, *, images, prices):
-    return [command_button(key + '_' + code, label, f'{command} {code}', user_id, style) for available, key, label, command, style in ((images, 'image', '查看卡图', '卡图', 1), (prices, 'price', '查询卡价', '卡价', 0)) if code and available]
+def primary_buttons(code, user_id, *, images, prices, effects=False):
+    return [command_button(key + '_' + code, label, f'{command} {code}', user_id, style) for available, key, label, command, style in ((effects, 'effect', '查看效果', '效果', 1), (images, 'image', '查看卡图', '卡图', 1), (prices, 'price', '查询卡价', '卡价', 0)) if code and available]
 
 def image_navigation(info, user_id, offset, total, *, prices=False, buttons=True):
     code = stable_code(info)
     available_buttons=[]
     for enabled,step,label,role in ((offset>0,-1,'上一张','previous'),(offset+1<total,1,'下一张','next')):
         if enabled: available_buttons.append((role,command_button(f'art_{code}_{offset+step}',label,f'卡图 {code} {offset+step}',user_id)))
-    available_buttons.extend((b['id'].split('_')[0],b) for b in primary_buttons(code,user_id,images=True,prices=prices))
+    available_buttons.extend((b['id'].split('_')[0],b) for b in primary_buttons(code,user_id,images=True,prices=prices,effects=True))
     navigation = present('art.next_hint', {'command': f'卡图 {code} {offset+1}'}) if offset+1 < total else present('art.last_hint')
     text=present('art.page',{'name':info.get('cn_name') or info.get('jp_name') or '卡图','index':offset+1,'total':total,'navigation':navigation})
     return output_message(text,arrange('art.page',available_buttons) if buttons else [])
@@ -224,7 +224,7 @@ class CardActions:
             if pager.capacity(event, key[1]):
                 from .media import send_formatted
                 await send_formatted(bot, event, image_navigation(info, event.get_user_id(), offset, len(ids),
-                    prices=self.price_backend is not None, buttons=isinstance(event, C2CMessageCreateEvent)), pager, can_continue=False)
+                    prices=self.price_backend is not None), pager, can_continue=False)
 
     async def all_images(self, info, ids, bot, event, pager):
         """默认 Markdown 单条图集；主动选择普通文字时保留原媒体分页。"""
@@ -261,8 +261,12 @@ class CardActions:
 
         parts = await asyncio.gather(*(load(index, card_id) for index, card_id in enumerate(ids, 1)))
         if gallery.mode == 'markdown':
+            buttons = primary_buttons(stable_code(info), event.get_user_id(), images=False,
+                                      prices=self.price_backend is not None, effects=True)
+            rows = arrange('art.gallery', [(b['id'].split('_')[0], b) for b in buttons])
+            keyboard = MessageSegment.keyboard(MessageKeyboard.model_validate({'content': {'rows': rows}})) if rows else None
             await send_formatted(bot, event, MarkdownGallery(str(gallery),
-                tuple(part.data if isinstance(part, Media) else str(part) for part in parts)), pager, can_continue=False)
+                tuple(part.data if isinstance(part, Media) else str(part) for part in parts), keyboard), pager, can_continue=False)
             return
         prefix, _, suffix = str(gallery).partition(GALLERY_MARKER)
         parts = ([prefix] if prefix else []) + parts + ([suffix] if suffix else [])

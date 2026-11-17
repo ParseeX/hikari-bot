@@ -1,5 +1,5 @@
 """按钮绑定原会话；群别名撤销额外允许显式管理员，使用事件额度回复。"""
-from .output_templates import present, Output
+from .output_templates import present, Output, CARD_NAME_CONFIRMED
 import asyncio
 from collections import OrderedDict
 from copy import deepcopy
@@ -274,6 +274,7 @@ class CallbackController:
         task.add_done_callback(self.tasks.discard)
 
     async def execute(self, bot, event, command):
+        confirmed = CARD_NAME_CONFIRMED.set(True)
         try:
             source = self.source(event, command)
             proxy = CallbackBot(self, bot, source, interaction=event)
@@ -287,4 +288,5 @@ class CallbackController:
         except Exception as exc:
             report('callback_business_failed', exc)
         finally:
+            CARD_NAME_CONFIRMED.reset(confirmed)
             self.inflight -= 1
