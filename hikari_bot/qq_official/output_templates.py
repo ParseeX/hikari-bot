@@ -188,10 +188,10 @@ def notice_text(key, *, markdown=False):
     """普通文字保留说明；Markdown 将固定的别名命令转为输入框填充链接。"""
     text = str(present(key, plain=True))
     if markdown and key == 'common.card_name_hint':
-        command = '添加别名 卡名 别名'
-        # 固定命令示例，不拼入卡名或用户输入；只填入，不自动发送或引用。
+        command, label = '添加别名', '添加别名 卡名 别名'
+        # 正文保留完整用法，只向输入框填入命令名，不自动发送或引用。
         url = 'mqqapi://aio/inlinecmd?command=' + quote(command, safe='') + '&enter=false&reply=false'
-        text = text.replace(' ' + command + ' ', f' [{command}]({url}) ', 1)
+        text = text.replace(' ' + label + ' ', f' [{label}]({url}) ', 1)
     return text
 
 

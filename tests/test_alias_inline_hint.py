@@ -30,7 +30,7 @@ def test_notice_is_editable_command_link_only_in_markdown(key):
             target = re.search(r'\[添加别名 卡名 别名\]\(([^)]+)\)', output)[1]
             url = urlsplit(target)
             assert (url.scheme, url.netloc, url.path) == ('mqqapi', 'aio', '/inlinecmd')
-            assert parse_qs(url.query) == {'command': ['添加别名 卡名 别名'],
+            assert parse_qs(url.query) == {'command': ['添加别名'],
                                          'enter': ['false'], 'reply': ['false']}
             assert '任意卡名' not in target and ' ' not in target
 
