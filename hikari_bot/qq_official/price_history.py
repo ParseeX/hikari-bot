@@ -88,7 +88,7 @@ class HistoryButtons:
         with using_wording(present):
             if target.kind == 'search':
                 result = await self.reports.select(request, target.name, target.items[0],
-                    force_choice=True, exact_rarity=True)
+                    exact_rarity=True)
                 if isinstance(result, HistoryChoices) and result.text.mode == 'markdown':
                     await self.offer(bot, event, result.candidates, prompt=result.text)
                 else:

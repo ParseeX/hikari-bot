@@ -93,6 +93,18 @@ async def run():
    result=await press(button_list(quote)[0])
    assert result['content']==f'暂无 {name} 的价格历史记录。'
    assert reader.get_price_history.await_count==1
+   # 只有一个 Cardrush 版本时，按钮直接返回曲线，不发送选择菜单。
+   reader.search_prices.return_value=products[:1]
+   incoming=source(kind);incoming.id='single-quote';incoming.content='卡价 1234'
+   await handler(client,incoming)
+   quote=await press(button_list(messages(client)[-1].json)[0])
+   before_curve=len(messages(client))
+   result=await press(button_list(quote)[0],actor)
+   assert len(messages(client))==before_curve+1
+   assert 'keyboard' not in result
+   assert result['markdown']['content'].count('qqbot-media://')==1
+   assert '### CR-JP001' in result['markdown']['content']
+   reader.get_price_history.assert_awaited_with(10)
    # 手动曲线查询九个版本，最后一项仍能从下一页到达。
    all_products=[PriceSnapshot(i+30,name,'ウルトラ',f'MANY-JP{i:03}',800,'2026-11-18') for i in range(9)]
    reader.search_prices.return_value=all_products
