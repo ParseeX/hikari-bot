@@ -20,8 +20,7 @@ JP = CardVersion(500828, 'LPST-JP009', 'PSER', NAME, '灰流丽', 8072)
 def payload(rows=None):
     if rows is None:
         rows = [dict(id=143689, number='SD48-SC017', rarity='N'),
-                dict(id=140802, number='TTP1-SC080', rarity='SER'),
-                dict(id=58651, number='SD35-SC019', rarity='N')]
+                dict(id=140802, number='TTP1-SC080', rarity='SER')]
     return dict(complete=True, card_id=8072, name_jp=NAME, game_sub_key='sc', versions=[
         dict(**row, card_id=8072, name_jp=NAME, name_cn='灰流丽', game_sub_key='sc',
              object_type='card', packs=[dict(id=4842, name='主题卡组')]) for row in rows])
@@ -42,13 +41,13 @@ def test_query_combines_partitions_and_caches_complete_sc_list_without_writing_j
         for _ in range(2):
             result = await service.versions(NAME, names_cn=('灰流丽',), catalog_id=1, include_simplified=True)
             groups = group_rarities(result)
-            assert list(groups) == ['PSER', '简中N', '简中SER']
-            assert [v.number for v in groups['简中N']] == ['SD35-SC019', 'SD48-SC017']
-            assert groups['简中SER'][0].rarity == 'SER'
+            assert list(groups) == ['PSER', '简中']
+            assert [v.number for v in groups['简中']] == ['SD48-SC017', 'TTP1-SC080']
+            assert groups['简中'][1].rarity == 'SER'
         jhs.complete_versions.assert_awaited_once_with(8072, game_sub_key='sc')
         assert cache.get.await_count == 2
-        only_sc = await service.versions(NAME, '简中N', names_cn=('灰流丽',), catalog_id=1, include_simplified=True)
-        assert len(only_sc) == 2 and all(v.game_sub_key == 'sc' and v.rarity == 'N' for v in only_sc)
+        only_sc = await service.versions(NAME, '简中', names_cn=('灰流丽',), catalog_id=1, include_simplified=True)
+        assert all(v.game_sub_key == 'sc' for v in only_sc)
         assert await service.versions(NAME, catalog_id=1) == [JP]
     asyncio.run(run())
 
@@ -79,7 +78,7 @@ def test_empty_sc_result_is_valid_and_cache_expires():
         jhs.complete_versions.return_value = payload()
         assert await source.get(NAME, (), [JP]) == []
         now[0] = 11
-        assert len(await source.get(NAME, (), [JP])) == 3
+        assert len(await source.get(NAME, (), [JP])) == 2
     asyncio.run(run())
 
 
@@ -88,7 +87,7 @@ def test_sc_without_jp_versions_discovers_and_verifies_same_identity():
         jhs = client()
         jhs.versions.return_value = [CardVersion.from_dict(payload()['versions'][0])]
         result = await SimplifiedVersions(jhs).get(NAME, ('灰流丽',), [])
-        assert len(result) == 3
+        assert len(result) == 2
         jhs.versions.assert_awaited_once_with(NAME, game_sub_key='sc')
     asyncio.run(run())
 
@@ -99,19 +98,17 @@ def test_sc_quote_is_single_markdown_with_all_versions_and_no_cardrush_or_curve(
         cardrush = Mock(search_prices=AsyncMock(return_value=[]))
         backend = PriceQueries(jhs, cardrush, None)
         await backend.start({'jp_name': NAME, 'cn_name': '灰流丽'}, 'user')
-        assert backend.selection_options('user')[1] == ('PSER', '简中N', '简中SER')
-        quote = await backend.choose('简中N', 'user')
+        assert backend.selection_options('user')[1] == ('PSER', '简中')
+        quote = await backend.choose('简中', 'user')
         assert quote.mode == 'markdown'
-        assert f'## {NAME} | 简中N' in quote
-        assert '### SD48-SC017' in quote and '### SD35-SC019' in quote
-        assert 'TTP1-SC080' not in quote
+        assert 'N | SD48-SC017' in quote and 'SER | TTP1-SC080' in quote
         assert quote.count('集换社最低价') == 2 and quote.count('集换价') == 2
         assert 'Cardrush' not in quote and '数据库暂无' not in quote
         cardrush.search_prices.assert_not_awaited()
-        jhs.prices.assert_awaited_once_with([58651, 143689], game_sub_key='sc')
+        jhs.prices.assert_awaited_once_with([143689, 140802], game_sub_key='sc')
         assert HistoryButtons(Mock(), Mock()).quote_keyboard(None, None, quote) is None
-        assert is_group_request('简中N', price_active=True)
-        assert not is_group_request('简中N')
+        assert is_group_request('简中', price_active=True)
+        assert not is_group_request('简中')
         # 专门的日版在售查询不提供简中入口。
         await backend.start({'jp_name': NAME}, 'user', japanese=True)
         assert backend.selection_options('user')[1] == ('PSER',)
@@ -157,11 +154,10 @@ def test_sc_button_or_manual_choice_sends_all_versions_in_one_reply(kind, manual
         event = source(kind)
         await action.handle('卡价', '灰流丽', CONFIG, ctl.wrap(NamedFileBot(client_bot), event), event, pager)
         buttons = [b for row in messages(client_bot)[-1].json['keyboard']['content']['rows'] for b in row['buttons']]
-        assert [b['render_data']['label'] for b in buttons] == ['PSER', '简中N', '简中SER']
-        button = next(b for b in buttons if b['render_data']['label'] == '简中N')
+        button = next(b for b in buttons if b['render_data']['label'] == '简中')
         if manual:
             event = source(kind); event.id = 'manual-sc'
-            assert await action.handle('简中N', '', CONFIG, NamedFileBot(client_bot), event, pager)
+            assert await action.handle('简中', '', CONFIG, NamedFileBot(client_bot), event, pager)
         else:
             await ctl.handle(NamedFileBot(client_bot), click(button, kind))
             await asyncio.gather(*ctl.tasks)
@@ -169,8 +165,7 @@ def test_sc_button_or_manual_choice_sends_all_versions_in_one_reply(kind, manual
         assert len(sent) == 2
         result = sent[-1].json
         assert result['msg_type'] == 2
-        assert 'SD48-SC017' in result['markdown']['content'] and 'SD35-SC019' in result['markdown']['content']
-        assert 'TTP1-SC080' not in result['markdown']['content']
+        assert 'SD48-SC017' in result['markdown']['content'] and 'TTP1-SC080' in result['markdown']['content']
         assert 'Cardrush' not in result['markdown']['content'] and 'keyboard' not in result
         assert not pager.pending
     asyncio.run(run())

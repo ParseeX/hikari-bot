@@ -20,6 +20,8 @@ def format_comparison(name_jp,rarity,rows,*,japanese=False):
         return present('price.result', {'body': text.rstrip(), 'heading': header, 'versions': ''.join(blocks).rstrip()})
     for row in rows:
         version = row.version.number or str(present('price.number_unknown'))
+        if row.version.game_sub_key == 'sc':
+            version = f'{row.version.rarity} | {version}'
         lines=[str(present('price.version',{'version':version, 'rarity':row.version.rarity}))]
         if row.jhs is None or row.jhs.error:
             lines.append(str(present('price.japanese_unavailable' if japanese else 'price.jhs_unavailable')))
