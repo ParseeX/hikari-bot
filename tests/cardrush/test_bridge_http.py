@@ -19,8 +19,8 @@ def test_bridge_limits_requests_and_preserves_safe_errors(monkeypatch):
     calls = []
     class Worker:
         lock = threading.Lock()
-        def versions(self, name):
-            calls.append(name)
+        def versions(self, name, **options):
+            calls.append((name, options) if options else name)
             return {'versions': []}
         def prices(self, ids):
             raise RuntimeError('private upstream details must not escape')
@@ -44,6 +44,10 @@ def test_bridge_limits_requests_and_preserves_safe_errors(monkeypatch):
             client.headers['Authorization'] = 'Bearer test-bridge-key'
             assert client.post('/v1/versions', json=body).json() == {'versions': []}
             assert calls == ['原石の皇脈']
+            assert client.post('/v1/versions', json={**body, 'game_sub_key': 'sc'}).status_code == 200
+            assert calls[-1] == ('原石の皇脈', {'game_sub_key': 'sc'})
+            for partition in ('tcg', 'arbitrary', 1, [], None):
+                assert client.post('/v1/versions', json={**body, 'game_sub_key': partition}).status_code == 400
             assert client.post('/v1/product-versions', json={'pack_id': 4404}).json()['product']['id'] == 4404
             assert client.post('/v1/product-for-version', json={'version_id': 119467}).status_code == 200
             assert client.post('/v1/products', json={'keyword': 'EX'}).json()['products'][0]['name'] == 'EX'

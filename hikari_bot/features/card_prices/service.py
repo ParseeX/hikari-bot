@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from .client import JhsClient, JhsUnavailable
 from .models import CardVersion, JhsPrice, normalized
 from .identity import cardrush_identity
+from .simplified import SimplifiedVersions
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,7 @@ class Comparison:
 def matches_version(record, name_jp, version):
     """报价与曲线共用完整编号、卡名及罕贵核对，禁止用盒号前缀代替。"""
     name, number = cardrush_identity(name_jp, version)
-    return (bool(version.number)
+    return (version.game_sub_key == 'ocg' and bool(version.number)
             and normalized(record.model_number or '') == normalized(number)
             and clean_card_name(record.name) == clean_card_name(name)
             and rarity_jp_to_en(record.rarity or '').upper() == version.rarity.upper())
@@ -35,9 +36,9 @@ def matches_version(record, name_jp, version):
 def group_rarities(versions: list[CardVersion]) -> dict[str, list[CardVersion]]:
     groups: dict[str, list[CardVersion]] = {}
     seen: set[int] = set()
-    for version in sorted(versions, key=lambda v: (v.rarity, v.number, v.id)):
+    for version in sorted(versions, key=lambda v: (v.selection_group, v.number, v.rarity, v.id)):
         if version.id not in seen:
-            groups.setdefault(version.rarity, []).append(version)
+            groups.setdefault(version.selection_group, []).append(version)
             seen.add(version.id)
     return groups
 
@@ -47,16 +48,20 @@ class ComparisonService:
         self.jhs = jhs
         self.cardrush = cardrush
         self.version_catalog = version_catalog
+        self.simplified = SimplifiedVersions(jhs)
 
     async def versions(self, name_jp: str, rarity: str | None = None,
                        model_prefix: str | None = None,
-                       names_cn: tuple[str, ...] = (), *, catalog_id: int | None = None) -> list[CardVersion]:
+                       names_cn: tuple[str, ...] = (), *, catalog_id: int | None = None,
+                       include_simplified: bool = False) -> list[CardVersion]:
         async def discover():
             return await self.online_versions(name_jp, names_cn)
         versions = (await self.version_catalog.get(catalog_id, name_jp, self.jhs, discover)
                     if self.version_catalog is not None and catalog_id is not None else await discover())
+        if include_simplified:
+            versions = versions + await self.simplified.get(name_jp, names_cn, versions)
         # 完整列表先落库，再按本次罕贵和编号筛选，不能把筛选结果标为完整。
-        return [v for v in versions if (not rarity or v.rarity == rarity.upper())
+        return [v for v in versions if (not rarity or v.selection_group == rarity.upper())
                 and (not model_prefix or v.number.upper().startswith(model_prefix.upper() + '-'))]
 
     async def online_versions(self, name_jp, names_cn):
@@ -79,14 +84,28 @@ class ComparisonService:
     async def compare(self, name_jp: str, versions: list[CardVersion], *, japanese: bool = False) -> list[Comparison]:
         # 先查编号再核对名称和罕贵，避免 LIKE 查询混入其他卡包或相似名称。
         async def local(version: CardVersion):
-            if not version.number:
+            if version.game_sub_key == 'sc' or not version.number:
                 return ()
             _, number = cardrush_identity(name_jp, version)
             records = await self.cardrush.search_prices("", None, number, 200)
             return tuple(r for r in records if matches_version(r, name_jp, version))
 
+        async def domestic():
+            if japanese:
+                return await self.jhs.japanese_prices([v for v in versions if v.game_sub_key == 'ocg'])
+            result = {}
+            for partition in ('ocg', 'sc'):
+                ids = [v.id for v in versions if v.game_sub_key == partition]
+                if ids:
+                    try:
+                        options = {'game_sub_key': partition} if partition == 'sc' else {}
+                        result.update(await self.jhs.prices(ids, **options))
+                    except JhsUnavailable:
+                        pass  # 一个分区失败不覆盖另一分区的成功报价。
+            return result
+
         values = await asyncio.gather(
-            self.jhs.japanese_prices(versions) if japanese else self.jhs.prices([v.id for v in versions]),
+            domestic(),
             *(local(v) for v in versions), return_exceptions=True,
         )
         jhs = values[0] if isinstance(values[0], dict) else {}

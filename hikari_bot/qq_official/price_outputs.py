@@ -19,7 +19,10 @@ def format_comparison(name_jp,rarity,rows,*,japanese=False):
     def page():
         return present('price.result', {'body': text.rstrip(), 'heading': header, 'versions': ''.join(blocks).rstrip()})
     for row in rows:
-        lines=[str(present('price.version',{'version':row.version.number or str(present('price.number_unknown')), 'rarity':rarity}))]
+        version = row.version.number or str(present('price.number_unknown'))
+        if row.version.game_sub_key == 'sc':
+            version = f'{row.version.rarity} | {version}'
+        lines=[str(present('price.version',{'version':version, 'rarity':row.version.rarity}))]
         if row.jhs is None or row.jhs.error:
             lines.append(str(present('price.japanese_unavailable' if japanese else 'price.jhs_unavailable')))
         elif japanese:
@@ -28,7 +31,8 @@ def format_comparison(name_jp,rarity,rows,*,japanese=False):
         else:
             def yuan(value): return f'{value:.2f} 元' if value is not None else '暂无数据'
             lines.append(str(present('price.jhs',{'minimum':yuan(row.jhs.minimum),'market':yuan(row.jhs.market)})))
-        if row.cardrush_error: lines.append(str(present('price.cardrush_unavailable')))
+        if row.version.game_sub_key == 'sc': pass
+        elif row.cardrush_error: lines.append(str(present('price.cardrush_unavailable')))
         elif not row.cardrush: lines.append(str(present('price.cardrush_missing')))
         else:
             lines.extend(str(present('price.cardrush',{'value':f'{record.price:,} 円'})) for record in row.cardrush)

@@ -297,11 +297,11 @@ class Worker:
                 self.pause_background()
         raise RuntimeError('phone unavailable')
 
-    def versions(self, name_jp):
+    def versions(self, name_jp, *, game_sub_key="ocg"):
         entries, seen = [], set()
         last_page = None
         for page in range(1, 301):
-            data = self.query('search.js', {'name_jp': name_jp, 'page': page})
+            data = self.query('search.js', {'name_jp': name_jp, 'page': page, 'game_sub_key': game_sub_key})
             if page == 1:
                 last_page = int(data['last_page'])
             if not 1 <= last_page <= 300:
@@ -316,12 +316,12 @@ class Worker:
                 return {'versions': entries}
         raise SourceValidationError('too_many_versions')
 
-    def prices(self, ids):
+    def prices(self, ids, *, game_sub_key="ocg"):
         prices = []
         for offset in range(0, len(ids), 5):
             batch = ids[offset:offset+5]
             try:
-                result = self.query('prices.js', {'version_ids': batch})
+                result = self.query('prices.js', {'version_ids': batch, 'game_sub_key': game_sub_key})
                 if {p['id'] for p in result['prices']} != set(batch):
                     raise ValueError('version mismatch')
                 prices.extend(result['prices'])
@@ -346,11 +346,11 @@ class Worker:
                 result[key] = card[key]
         return {'card': result}
 
-    def card_versions(self, card_id):
-        data = self.query('card-versions.js', {'card_id': card_id})
-        if data.get('complete') is not True or data.get('card_id') != card_id or not data.get('versions'):
+    def card_versions(self, card_id, *, game_sub_key="ocg"):
+        data = self.query('card-versions.js', {'card_id': card_id, 'game_sub_key': game_sub_key})
+        if data.get('complete') is not True or data.get('card_id') != card_id or not isinstance(data.get('versions'), list) or (not data['versions'] and game_sub_key != 'sc'):
             raise SourceValidationError('incomplete_card_versions')
-        return {key: data[key] for key in ('complete', 'card_id', 'versions')}
+        return {key: data[key] for key in ('complete', 'card_id', 'versions', 'name_jp', 'game_sub_key') if key in data}
 
     def products(self, keyword):
         return {'products': self.query('products.js', {'keyword': keyword})['products']}
@@ -440,11 +440,15 @@ def create_server(worker, token, port):
                     raise ValueError('invalid body')
                 self.connection.settimeout(5)
                 payload = json.loads(self.rfile.read(size))
+                partition = payload.get('game_sub_key', 'ocg')
+                if partition not in ('ocg', 'sc'):
+                    raise ValueError('invalid game partition')
+                options = {'game_sub_key': partition} if partition != 'ocg' else {}
                 if self.path == '/v1/versions':
                     name = payload['name_jp']
                     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 160:
                         raise ValueError('invalid name')
-                    operation = lambda: worker.versions(name.strip())
+                    operation = lambda: worker.versions(name.strip(), **options)
                 elif self.path == '/v1/product-versions':
                     pack_id = payload['pack_id']
                     if type(pack_id) is not int or not 0 < pack_id < 2**53:
@@ -464,7 +468,7 @@ def create_server(worker, token, port):
                     card_id = payload['card_id']
                     if type(card_id) is not int or not 0 < card_id < 2**53:
                         raise ValueError('invalid card')
-                    operation = lambda: worker.card_versions(card_id)
+                    operation = lambda: worker.card_versions(card_id, **options)
                 elif self.path == '/v1/products':
                     keyword = payload.get('keyword', '')
                     if not isinstance(keyword, str) or len(keyword) > 160:
@@ -474,7 +478,7 @@ def create_server(worker, token, port):
                     ids = payload['version_ids']
                     if not isinstance(ids, list) or not 1 <= len(ids) <= 20 or len(set(ids)) != len(ids) or not all(type(i) is int and 0 < i < 2**53 for i in ids):
                         raise ValueError('invalid IDs')
-                    operation = lambda: worker.prices(ids)
+                    operation = lambda: worker.prices(ids, **options)
                 elif self.path == '/v1/listings':
                     version_id, pages = payload['card_version_id'], payload['pages']
                     if type(version_id) is not int or not 0 < version_id < 2**53:

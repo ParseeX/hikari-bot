@@ -104,3 +104,52 @@ setImmediate(()=>console.log(JSON.stringify(context.__codexJhsFastProbe)));
         assert data['complete'] is True and data['card_id'] == 71
         assert [p['id'] for p in data['versions'][0]['packs']] == [10, 20]
         assert 'min_price' not in data['versions'][0]
+
+
+@pytest.mark.parametrize('language,empty,status', [('sc', False, 'done'), ('jp', False, 'error'), ('sc', True, 'done')])
+def test_simplified_complete_template_preserves_partition_and_checks_language(language, empty, status):
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('需要 Node.js')
+    source = Path('scripts/jihuanshe_bridge/card-versions.js').read_text(encoding='utf-8')
+    source = source.replace('__INPUT__', json.dumps({'card_id': 8072, 'game_sub_key': 'sc'}))
+    record = {'id': 8072, 'name_jp': '灰流うらら', 'name_cn': '灰流丽', 'type': '效果怪兽',
+              'card_versions': [] if empty else [{'id': 143689, 'ygo_card_id': 8072,
+                'number': 'SD48-SC017', 'rarity': 'N', 'language': language,
+                'packs': [{'id': 4842, 'name_cn': '主题卡组 同伴之力'}]}]}
+    harness = """
+const vm=require('vm'),assert=require('assert');
+const context={require:()=>({cloudRequest:(params,name,url)=>{
+  assert.strictEqual(params.game_sub_key,'sc');
+  return Promise.resolve({result:{data:RECORD}});
+}})};
+vm.runInNewContext(SOURCE,context);
+setImmediate(()=>console.log(JSON.stringify(context.__codexJhsFastProbe)));
+""".replace('RECORD', json.dumps(record)).replace('SOURCE', json.dumps(source))
+    result = subprocess.run([node, '-e', harness], capture_output=True, text=True, encoding='utf-8', check=True)
+    data = json.loads(result.stdout)
+    assert data['status'] == status
+    if status == 'done':
+        assert data['game_sub_key'] == 'sc' and data['name_jp'] == '灰流うらら'
+        assert all(v['game_sub_key'] == 'sc' for v in data['versions'])
+
+
+def test_simplified_price_template_uses_sc_for_detail_and_market_price():
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('需要 Node.js')
+    source = Path('scripts/jihuanshe_bridge/prices.js').read_text(encoding='utf-8')
+    source = source.replace('__INPUT__', json.dumps({'version_ids': [143689], 'game_sub_key': 'sc'}))
+    harness = """
+const vm=require('vm'),assert=require('assert');
+const calls=[];
+const context={getApp:()=>({globalData:{jwt:'fixture-only'}}),require:()=>({cloudRequest:(params,name,url)=>{
+  assert.strictEqual(params.game_sub_key,'sc');calls.push(name);
+  return Promise.resolve({result:{data:name==='findCardVersion'?{id:143689,min_price:'4.00'}:[{date:'2026-11-18',price:'4.50'}]}});
+}})};
+vm.runInNewContext(SOURCE,context);
+setImmediate(()=>{assert.deepStrictEqual(calls,['findCardVersion','getPriceHistory']);console.log(JSON.stringify(context.__codexJhsFastProbe));});
+""".replace('SOURCE', json.dumps(source))
+    result = subprocess.run([node, '-e', harness], capture_output=True, text=True, encoding='utf-8', check=True)
+    data = json.loads(result.stdout)
+    assert data['prices'] == [{'id': 143689, 'min_price': '4.00', 'market_price': '4.50', 'market_date': '2026-11-18'}]

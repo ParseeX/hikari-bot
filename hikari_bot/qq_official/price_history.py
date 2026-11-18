@@ -47,7 +47,8 @@ class HistoryButtons:
 
     def quote_keyboard(self, bot, event, quote):
         rows = getattr(quote, 'comparisons', ())
-        if self.reports is None or not rows or quote.mode != 'markdown':
+        if (self.reports is None or not rows or quote.mode != 'markdown'
+                or any(row.version.game_sub_key == 'sc' for row in rows)):
             return None
         # 仅携带卡名和所选罕贵度，不把集换社版本列表当作 Cardrush 候选。
         command = self.bind(bot, event, 'search', (rows[0].version.rarity,), quote.name, shared=True)

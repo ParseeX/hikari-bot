@@ -29,6 +29,11 @@ class CardVersion:
     name_cn: str = ""
     card_id: int | None = None
     aliases: tuple[str, ...] = ()
+    game_sub_key: str = "ocg"
+
+    @property
+    def selection_group(self) -> str:
+        return "简中" if self.game_sub_key == "sc" else self.rarity
 
     @classmethod
     def from_dict(cls, value: dict) -> "CardVersion":
@@ -36,8 +41,9 @@ class CardVersion:
                       str(value["rarity"]).strip().upper(),
                       str(value.get("name_jp") or ""), str(value.get("name_cn") or ""),
                       int(value["card_id"]) if value.get("card_id") else None,
-                      tuple(str(n) for n in value.get("aliases", [])))
-        if version.id <= 0 or not version.rarity:
+                      tuple(str(n) for n in value.get("aliases", [])),
+                      str(value.get("game_sub_key", "ocg")))
+        if version.id <= 0 or not version.rarity or version.game_sub_key not in {"ocg", "sc"}:
             raise ValueError("无效卡片版本")
         return version
 

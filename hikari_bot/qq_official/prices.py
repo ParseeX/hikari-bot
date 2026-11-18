@@ -94,7 +94,8 @@ class PriceQueries:
             return present('price.prices_1', {})
         aliases = tuple((str(info[k]) for k in ('cn_name', 'sc_name', 'md_name', 'nwbbs_n', 'cnocg_n') if info.get(k)))
         try:
-            versions = await asyncio.wait_for(self.comparison.versions(name, rarity, prefix, aliases, catalog_id=info.get('catalog_id')), timeout=90)
+            versions = await asyncio.wait_for(self.comparison.versions(name, rarity, prefix, aliases,
+                catalog_id=info.get('catalog_id'), include_simplified=not japanese), timeout=90)
         except (JhsUnavailable, TimeoutError):
             if self.generations.get(user_id) != generation:
                 return ''

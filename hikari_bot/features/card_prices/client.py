@@ -33,23 +33,29 @@ class JhsClient:
         except (httpx.HTTPError, ValueError) as exc:
             raise JhsUnavailable("集换社暂时不可用，请稍后重试") from exc
 
-    async def versions(self, name_jp: str) -> list[CardVersion]:
-        data = await self._post("/v1/versions", {"name_jp": name_jp})
+    async def versions(self, name_jp: str, *, game_sub_key="ocg") -> list[CardVersion]:
+        data = await self._post("/v1/versions", self.partition({"name_jp": name_jp}, game_sub_key))
         try:
             return [CardVersion.from_dict(item) for item in data["versions"]]
         except (KeyError, TypeError, ValueError) as exc:
             raise JhsUnavailable("集换社版本数据无效") from exc
 
-    async def complete_versions(self, card_id: int) -> dict:
-        return await self._post('/v1/card-versions', {'card_id': card_id})
+    @staticmethod
+    def partition(payload, game_sub_key):
+        if game_sub_key not in {"ocg", "sc"}:
+            raise ValueError("不支持的游戏王分区")
+        return {**payload, "game_sub_key": game_sub_key} if game_sub_key != "ocg" else payload
 
-    async def prices(self, version_ids: list[int]) -> dict[int, JhsPrice]:
+    async def complete_versions(self, card_id: int, *, game_sub_key="ocg") -> dict:
+        return await self._post('/v1/card-versions', self.partition({'card_id': card_id}, game_sub_key))
+
+    async def prices(self, version_ids: list[int], *, game_sub_key="ocg") -> dict[int, JhsPrice]:
         if len(version_ids) > 20:
             result: dict[int, JhsPrice] = {}
             for start in range(0, len(version_ids), 20):
-                result.update(await self.prices(version_ids[start:start + 20]))
+                result.update(await self.prices(version_ids[start:start + 20], game_sub_key=game_sub_key))
             return result
-        data = await self._post("/v1/prices", {"version_ids": version_ids})
+        data = await self._post("/v1/prices", self.partition({"version_ids": version_ids}, game_sub_key))
         try:
             prices = [JhsPrice.from_dict(item) for item in data["prices"]]
             if {p.id for p in prices} != set(version_ids) or len(prices) != len(set(version_ids)):

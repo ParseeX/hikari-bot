@@ -2,7 +2,7 @@
   const input=__INPUT__, request=require('api/cloud.js').cloudRequest;
   const state=globalThis.__codexJhsFastProbe={status:'pending'};
   Promise.all(input.version_ids.map(id=>{
-    const params={card_version_id:id,game_key:'ygo',game_sub_key:'ocg',token:getApp().globalData.jwt};
+    const params={card_version_id:id,game_key:'ygo',game_sub_key:input.game_sub_key||'ocg',token:getApp().globalData.jwt};
     return Promise.all([
       request(params,'findCardVersion','/api/market/card-versions/'+id),
       request(Object.assign({},params,{filter:'1_month'}),'getPriceHistory','/api/market/products/price-history')
