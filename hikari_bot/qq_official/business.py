@@ -191,7 +191,7 @@ class Queries:
             if command == 'bm' or LINK.search(request.text):
                 if self.notifications and not await asyncio.to_thread(self.notifications.bus.setting, request.actor.key, 'parser'):
                     return Result(present('links.business_d2ee8c4a', {})) if command == 'bm' else Result()
-                return await self.links.parse(request.text)
+                return await self.links.parse(f'bm {argument}' if command == 'bm' else request.text)
         if request.attachments:
             return Result()
         return None

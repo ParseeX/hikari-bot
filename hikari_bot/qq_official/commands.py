@@ -8,7 +8,10 @@ DECK_URL = 'https://ygo.xyk.one/deck'
 
 def parse_command(text: str):
     text = text.strip().removeprefix('/').lstrip()
-    # 旧版这两个无参数命令允许直接接文字；其他命令仍要求空格分隔。
+    # BM 可直接接完整 BV 号；只放宽这一种格式，避免把普通文字当成命令。
+    if re.match(r'bm(?=BV[A-Za-z0-9]{10}(?:\s|$))', text):
+        return 'bm', text[2:].strip()
+    # 旧版这两个无参数命令允许直接接文字；其余命令仍要求空格分隔。
     for command in ('每日一卡', '随机一卡'):
         if text.startswith(command):
             return command, text[len(command):].strip()
