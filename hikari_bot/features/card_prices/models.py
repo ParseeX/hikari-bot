@@ -33,7 +33,7 @@ class CardVersion:
 
     @property
     def selection_group(self) -> str:
-        return "简中" if self.game_sub_key == "sc" else self.rarity
+        return f"简中{self.rarity}" if self.game_sub_key == "sc" else self.rarity
 
     @classmethod
     def from_dict(cls, value: dict) -> "CardVersion":

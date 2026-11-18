@@ -135,7 +135,7 @@ class CardActions:
         price_commands = {'卡价', '卡价查询', '价格查询', '日版价格查询', '日版卡价查询'}
         known = EFFECT_COMMANDS | {'卡图'} | price_commands
         if command not in known:
-            if self.price_backend is not None and self.price_backend.active(session) and (not argument) and command.lower() not in {'ping', 'help', 'log', 'status', 'version', 'reload', 'reboot'} and re.fullmatch(r'(?:[0-9]{1,3}|[A-Za-z+]{1,12}|简中|取消|退出)', command):
+            if self.price_backend is not None and self.price_backend.active(session) and (not argument) and command.lower() not in {'ping', 'help', 'log', 'status', 'version', 'reload', 'reboot'} and re.fullmatch(r'(?:[0-9]{1,3}|[A-Za-z+]{1,12}|简中[A-Za-z0-9+]{1,12}|取消|退出)', command):
                 try:
                     response = await asyncio.wait_for(self.price_backend.choose(command, session), timeout=95)
                 except TimeoutError:

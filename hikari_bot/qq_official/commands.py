@@ -41,7 +41,7 @@ def is_group_request(text: str, *, price_active=False):
         or command in CONTROL_COMMANDS or command in Management.COMMANDS
         or re.fullmatch(r'(?:(?:\d{2,4})年)?(?:(?:1[0-2]|[1-9])月)?历史', command)
         or LINK.search(text) or unavailable_reply(command, text) is not None
-        or (price_active and not argument and re.fullmatch(r'(?:[0-9]{1,3}|[A-Za-z+]{1,12}|简中|取消|退出)', command))
+        or (price_active and not argument and re.fullmatch(r'(?:[0-9]{1,3}|[A-Za-z+]{1,12}|简中[A-Za-z0-9+]{1,12}|取消|退出)', command))
     )
 
 async def reply_for(text: str, catalog=None) -> str | None:
