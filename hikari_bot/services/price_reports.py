@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 from zoneinfo import ZoneInfo
 
-from hikari_bot.features.cardrush.parsing import parse_price_query, expand_rarity_to_jp_list, rarity_jp_to_en
+from hikari_bot.features.cardrush.parsing import clean_card_name, parse_price_query, expand_rarity_to_jp_list, rarity_jp_to_en
 from hikari_bot.features.cardrush.reporting.text import format_daily_report, parse_date_arg
 from .platform import Result
 
@@ -83,6 +83,10 @@ class PriceReports:
         if rarity and exact_rarity:
             rarities = [jp for jp, en in RARITY_MAPPING.items() if en.upper() == rarity.upper()]
         candidates = await self.reader.search_prices(name, rarities, prefix, self.selection_limit + 1)
+        # 与报价使用相同的卡名清理规则，兼容 Cardrush 省略星号等符号的写法。
+        compatible_name = clean_card_name(name)
+        if not candidates and compatible_name and compatible_name != name:
+            candidates = await self.reader.search_prices(compatible_name, rarities, prefix, self.selection_limit + 1)
         if not candidates:
             return Result(wording('price_history.price_reports_4c833bfa', '暂无 {name} 的价格历史记录。', {'name': name}))
         if len(candidates) > self.selection_limit:

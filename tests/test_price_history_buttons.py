@@ -210,3 +210,62 @@ def test_cardrush_selection_filters_own_rarity_and_keeps_single_product_choice(t
                 assert 'card(原画)' in plain.text and 'card(异画)' in plain.text
     asyncio.run(run())
     assert path.read_bytes()==before
+
+
+def test_history_button_finds_punctuation_free_cardrush_name(tmp_path):
+    import asyncio
+    import sqlite3
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from hikari_bot.features.cardrush.read_only import ReadOnlyPrices
+    from hikari_bot.qq_official.price_history import HistoryButtons
+    from hikari_bot.qq_official.events import request_from_event
+    from hikari_bot.services.price_reports import PriceReports
+    from test_qq_alias_choices import source
+
+    path = tmp_path / 'history.db'
+    with sqlite3.connect(path) as db:
+        db.execute('CREATE TABLE card_price_history(id INTEGER PRIMARY KEY,product_id INTEGER,name TEXT,rarity TEXT,model_number TEXT,price INTEGER,changed_at TEXT)')
+        db.executemany('INSERT INTO card_price_history VALUES(?,?,?,?,?,?,?)', [
+            (1, 99100, 'カプシーヤミーウェイ', 'プリズマティックシークレット', 'DBJH-JP019', 2500, '2026-04-25'),
+            (2, 99133, 'カプシーヤミーウェイ', 'ノーマル', 'DBJH-JP019', 10, '2026-04-25'),
+            (3, 99999, 'カプシーヤミーウェイ', 'OFプリズマティックシークレット', 'OTHER-JP019', 3000, '2026-04-25'),
+        ])
+    before = path.read_bytes()
+
+    async def run():
+        reports = PriceReports(ReadOnlyPrices(path), None)
+        delivery = SimpleNamespace(send=AsyncMock())
+        nav = HistoryButtons(reports, delivery)
+        bot = SimpleNamespace(self_id='synthetic-app', interaction=object())
+        event = source('c2c')
+        quote = SimpleNamespace(mode='markdown', name='カプシー★ヤミーウェイ', comparisons=[
+            SimpleNamespace(version=SimpleNamespace(rarity='PSER', game_sub_key='ocg'))])
+        keyboard = nav.quote_keyboard(bot, event, quote)
+        button = keyboard.data['keyboard'].model_dump()['content']['rows'][0]['buttons'][0]
+        command, token = button['action']['data'].split()
+        assert await nav.handle(bot, event, request_from_event(bot, event), command, token)
+        delivery.send.assert_awaited_once()
+        result = delivery.send.await_args.args[2]
+        assert len(result.images) == 1 and result.images[0].startswith(b'\x89PNG')
+        assert 'DBJH-JP019' in result.text and '2,500' in result.text
+        assert '1 条' in result.text
+        assert not reports.sessions
+
+    asyncio.run(run())
+    assert path.read_bytes() == before
+
+
+def test_symbol_only_history_query_does_not_match_all_cards():
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from hikari_bot.services.price_reports import PriceReports
+
+    async def run():
+        reader = SimpleNamespace(search_prices=AsyncMock(return_value=[]))
+        result = await PriceReports(reader, None).select(SimpleNamespace(session=('test',)), '★')
+        assert '暂无' in result.text
+        reader.search_prices.assert_awaited_once_with('★', None, None, 11)
+
+    asyncio.run(run())
