@@ -35,6 +35,7 @@ class Request:
     attachments: tuple = field(default=(), repr=False)
     shared_video: str | None = field(default=None, repr=False)
     shared_video_title: str = field(default='', repr=False)
+    shared_video_author: str = field(default='', repr=False)
 
     @property
     def session(self):

@@ -59,7 +59,8 @@ class Queries:
                 return Result()
             if not request.shared_video:
                 if request.shared_video_title:
-                    return await self.links.parse(request.shared_video_title, search_title=True)
+                    options = {'author': request.shared_video_author} if request.shared_video_author else {}
+                    return await self.links.parse(request.shared_video_title, search_title=True, **options)
                 return Result(present('links.shared_video_missing'))
             return await self.links.parse(request.shared_video)
         if command == '添加别名':

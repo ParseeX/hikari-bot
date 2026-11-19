@@ -1,13 +1,14 @@
-"""从官方卡片/转发消息中取 B 站地址，不把卡片标题当作命令或搜索词。"""
+"""从官方卡片提取视频身份；缺少地址时仅将来源明确的标题/作者交给搜索。"""
 from html import unescape
 import json
 import re
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, unquote, parse_qs
 
 
 URL = re.compile(r'https?://[^\s<>"\[\]{}]+', re.I)
 BILI_VIDEO = re.compile(r'/(?:video/)?(?:BV[0-9A-Za-z]{10}|av\d+)(?:/|$)')
 SOURCES = ('哔哩哔哩', 'bilibili', 'b站')
+BV = re.compile(r'BV[0-9A-Za-z]{10}')
 
 
 def value(obj, key, default=None):
@@ -60,7 +61,66 @@ def legacy_video(card):
     return None
 
 
-def shared_title(event):
+def card_nodes(card):
+    """只展开卡片元数据；不访问聊天发送者，不扫描封面图片或任意正文。"""
+    queue = [(card, 0)]
+    visited = 0
+    while queue and visited < 64:
+        node, depth = queue.pop(0)
+        visited += 1
+        if isinstance(node, str):
+            if len(node) > 16000:
+                continue
+            try:
+                node = json.loads(node)
+            except (ValueError, RecursionError):
+                continue
+        if not isinstance(node, dict):
+            if hasattr(node, 'model_dump'):
+                node = node.model_dump()
+            else:
+                continue
+        yield node
+        if depth < 4:
+            for key in ('fields', 'raw', 'meta', 'detail_1', 'news', 'music', 'extra', 'data'):
+                child = node.get(key)
+                if isinstance(child, (str, dict)) and len(queue) + visited < 64:
+                    queue.append((child, depth + 1))
+
+
+def card_video(card):
+    for node in card_nodes(card):
+        for key in ('bvid', 'bv_id', 'video_id'):
+            bvid = node.get(key)
+            if isinstance(bvid, str) and BV.fullmatch(bvid):
+                return 'https://www.bilibili.com/video/' + bvid
+        for key in ('jump_url', 'url', 'qqdocurl', 'jumpUrl', 'path', 'pagepath', 'page_path'):
+            raw = node.get(key)
+            if not isinstance(raw, str) or len(raw) > 16000:
+                continue
+            text = unquote(unquote(unescape(raw)))
+            if url := video_url(text):
+                return url
+            # 小程序内部路径可携带 bvid；外部网站 query 中的 BV 不作为来源。
+            if key in {'path', 'pagepath', 'page_path'} and re.match(r'^/?pages/', text):
+                values = parse_qs(urlsplit(text).query).get('bvid', [])
+                if len(values) == 1 and BV.fullmatch(values[0]):
+                    return 'https://www.bilibili.com/video/' + values[0]
+    return None
+
+
+def card_author(card):
+    for node in card_nodes(card):
+        for key in ('author_name', 'up_name', 'upname', 'uploader', 'author', 'owner'):
+            author = node.get(key)
+            if isinstance(author, dict):
+                author = author.get('name') or author.get('uname')
+            if isinstance(author, str) and 1 <= len(author.strip()) <= 80:
+                return unescape(author).strip()
+    return ''
+
+
+def shared_metadata(event):
     """只取 B 站来源卡片的标题，普通正文和其他应用不触发标题搜索。"""
     queue = [(event, 0)]
     visited = 0
@@ -73,11 +133,19 @@ def shared_title(event):
         source = ' '.join(str(value(fields, k, ''))[:256] for k in ('tag', 'tags', 'source')).lower()
         title = value(fields, 'title')
         if any(name in source for name in SOURCES) and isinstance(title, str) and 1 <= len(title.strip()) <= 200:
-            return title.strip()
+            return title.strip(), card_author(value(node, 'ark_data'))
         children = value(node, 'msg_elements')
         if depth < 4 and isinstance(children, (list, tuple)):
             queue.extend((child, depth + 1) for child in children[:64 - visited - len(queue)])
-    return ''
+    return '', ''
+
+
+def shared_title(event):
+    return shared_metadata(event)[0]
+
+
+def shared_author(event):
+    return shared_metadata(event)[1]
 
 
 def shared_video(event):
@@ -105,7 +173,10 @@ def shared_video(event):
                 return url
             # 不凭标题猜视频；来源标签仅用于解释缺失的地址。
             source = ' '.join(str(value(fields, k, ''))[:256] for k in ('tag', 'tags', 'source')).lower()
-            missing |= any(name in source for name in SOURCES)
+            if any(name in source for name in SOURCES):
+                if url := card_video(card):
+                    return url
+                missing = True
         url = video_url(value(node, 'content'))
         if url:
             return url

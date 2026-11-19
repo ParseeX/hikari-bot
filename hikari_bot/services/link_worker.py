@@ -32,11 +32,11 @@ async def run(directory):
     if request.get('search_title') is True:
         from hikari_bot.services.bilibili_search import search_title
         try:
-            candidates = await asyncio.wait_for(search_title(text), timeout=20)
+            candidates = await asyncio.wait_for(search_title(text, author=request.get('author', '')), timeout=30)
         except Exception:
             candidates = None
         if not candidates or len(candidates) > 1:
-            rows = ([{'kind': 'video_choices', 'title': text, 'candidates': candidates}]
+            rows = ([{'kind': 'video_choices', 'title': text, 'author': request.get('author', ''), 'candidates': candidates}]
                     if candidates else [{'kind': 'text', 'code': 'bili_search_failed' if candidates is None else 'bili_title_missing'}])
             (directory / 'result.json').write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
             return

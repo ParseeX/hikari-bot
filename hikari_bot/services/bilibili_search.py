@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from html import unescape
 import re
+import unicodedata
 
 from .platform import Result
 
@@ -12,9 +13,19 @@ BV = re.compile(r'BV[0-9A-Za-z]{10}')
 class VideoChoices(Result):
     title: str = ''
     candidates: tuple = ()
+    author: str = ''
 
 
-def exact_videos(title, rows):
+def search_text(text, *, highlighted=False):
+    """仅移除搜索接口的 em 高亮，保留标题里的字面尖括号和其他符号。"""
+    if highlighted:
+        text = re.sub(r'</?em(?:\s+class=[\"\']keyword[\"\'])?\s*>', '', text, flags=re.I)
+    text = unicodedata.normalize('NFKC', unescape(text))
+    text = text.translate(str.maketrans({'“': '"', '”': '"', '‘': "'", '’': "'", '\u200b': '', '\ufeff': ''}))
+    return ' '.join(text.split())
+
+
+def exact_videos(title, rows, *, author='', highlighted=True):
     found = {}
     for row in rows:
         if not isinstance(row, dict):
@@ -22,31 +33,45 @@ def exact_videos(title, rows):
         bvid, name = row.get('bvid'), row.get('title')
         if not isinstance(bvid, str) or not BV.fullmatch(bvid) or not isinstance(name, str):
             continue
-        # 搜索接口用 em 高亮命中词；只去掉标记和外侧空白，不做模糊近似。
-        name = unescape(re.sub(r'<[^>]*>', '', name)).strip()
-        if name != title.strip():
+        name = search_text(name, highlighted=highlighted)
+        if name != search_text(title):
             continue
-        author, duration = row.get('author'), row.get('duration')
+        owner, duration = row.get('author'), row.get('duration')
+        if author and (not isinstance(owner, str) or search_text(owner) != search_text(author)):
+            continue
         found.setdefault(bvid, dict(bvid=bvid, title=name,
-            author=author[:80] if isinstance(author, str) else '',
+            author=owner[:80] if isinstance(owner, str) else '',
             duration=duration[:16] if isinstance(duration, str) else ''))
     return list(found.values())
 
 
-async def search_title(title, *, query=None):
+async def search_title(title, *, author='', query=None):
     if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
         raise ValueError('标题无效')
+    if not isinstance(author, str) or len(author) > 80:
+        raise ValueError('作者无效')
     from bilibili_api import search
     query = query or search.search_by_type
-    rows = []
-    # 有界搜索：前三页，每页 20 条；不把搜索结果唯一声称为全站唯一。
-    for page in range(1, 4):
-        data = await query(keyword=title, search_type=search.SearchObjectType.VIDEO,
-                           page=page, page_size=20)
-        if not isinstance(data, dict) or not isinstance(data.get('result'), list):
-            raise ValueError('搜索返回无效')
-        rows.extend(data['result'][:20])
-        pages = data.get('numPages')
-        if not data['result'] or (type(pages) is int and page >= pages):
-            break
-    return exact_videos(title, rows)
+    wanted_title, wanted_author = title, author
+    title, author = search_text(title), search_text(author)
+    keyword = ' '.join(part for part in (author, title) if part)
+    # 符号仅从备用搜索词去除，最终标题与作者核对不放宽。
+    words = ' '.join(''.join(c if c.isalnum() else ' ' for c in title).split())
+    alternate = ' '.join(part for part in (author, words) if part)
+    keywords = [keyword] + ([alternate] if words and alternate != keyword else [])
+    for keyword in keywords:
+        rows = []
+        # 每种搜索词最多三页；搜索结果唯一不等于全站唯一。
+        for page in range(1, 4):
+            data = await query(keyword=keyword, search_type=search.SearchObjectType.VIDEO,
+                               page=page, page_size=20)
+            if not isinstance(data, dict) or not isinstance(data.get('result'), list):
+                raise ValueError('搜索返回无效')
+            rows.extend(data['result'][:20])
+            pages = data.get('numPages')
+            if not data['result'] or (type(pages) is int and page >= pages):
+                break
+        found = exact_videos(wanted_title, rows, author=wanted_author)
+        if found:
+            return found
+    return []
