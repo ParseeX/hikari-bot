@@ -114,7 +114,8 @@ async def run():
   assert links.parse.await_count==1
   buttons=[b for r in messages(client)[0].json['keyboard']['content']['rows'] for b in r['buttons']]
   assert len(buttons)==9
-  assert all(b['action']['permission']['specify_user_ids']==['only-user'] for b in buttons)
+  permission={'type':2} if kind=='c2c' else {'type':0,'specify_user_ids':['only-user']}
+  assert all(b['action']['permission']==permission for b in buttons)
   next_button=buttons[-1]
   other={'group_member_openid':'other'} if kind=='group' else {'user_openid':'other'}
   await controller.handle(NamedFileBot(client),click(buttons[0],kind,id='foreign-'+kind,**other))

@@ -175,7 +175,8 @@ class CallbackController:
                                       and (SHARED_CARD_COMMAND.fullmatch(command) or HISTORY_COMMAND.fullmatch(command)))
                         self.actions[handle] = Action(app, user, button['id'], command, self.clock() + TTL, group=group, admins=admins, shared=shared)
                         handles.append(handle)
-                        permission = {'type': 2} if shared else {'type': 0, 'specify_user_ids': [user, *sorted(admins - {user})]}
+                        # C2C 的 user_openid 不适用于客户端指定用户列表；本人及会话归属由回调校验。
+                        permission = {'type': 2} if not group or shared else {'type': 0, 'specify_user_ids': [user, *sorted(admins - {user})]}
                         button['action'] = {'type': 1, 'data': handle, 'permission': permission, 'unsupport_tips': str(present('callback.unsupported', plain=True))}
                 segment.data['keyboard'] = MessageKeyboard.model_validate(keyboard)
             self.prune()

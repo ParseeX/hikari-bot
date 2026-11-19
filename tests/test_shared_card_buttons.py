@@ -80,8 +80,9 @@ def test_shared_button_still_belongs_to_original_group_and_message(problem):
 
 def test_private_query_and_write_buttons_never_become_shared():
     controller = CallbackController(CONFIG, AsyncMock())
-    private,_ = controller.prepare(card_message(INFO,'only-user',images=True)[0], 'synthetic-app','only-user')
-    assert private['keyboard'][0].data['keyboard'].model_dump()['content']['rows'][0]['buttons'][0]['action']['permission'] == {'type':0,'specify_role_ids':None,'specify_user_ids':['only-user']}
+    private,handles = controller.prepare(card_message(INFO,'only-user',images=True)[0], 'synthetic-app','only-user')
+    assert private['keyboard'][0].data['keyboard'].model_dump(exclude_none=True)['content']['rows'][0]['buttons'][0]['action']['permission'] == {'type':2}
+    assert all(not controller.actions[h].shared and controller.actions[h].user == 'only-user' for h in handles)
     # 即使误把删除按钮标为共享，服务端也只接受原有本人/管理员授权。
     undo = command_button('undo','删除该别名','撤销别名 '+'a'*32,'only-user',shared=True)
     _,handles = controller.prepare(output_message(present('effect.card'),[{'buttons':[undo]}]),'synthetic-app','only-user','synthetic-group')

@@ -68,7 +68,8 @@ def test_choice_uses_chinese_names_and_preserves_query_without_ack_text(catalog,
         assert payload['msg_type'] == 2 and payload['markdown']['content'] == PROMPT
         buttons = payload['keyboard']['content']['rows'][0]['buttons']
         assert [b['render_data']['label'] for b in buttons] == ['青眼白龙', '相同种族属性']
-        assert all(b['action']['permission'] == {'type': 0, 'specify_user_ids': ['only-user']} for b in buttons)
+        permission = {'type': 2} if kind == 'c2c' else {'type': 0, 'specify_user_ids': ['only-user']}
+        assert all(b['action']['permission'] == permission for b in buttons)
         interaction = click(buttons[0], kind)
         await controller.handle(NamedFileBot(client), interaction)
         await controller.handle(NamedFileBot(client), interaction)

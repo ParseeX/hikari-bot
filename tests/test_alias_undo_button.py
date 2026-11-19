@@ -53,7 +53,8 @@ def test_button_owner_scope_lifetime_and_single_use(catalog, kind, attempt):
         assert payload['markdown']['content'] == '已添加别名：小龙 → 青眼白龙'
         button = payload['keyboard']['content']['rows'][0]['buttons'][0]
         assert button['render_data']['label'] == '删除该别名'
-        assert button['action']['permission'] == {'type': 0, 'specify_user_ids': ['only-user']}
+        assert button['action']['permission'] == ({'type': 2} if kind == 'c2c'
+            else {'type': 0, 'specify_user_ids': ['only-user']})
         event = click(button, kind)
         if attempt == 'other':
             if kind == 'c2c': event.user_openid = 'other'
@@ -118,7 +119,8 @@ def test_admin_is_only_added_to_group_undo_buttons(catalog, kind, attempt):
             await send_added(proxy, incoming, added)
         button = messages(client)[0].json['keyboard']['content']['rows'][0]['buttons'][0]
         expected = ['only-user', 'other'] if kind != 'c2c' and attempt != 'card-query' else ['only-user']
-        assert button['action']['permission'] == {'type': 0, 'specify_user_ids': expected}
+        assert button['action']['permission'] == ({'type': 2} if kind == 'c2c'
+            else {'type': 0, 'specify_user_ids': expected})
         clicked = click(button, kind)
         actor = 'ordinary-member' if attempt == 'ordinary' else 'other'
         if kind == 'c2c': clicked.user_openid = actor

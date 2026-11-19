@@ -159,6 +159,9 @@ async def run():
         await handler(client,incoming)
         buttons=[b for row in messages(client)[-1].json['keyboard']['content']['rows'] for b in row['buttons']]
         assert [b['render_data']['label'] for b in buttons]==rarities[:8]+['下一页']
+        permission={'type':2} if kind=='c2c' else {'type':0,'specify_user_ids':['only-user']}
+        assert all(b['action']['permission']==permission for b in buttons)
+        assert all(not ctl.actions[b['action']['data']].shared for b in buttons)
         foreign={'user_openid':'other'} if kind=='c2c' else {'group_member_openid':'other'}
         await ctl.handle(NamedFileBot(client),click(buttons[0],kind,id=kind+'-foreign',**foreign))
         assert len(messages(client))==1
@@ -168,6 +171,7 @@ async def run():
         assert '卡名识别有误？' not in last['markdown']['content']
         buttons=[b for row in last['keyboard']['content']['rows'] for b in row['buttons']]
         assert [b['render_data']['label'] for b in buttons]==['UR','上一页']
+        assert all(b['action']['permission']==permission for b in buttons)
         await ctl.handle(NamedFileBot(client),click(buttons[0],kind,id=kind+'-select'))
         await asyncio.gather(*ctl.tasks)
         result=messages(client)[-1].json
