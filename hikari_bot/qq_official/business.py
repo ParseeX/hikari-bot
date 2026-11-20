@@ -160,7 +160,19 @@ class Queries:
         if match or command in {"胜率查询", "胜率统计"}:
             from hikari_bot.services.mycard_reports import history_report, winrate_report
             player = match[3] if match else argument
-            if not player and self.state:
+            if match and not player and (request.mentioned_members or request.mentions_everyone):
+                if request.mentions_everyone or len(request.mentioned_members) != 1:
+                    return Result(present('binding.history_one_member'))
+                if self.state is None:
+                    return Result(present('business.business_9d5e49e4'))
+                from hikari_bot.services.platform_state import BindingConflict
+                try:
+                    player = await asyncio.to_thread(self.state.binding, request.mentioned_members[0])
+                except BindingConflict:
+                    return Result(present('binding.history_member_conflict'))
+                if not player:
+                    return Result(present('binding.history_member_unbound'))
+            elif not player and self.state:
                 player = await asyncio.to_thread(self.state.binding, request.actor)
             if not player:
                 return binding_help(command)

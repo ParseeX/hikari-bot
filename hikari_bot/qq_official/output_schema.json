@@ -6272,6 +6272,33 @@
         "Markdown 图文发送失败：{reason}。未改成普通文字或拆开发送；请稍后重新查询。"
       ]
     },
+    "binding.history_one_member": {
+      "feature": "binding",
+      "label": "历史查询需要一位群成员",
+      "template": "请一次只 @ 一位要查询历史的群成员。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "category": "error"
+    },
+    "binding.history_member_conflict": {
+      "feature": "binding",
+      "label": "对方的旧绑定不一致",
+      "template": "对方的 MyCard 绑定有冲突，请对方发送“绑定 用户名”确认，或直接发送“历史 用户名”查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "category": "error"
+    },
+    "binding.history_member_unbound": {
+      "feature": "binding",
+      "label": "对方还未绑定",
+      "template": "对方还未绑定 MyCard 用户名。可以让对方发送“绑定 用户名”，或直接发送“历史 用户名”查询。",
+      "fields": {},
+      "samples": {},
+      "mode": "text",
+      "category": "error"
+    },
     "binding.conflict": {
       "feature": "binding",
       "label": "旧绑定不一致",

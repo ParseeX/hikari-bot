@@ -47,6 +47,50 @@ def request(text='', kind='c2c', user='u', group='g', id='event'):
     return request_from_event(bot(), event(kind, user, group, id, text))
 
 
+def test_history_uses_mentioned_member_binding(tmp_path):
+    from hikari_bot.qq_official.commands import is_group_request, parse_command
+
+    state = PlatformState(tmp_path)
+    state.bind(request(kind='group').actor, 'sender-player')
+    state.bind(request(kind='group', user='target').actor, 'target-player')
+    queries = Queries(None, state=state)
+
+    def mention(token, member, *, bot=False):
+        return dict(scope='single', id=token, member_openid=member,
+                    username='群昵称', is_you=bot, bot=bot)
+
+    async def check(kind, content, mentions, player=None, error=None):
+        evt = event(kind, text=content)
+        evt = type(evt).model_validate({**evt.model_dump(), 'mentions': mentions})
+        req = request_from_event(bot(), evt)
+        assert is_group_request(req.text)
+        with patch('hikari_bot.services.mycard_reports.history_report',
+                   new_callable=AsyncMock, return_value=Result('report')) as report:
+            result = await queries.handle(req, *parse_command(req.text))
+            if player:
+                report.assert_awaited_once_with(player, 10, 2025)
+            else:
+                report.assert_not_awaited()
+                assert error in result.text
+
+    async def run():
+        cmd = '25年10月历史'
+        other = mention('token', 'target')
+        robot = mention('robot', 'botmember', bot=True)
+        await check('group', cmd + '<@target>', None, 'target-player')
+        await check('group_at', '<@robot> /' + cmd + ' <@token>', [robot, other], 'target-player')
+        await check('group', cmd, [other], 'target-player')
+        await check('group', cmd + ' <@token><@token>', [other], 'target-player')
+        await check('group', cmd + ' <@unknown>', None, error='对方还未绑定')
+        await check('group', cmd + ' <@target><@unknown>', None, error='只 @ 一位')
+        await check('group', cmd + ' <@all>', None, error='只 @ 一位')
+        await check('group_at', cmd, [robot], 'sender-player')
+        await check('group', cmd, None, 'sender-player')
+        await check('group', cmd + ' explicit-name', None, 'explicit-name')
+
+    asyncio.run(run())
+
+
 class IdentityTests(unittest.TestCase):
     def test_server_profile_v1_does_not_inherit_admins_and_v2_checks_membership(self):
         from run_srbs import read_profile, configuration

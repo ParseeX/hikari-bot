@@ -36,6 +36,8 @@ class Request:
     shared_video: str | None = field(default=None, repr=False)
     shared_video_title: str = field(default='', repr=False)
     shared_video_author: str = field(default='', repr=False)
+    mentioned_members: tuple[Identity, ...] = field(default=(), repr=False)
+    mentions_everyone: bool = False
 
     @property
     def session(self):

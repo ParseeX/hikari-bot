@@ -7,11 +7,38 @@ from hikari_bot.services.platform import Identity, Request
 from .shared_video import shared_video, shared_title, shared_author
 
 
+def group_mentions(event, app):
+    # The token in content can be the mention's id; bindings use member_openid.
+    members = {}
+    known_ids = set()
+    everyone = False
+    for mention in event.mentions or ():
+        if mention.scope == "all":
+            everyone = True
+            continue
+        known_ids.update((mention.id, mention.member_openid))
+        if not (mention.is_you or mention.bot):
+            members[mention.member_openid] = None
+
+    # Some events carry mentions only as message segments.
+    for segment in event.get_message():
+        if segment.type == "mention_everyone":
+            everyone = True
+        elif segment.type == "mention_user" and not segment.data.get("is_bot"):
+            member_id = segment.data["user_id"]
+            if member_id not in known_ids and member_id != app:
+                members[member_id] = None
+    return tuple(Identity("qq_official", app, "member", member, event.group_openid)
+                 for member in members), everyone
+
+
 def request_from_event(bot, event):
     app = str(bot.self_id)
+    members, everyone = (), False
     if isinstance(event, GroupMessageCreateEvent):
         actor = Identity("qq_official", app, "member", event.get_user_id(), event.group_openid)
         conversation = Identity("qq_official", app, "group", event.group_openid)
+        members, everyone = group_mentions(event, app)
     elif isinstance(event, C2CMessageCreateEvent):
         actor = conversation = Identity("qq_official", app, "user", event.get_user_id())
     else:
@@ -20,7 +47,8 @@ def request_from_event(bot, event):
                    tuple(event.attachments or ()),
                    getattr(event, '_hikari_shared_video', shared_video(event)),
                    getattr(event, '_hikari_shared_video_title', shared_title(event)),
-                   getattr(event, '_hikari_shared_video_author', shared_author(event)))
+                   getattr(event, '_hikari_shared_video_author', shared_author(event)),
+                   mentioned_members=members, mentions_everyone=everyone)
 
 
 class EventGate:
