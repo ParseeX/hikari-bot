@@ -26,6 +26,32 @@ def test_search_many_returns_all_cards_deduplicates_names_and_prioritizes_exact(
     assert catalog.search_many('_') == []
 
 
+
+def test_search_many_can_include_effect_text_and_pendulum_text(tmp_path):
+    path = tmp_path / 'cards.sqlite3'
+    db = cat.connect(path)
+    effect_card = card(cid=1, passcode=1001, name='测试怪兽甲')
+    effect_card['text']['desc'] = '从卡组\\n送去墓地，然后抽1张卡。'.replace('\\n', '\\n')
+    pendulum_card = card(cid=2, passcode=1002, name='测试灵摆乙')
+    pendulum_card['text']['pdesc'] = '灵摆效果专属关键词：可以特殊召唤。'
+    name_card = card(cid=3, passcode=1003, name='送去墓地')
+    with db:
+        cat.import_cards(db, {str(c['cid']): c for c in
+                              (effect_card, pendulum_card, name_card)}, {})
+    db.close()
+
+    catalog = CardCatalog(path)
+    # 原本供 QQ 等入口使用的名称查询行为不变。
+    assert [c['id'] for c in catalog.search_many('送去墓地')] == [1003]
+    assert catalog.search_many('卡组送去墓地') == []
+    assert catalog.search_many('灵摆效果专属关键词') == []
+
+    # 识别卡片查询包含效果文本；名称优先，命中多处不重复。
+    assert [c['id'] for c in catalog.search_many('送去墓地', include_effect=True)] == [1003, 1001]
+    assert [c['id'] for c in catalog.search_many('卡组送去墓地', include_effect=True)] == [1001]
+    assert [c['id'] for c in catalog.search_many('灵摆效果专属关键词', include_effect=True)] == [1002]
+    assert [c['id'] for c in catalog.search_many('１００１', include_effect=True)] == [1001]
+
 def test_classification_matches_artwork_both_directions_but_not_other_card_or_side(tmp_path):
     path = tmp_path / 'cards.sqlite3'
     db = cat.connect(path)
