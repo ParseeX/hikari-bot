@@ -19,3 +19,18 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
           script: bash "$HOME/hikari-bot/update.sh"
+
+  deploy-frontend:
+    # Explicit deploy-only marker avoids rebuilding the entire site on every Bot commit.
+    if: contains(github.event.head_commit.message, '[deploy-ygo-toolbox]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy ygo-toolbox on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script_stop: true
+          script: bash "$HOME/ygo-toolbox/deploy.sh"
