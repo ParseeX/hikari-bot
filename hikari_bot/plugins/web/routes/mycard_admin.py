@@ -274,7 +274,8 @@ def main_deck_card(card):
 @router.get('/mc/admin/api/cards', dependencies=[Depends(admin)])
 def search_card(q: str = Query(min_length=1, max_length=100), purpose: Literal['rule', 'representative'] = 'rule'):
     try:
-        cards = [card_info(card) for card in catalog().search_many(q.strip())
+        cards = [card_info(card) for card in catalog().search_many(
+            q.strip(), include_effect=purpose == 'rule')
                  if purpose == 'representative' or main_deck_card(card)]
     except (OSError, sqlite3.Error):
         raise HTTPException(503, '卡片资料暂不可用') from None
