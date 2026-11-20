@@ -12,7 +12,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse, JSONResponse,
 from hikari_bot.core.config import settings
 from hikari_bot.services.card_catalog import CardCatalog
 from hikari_bot.services.mycard_archive.library import DeckLibrary
-from hikari_bot.services.mycard_archive.presentation import deck_links, classify
+from hikari_bot.services.mycard_archive.presentation import deck_links, classify, order_display_labels
 from hikari_bot.services.mycard_archive.queries import deck_title
 from hikari_bot.services.mycard_archive.front_stats import FrontStats
 from hikari_bot.services.mycard_archive.series_stats import SeriesStats
@@ -51,8 +51,10 @@ def front_rows(players, stats, *, latest=None):
         version = latest.get(player)
         deck = None
         if version:
-            labels = classify(version.deck, data['rules'])['labels']
-            deck = {'name': deck_title(version.deck, data['rules']) or '未识别',
+            labels = order_display_labels(classify(version.deck, data['rules'])['labels'],
+                                          hidden_home_art)
+            deck = {'name': deck_title(version.deck, data['rules'],
+                                       trailing_labels=hidden_home_art) or '未识别',
                     'categories': [{'label': label, 'image':
                      f'/mc/api/art/{representatives[label]}' if label in representatives else None,
                      **({'hide_home_art': True} if label in hidden_home_art else {})}
@@ -196,7 +198,8 @@ def load_profile(name, code):
         return None
     version = DeckLibrary(root / 'archive.sqlite3').latest(player)
     rules, _ = RuleAdmin(root / 'deck-rules.json').read()
-    title = deck_title(version.deck, rules['rules']) if version else ''
+    title = deck_title(version.deck, rules['rules'],
+                       trailing_labels=rules.get('hidden_home_art', [])) if version else ''
     return profile_payload(player, version, snapshot['stats'].get(player, {}), catalog(), title)
 
 
