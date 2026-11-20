@@ -99,7 +99,7 @@ $('login-form').addEventListener('submit', event => {
 $('logout').addEventListener('click', () => action(async () => { await api('logout', {}); reset(); showLogin(); status('已退出登录'); }));
 $('search').addEventListener('click', () => action(async () => {
   const query = $('card-query').value.trim();
-  if (!query) throw new Error('请输入卡名或卡号');
+  if (!query) throw new Error('请输入卡名、效果关键词或卡号');
   const {cards} = await api('cards?q=' + encodeURIComponent(query));
   searchResults = cards;
   $('search-result').replaceChildren();
@@ -187,6 +187,7 @@ function renderCategoryCandidates(label) {
 }
 function chooseCategory() {
   const label = $('representative-label').value;
+  $('hide-home-art').checked = (snapshot.hidden_home_art || []).includes(label);
   const code = snapshot.effective_representatives?.[label];
   representative = code ? {id: code, name: snapshot.names[code] || String(code),
     source: Object.hasOwn(snapshot.representatives || {}, label) ? 'manual' : 'default'} : null;
@@ -194,6 +195,14 @@ function chooseCategory() {
   renderCategoryCandidates(label); renderRepresentative();
 }
 $('representative-label').addEventListener('change', chooseCategory);
+$('save-home-art').addEventListener('click', () => action(async () => {
+  const label = $('representative-label').value;
+  if (!label) throw new Error('请先添加分类映射');
+  const hidden = $('hide-home-art').checked;
+  await api('home-art-visibility', {revision: snapshot.revision, label, hidden});
+  await load();
+  status(hidden ? '首页已隐藏此分类卡图（统计不受影响）' : '首页已恢复此分类卡图');
+}));
 $('representative-search').addEventListener('click', () => action(async () => {
   const query = $('representative-query').value.trim();
   if (!query) throw new Error('请输入卡名或卡号');
