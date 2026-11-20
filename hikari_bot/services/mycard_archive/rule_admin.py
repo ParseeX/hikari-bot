@@ -65,6 +65,12 @@ class RuleAdmin:
             for label, code in representatives.items()
         ):
             raise ValueError('分类代表卡格式无效')
+        hidden_home_art = data.get('hidden_home_art', [])
+        labels = {rule['label'].strip() for rule in data['rules']}
+        if (not isinstance(hidden_home_art, list)
+                or any(type(label) is not str or label not in labels for label in hidden_home_art)
+                or len(hidden_home_art) != len(set(hidden_home_art))):
+            raise ValueError('首页卡图隐藏分类格式无效')
         subjects = data.get('art_subjects', {})
         center = data.get('pie_center_series')
         if center is not None and (not isinstance(center, str) or not 1 <= len(center) <= 60):
@@ -89,6 +95,27 @@ class RuleAdmin:
                 data.pop('pie_center_series', None)
             else:
                 data['pie_center_series'] = label
+            self._write(data)
+
+    def set_home_art_hidden(self, revision, label, hidden):
+        """按分类设置前排卡组首页的卡图可见性；统计及代表卡设置不受影响。"""
+        with _lock:
+            data, current = self.read()
+            if revision != current:
+                raise StaleRules('规则已更新，请刷新后重试')
+            if label not in {rule['label'].strip() for rule in data['rules']}:
+                raise ValueError('分类不存在')
+            if type(hidden) is not bool:
+                raise ValueError('首页卡图设置无效')
+            labels = set(data.get('hidden_home_art', []))
+            if hidden:
+                labels.add(label)
+            else:
+                labels.discard(label)
+            if labels:
+                data['hidden_home_art'] = sorted(labels)
+            else:
+                data.pop('hidden_home_art', None)
             self._write(data)
 
     def representative(self, revision, label, card_id, *, subject=_UNSET):
@@ -145,4 +172,10 @@ class RuleAdmin:
             if 'representatives' in data:
                 data['representatives'] = {label: code for label, code in data['representatives'].items()
                                            if label in labels}
+            if 'hidden_home_art' in data:
+                visible_labels = [label for label in data['hidden_home_art'] if label in labels]
+                if visible_labels:
+                    data['hidden_home_art'] = visible_labels
+                else:
+                    data.pop('hidden_home_art', None)
             self._write(data)
