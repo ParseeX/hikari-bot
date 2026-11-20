@@ -70,6 +70,13 @@ def validate_rules(data: dict) -> list[dict]:
     return data["rules"]
 
 
+def order_display_labels(labels, trailing_labels=()):
+    """非主轴性质的分类排在名称末尾，其他分类保留既有先后顺序。"""
+    trailing = set(trailing_labels)
+    return [label for label in labels if label not in trailing] + [
+        label for label in labels if label in trailing]
+
+
 def classify(deck: Deck, rules: list[dict], *, catalog=None) -> dict:
     present = set(deck.main)
     codes = present | {code for rule in rules for code in rule['cards']}
