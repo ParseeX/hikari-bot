@@ -156,7 +156,7 @@ def web(root, monkeypatch):
     cards = {123: {'id': 123, 'cn_name': '主卡甲', 'data': {'type': 0x21}},
              456: {'id': 456, 'cn_name': '主卡乙', 'data': {'type': 2}}}
     monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(
-        by_id=lambda code: cards.get(code), search_many=lambda query: [c for c in cards.values() if query in c['cn_name']]))
+        by_id=lambda code: cards.get(code), search_many=lambda query, **kwargs: [c for c in cards.values() if query in c['cn_name']]))
     app = FastAPI()
     app.include_router(module.router)
     with TestClient(app, base_url='https://ygo.xyk.one', headers={'Origin': module.ORIGIN}) as client:
@@ -173,6 +173,27 @@ def test_admin_page_is_public_but_all_data_and_mutations_require_login(web):
     assert client.post('/mc/admin/api/login', json={'password': PASSWORD}, headers={'Origin': 'https://evil.invalid'}).status_code == 403
 
 
+def test_effect_text_search_is_only_enabled_for_recognition_cards(web, monkeypatch):
+    module, client = web
+    requests = []
+
+    def search_many(query, *, include_effect=False):
+        requests.append((query, include_effect))
+        if not include_effect:
+            return []
+        return [
+            {'id': 111, 'cn_name': '效果命中的主卡组卡', 'data': {'type': 0x21}},
+            {'id': 222, 'cn_name': '效果命中的额外卡组卡', 'data': {'type': 0x41}},
+        ]
+
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(search_many=search_many))
+    assert client.post('/mc/admin/api/login', json={'password': PASSWORD}).status_code == 200
+    result = client.get('/mc/admin/api/cards?q=特殊召唤').json()['cards']
+    assert [card['id'] for card in result] == [111]
+    assert client.get('/mc/admin/api/cards?q=特殊召唤&purpose=representative').json()['cards'] == []
+    assert requests == [('特殊召唤', True), ('特殊召唤', False)]
+
+
 def test_classification_search_only_returns_main_deck_cards(web, monkeypatch):
     module, client = web
     # 主卡灵摆、仪式保留；额外灵摆仍要排除，数字卡号查询也不能绕过筛选。
@@ -181,7 +202,7 @@ def test_classification_search_only_returns_main_deck_cards(web, monkeypatch):
     cards = [{'id': i + 1, 'cn_name': f'系列{i}', 'data': {'type': kind}}
              for i, kind in enumerate(types)]
     monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(
-        search_many=lambda query: [c for c in cards if str(c['id']) == query] if query.isdigit() else cards))
+        search_many=lambda query, **kwargs: [c for c in cards if str(c['id']) == query] if query.isdigit() else cards))
     assert client.post('/mc/admin/api/login', json={'password': PASSWORD}).status_code == 200
     result = client.get('/mc/admin/api/cards', params={'q': '系列'}).json()
     assert [c['id'] for c in result['cards']] == [1, 2, 3, 4, 5, 6]
