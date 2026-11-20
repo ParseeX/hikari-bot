@@ -6,3 +6,9 @@
 .representative-grid:empty{display:none}.representative-option{display:flex;flex-direction:column;gap:8px;align-items:stretch;width:var(--mc-art-size);min-width:0;padding:0;border:0;background:transparent;color:inherit;font-weight:500;text-align:center}
 .representative-option:hover{filter:none}.representative-picture{position:relative;display:block;width:var(--mc-art-size);height:var(--mc-art-size)}.representative-option[aria-pressed=true] .mc-art-slot{outline:3px solid #1762aa;outline-offset:-3px}.representative-option:focus-visible{outline:3px solid #1762aa;outline-offset:2px}
 .representative-selected{position:absolute;right:6px;top:6px;background:#1762aa;color:white;border-radius:5px;padding:3px 7px;font-size:12px}.representative-name{overflow-wrap:anywhere;line-height:1.5}.representative-option:hover .mc-art-slot{box-shadow:inset 0 0 0 2px #1762aa}#representative-count{font-size:14px;color:#60738a;margin-top:24px}
+
+.home-art-settings{margin:18px 0 20px;padding:15px;border:1px solid #dce6f0;border-radius:10px;background:#f6f9fc}
+.home-art-toggle{display:flex;align-items:center;gap:10px;margin:0;cursor:pointer;line-height:1.5}
+#hide-home-art{width:18px;height:18px;flex:0 0 18px;margin:0;accent-color:#1762aa}
+.home-art-settings p{margin:8px 0 12px;color:#60738a;font-size:12px;line-height:1.6}
+.home-art-settings button{margin:0}
