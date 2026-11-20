@@ -137,7 +137,9 @@ def test_auth_limits_failed_attempts_and_revokes_session_on_reset(root, monkeypa
     assert auth.valid(token)
     assert token.encode() not in auth.db_path.read_bytes()
     now = admin_auth.time.time()
-    monkeypatch.setattr(admin_auth.time, 'time', lambda: now + 13 * 3600)
+    monkeypatch.setattr(admin_auth.time, 'time', lambda: now + 29 * 24 * 3600)
+    assert auth.valid(token)
+    monkeypatch.setattr(admin_auth.time, 'time', lambda: now + 31 * 24 * 3600)
     assert not auth.valid(token)
     monkeypatch.setattr(admin_auth.time, 'time', lambda: now)
     assert auth.valid(token)
@@ -193,6 +195,7 @@ def test_edit_rules_multilabel_main_only_conflict_and_logout(web, root):
     assert response.status_code == 200
     cookie = response.headers['set-cookie'].lower()
     assert 'secure' in cookie and 'httponly' in cookie and 'samesite=strict' in cookie
+    assert f'max-age={admin_auth.SESSION_SECONDS}' in cookie
     assert client.get('/mc/admin/api/cards?q=主卡甲').json()['cards'][0]['id'] == 123
     assert len(client.get('/mc/admin/api/cards?q=主卡').json()['cards']) == 2
     assert client.get('/mc/admin/api/cards?q=不存在').json()['cards'] == []
