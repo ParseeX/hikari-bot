@@ -27,7 +27,13 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
-          script: bash "$HOME/hikari-bot/update.sh"
+          script: |
+            bash "$HOME/hikari-bot/update.sh"
+            if [ "${{ contains(github.event.head_commit.message, '[sync-mycard-qq]') }}" = true ]; then
+              cd "$HOME/hikari-bot"
+              export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+              PYTHONPATH=. .venv/bin/python deploy/sync_mycard_release.py 35ac68d87e328eaf65463c16a72d0be751fcb0b5
+            fi
 
   deploy-frontend:
     needs: deploy
@@ -58,6 +64,5 @@ jobs:
             grep -q 'id="mc-hide-home-art"' "$probe"
             curl -fsS --retry 4 --retry-all-errors 'https://ygo.xyk.one/mc/api/leaderboard?page=1' | python3 -c 'import json,sys; assert json.load(sys.stdin)["players"]'
             curl -fsS --retry 3 'https://ygo.xyk.one/mc/api/deck-stats' | python3 -c 'import json,sys; assert json.load(sys.stdin)["series"]'
-            curl -fsS 'https://ygo.xyk.one/android/latest.json' | python3 -c 'import hashlib,json,pathlib,sys; r=json.load(sys.stdin); p=pathlib.Path("/var/www/ygo-toolbox/android/releases") / pathlib.Path(r["url"]).name; assert hashlib.sha256(p.read_bytes()).hexdigest()==r["sha256"]'
-            python3 -c 'import pathlib,re,urllib.request as u; root=pathlib.Path("/var/www/ygo-toolbox"); pages=("/admin/","/mc/","/mc/decks/","/android/"); urls={x for p in pages for x in re.findall(r"[\"\x27](/_astro/[^\"\x27]+)[\"\x27]", u.urlopen("https://ygo.xyk.one"+p,timeout=20).read().decode())}; assert urls; assert all(u.urlopen("https://ygo.xyk.one"+x,timeout=15).read()==(root/x.lstrip("/")).read_bytes() for x in urls)'
+            python3 server/verify-mycard-release.py
             systemctl is-active bot.service ygo-content.service
