@@ -115,6 +115,27 @@ def test_pages_multiple_labels_and_exact_latest_deck(web):
     assert not (root/'short-links.sqlite3').exists()
 
 
+def test_hidden_home_art_keeps_series_statistics_and_images(web):
+    module, client, root = web
+    path = root / 'deck-rules.json'
+    rules = json.loads(path.read_text(encoding='utf-8'))
+    rules['hidden_home_art'] = ['乙分类']
+    path.write_text(json.dumps(rules, ensure_ascii=False), encoding='utf-8')
+    asyncio.run(module.series_stats.refresh())
+
+    front = client.get('/mc/api/leaderboard').json()['players'][0]
+    assert front['deck']['name'] == '乙分类甲分类'
+    assert front['deck']['categories'] == [
+        {'label': '乙分类', 'image': '/mc/api/art/2', 'hide_home_art': True},
+        {'label': '甲分类', 'image': '/mc/api/art/123'},
+    ]
+
+    stats = client.get('/mc/api/deck-stats').json()
+    assert {series['label']: series['count'] for series in stats['series']} == {
+        '甲分类': 1, '乙分类': 1}
+    assert next(series for series in stats['series'] if series['label'] == '乙分类')['image'] == '/mc/api/art/2'
+    assert stats['players'][0]['deck']['categories'] == front['deck']['categories']
+
 def test_rank_is_official_and_individual_failure_keeps_decks(web):
     module, client, root = web
     async def fetch_stats(player):
