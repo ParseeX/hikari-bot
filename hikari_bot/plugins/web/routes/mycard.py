@@ -13,7 +13,7 @@ from hikari_bot.core.config import settings
 from hikari_bot.services.card_catalog import CardCatalog
 from hikari_bot.services.mycard_archive.library import DeckLibrary
 from hikari_bot.services.mycard_archive.presentation import deck_links, classify, order_display_labels
-from hikari_bot.services.mycard_archive.queries import deck_title
+from hikari_bot.services.mycard_archive.queries import deck_title, title_from_labels
 from hikari_bot.services.mycard_archive.front_stats import FrontStats
 from hikari_bot.services.mycard_archive.series_stats import SeriesStats
 from hikari_bot.services.mycard_archive.card_stats import card_usage
@@ -53,8 +53,7 @@ def front_rows(players, stats, *, latest=None):
         if version:
             labels = order_display_labels(classify(version.deck, data['rules'])['labels'],
                                           hidden_home_art)
-            deck = {'name': deck_title(version.deck, data['rules'],
-                                       trailing_labels=hidden_home_art) or '未识别',
+            deck = {'name': title_from_labels(version.deck, labels) or '未识别',
                     'categories': [{'label': label, 'image':
                      f'/mc/api/art/{representatives[label]}' if label in representatives else None,
                      **({'hide_home_art': True} if label in hidden_home_art else {})}

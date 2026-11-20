@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from hikari_bot.core.config import settings
 from hikari_bot.services.deck_png import encode_deck_png
-from hikari_bot.services.mycard_archive.queries import deck_title, query_rules
+from hikari_bot.services.mycard_archive.queries import deck_title, query_display_rules
 from hikari_bot.services.mycard_archive.replay import Deck
 from hikari_bot.services.ygodeck import (
     generate_deck_image,
@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 def identify_deck_name(deck_text):
     sections = [tuple(int(card) for card in section) for section in parse_ydk(deck_text)]
     deck = Deck("", *sections)
-    rules = query_rules(settings.mycard_archive_dir / "deck-rules.json")
-    return deck_title(deck, rules) or "未识别"
+    rules, trailing = query_display_rules(settings.mycard_archive_dir / "deck-rules.json")
+    return deck_title(deck, rules, trailing_labels=trailing) or "未识别"
 
 
 @router.post("/deck/generate")

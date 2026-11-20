@@ -291,13 +291,12 @@ class CardCatalog:
                               'GROUP BY c.id ORDER BY MAX(n.normalized=?) DESC,MIN(length(n.normalized)),'
                               'c.konami_cid IS NULL,c.konami_cid,c.id', (key, key)).fetchall()
             if include_effect:
-                # 文本查询只读原始资料；剔除空白使跨行的效果片段也可匹配。
-                # 使用 instr 而非 LIKE，避免 %、_ 被当作通配符。
+                db.create_function('normalize_effect', 1, lambda text: normalize(text or ''), deterministic=True)
                 effect_rows = db.execute(
                     'SELECT DISTINCT c.* FROM card_texts t JOIN cards c ON c.id=t.card_id '
                     'WHERE (c.passcode IS NOT NULL OR c.temporary_id IS NOT NULL) '
-                    "AND (instr(replace(replace(replace(lower(t.effect), ' ', ''),char(10),''),char(13),''),?)>0 "
-                    "OR instr(replace(replace(replace(lower(t.pendulum_effect), ' ', ''),char(10),''),char(13),''),?)>0) "
+                    'AND (instr(normalize_effect(t.effect), ?) > 0 '
+                    'OR instr(normalize_effect(t.pendulum_effect), ?) > 0) '
                     'ORDER BY c.konami_cid IS NULL,c.konami_cid,c.id', (key, key)).fetchall()
                 seen = {row['id'] for row in rows}
                 rows.extend(row for row in effect_rows if row['id'] not in seen)

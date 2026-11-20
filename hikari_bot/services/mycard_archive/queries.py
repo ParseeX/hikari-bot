@@ -7,7 +7,8 @@ from zoneinfo import ZoneInfo
 import aiohttp
 
 from .short_links import ShortLinks
-from .presentation import classify, order_display_labels, read_rules
+from .presentation import classify, order_display_labels
+from .rule_admin import RuleAdmin
 from hikari_bot.services.deck_message_image import encode_deck_message_image
 
 
@@ -15,11 +16,10 @@ class ClassificationRulesError(ValueError):
     pass
 
 
-def query_rules(path):
+def query_display_rules(path):
     try:
-        return read_rules(path)
-    except FileNotFoundError:
-        return []
+        data, _ = RuleAdmin(path).read()
+        return data['rules'], data.get('hidden_home_art', [])
     except (OSError, ValueError) as exc:
         raise ClassificationRulesError('分类规则读取失败') from exc
 
@@ -56,17 +56,20 @@ class Leaderboard:
 
 def deck_title(deck, rules, *, trailing_labels=()):
     classification = classify(deck, rules)
-    if not classification['labels']:
-        return ''
     labels = order_display_labels(classification['labels'], trailing_labels)
-    return ('60' if len(deck.main) == 60 else '') + ''.join(labels)
+    return title_from_labels(deck, labels)
+
+
+def title_from_labels(deck, labels):
+    return ('60' if len(deck.main) == 60 else '') + ''.join(labels) if labels else ''
 
 
 async def player_image(player, version, rules_path):
     from hikari_bot.services.ygodeck import generate_deck_image
 
     def prepare():
-        return version.deck.ydk(), deck_title(version.deck, query_rules(rules_path)) or '未识别'
+        rules, trailing = query_display_rules(rules_path)
+        return version.deck.ydk(), deck_title(version.deck, rules, trailing_labels=trailing) or '未识别'
 
     ydk, name = await asyncio.to_thread(prepare)
     img = await generate_deck_image(ydk, player, '', deck_name=name)
@@ -76,13 +79,13 @@ async def player_image(player, version, rules_path):
     return await encode_deck_message_image(img)
 
 
-def player_text(player, version, rank=None, *, links, rules=None):
+def player_text(player, version, rank=None, *, links, rules=None, trailing_labels=()):
     title = (f'{rank}. ' if rank is not None else '') + player
     if version is None:
         return title + '：暂无卡组'
     if rules is None:
-        rules = query_rules(links.path.with_name('deck-rules.json'))
-    name = deck_title(version.deck, rules)
+        rules, trailing_labels = query_display_rules(links.path.with_name('deck-rules.json'))
+    name = deck_title(version.deck, rules, trailing_labels=trailing_labels)
     if name:
         title += '【' + name + '】'
     updated = datetime.fromtimestamp(version.updated_at, ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')
@@ -95,7 +98,7 @@ async def top_texts(library, leaderboard):
     def render():
         latest = library.latest_many(players)
         links = ShortLinks(library.path.with_name('short-links.sqlite3'))
-        rules = query_rules(library.path.with_name('deck-rules.json'))
-        return [player_text(player, latest.get(player), index, links=links, rules=rules)
+        rules, trailing_labels = query_display_rules(library.path.with_name('deck-rules.json'))
+        return [player_text(player, latest.get(player), index, links=links, rules=rules, trailing_labels=trailing_labels)
                 for index, player in enumerate(players, 1)]
     return await asyncio.to_thread(render)
