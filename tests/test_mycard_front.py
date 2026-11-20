@@ -124,10 +124,10 @@ def test_hidden_home_art_keeps_series_statistics_and_images(web):
     asyncio.run(module.series_stats.refresh())
 
     front = client.get('/mc/api/leaderboard').json()['players'][0]
-    assert front['deck']['name'] == '乙分类甲分类'
+    assert front['deck']['name'] == '甲分类乙分类'
     assert front['deck']['categories'] == [
-        {'label': '乙分类', 'image': '/mc/api/art/2', 'hide_home_art': True},
         {'label': '甲分类', 'image': '/mc/api/art/123'},
+        {'label': '乙分类', 'image': '/mc/api/art/2', 'hide_home_art': True},
     ]
 
     stats = client.get('/mc/api/deck-stats').json()
