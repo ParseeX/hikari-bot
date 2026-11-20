@@ -342,7 +342,7 @@ def test_subject_box_roundtrip_shared_image_legacy_client_and_validation(web, ro
 
 def test_representative_search_includes_extra_deck(web, monkeypatch):
     module, client = web
-    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(search_many=lambda q: [
+    monkeypatch.setattr(module, 'catalog', lambda: SimpleNamespace(search_many=lambda q, **kwargs: [
         {'id': 888, 'cn_name': '额外代表卡', 'data': {'type': 0x41}}]))
     client.post('/mc/admin/api/login', json={'password': PASSWORD})
     assert client.get('/mc/admin/api/cards?q=额外').json()['cards'] == []
