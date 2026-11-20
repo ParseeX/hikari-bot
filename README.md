@@ -148,7 +148,7 @@ OURYGO 链接直接编码卡组，不上传文件；站点当前使用 HTTP。
 
 卡组分类管理页：`https://ygo.xyk.one/mc/admin`，使用独立管理员密码登录。按系列关键词或卡名搜索会列出全部匹配卡片，可连续点选，结果和关键词保留；也支持按卡号定位，以及添加、编辑、删除映射和筛选。保存后采集端无需重启。
 在可信本机终端运行 `.venv\Scripts\python.exe scripts/mycard_admin_password.py --ssh server` 设置或重置密码。密码隐藏输入，仅将 scrypt 哈希通过 SSH 保存到归档目录 `admin-password.json`（权限 0600），不要把密码写入聊天或 Git。重置后旧会话失效，旧哈希保留在同目录 `admin-password.previous.json` 供回滚。
-管理会话保存在独立 `admin-sessions.sqlite3`，12 小时到期；浏览器使用 Secure、HttpOnly、SameSite Cookie，写操作校验同源。密码尚未配置时禁止登录和编辑。
+管理会话保存在独立 `admin-sessions.sqlite3`，登录后 30 天到期（浏览器 Cookie 同步设置为 30 天）；浏览器使用 Secure、HttpOnly、SameSite Cookie，写操作校验同源。密码尚未配置时禁止登录和编辑。修改密码或主动退出会立即撤销原会话；变更有效期前已签发的会话不会自动延长，需要重新登录。
 规则保存在 `deck-rules.json`，每次管理页保存前备份到 `deck-rules.json.bak`；并发编辑发生冲突时拒绝覆盖，需刷新后重试。管理页不改写已有归档。
 识别规则默认 `{"version":1,"rules":[]}`，新归档在 `classification.labels` 保存所有命中的分类，在 `classification.evidence` 保存命中卡号。也可按下面格式补充：
 
