@@ -136,6 +136,18 @@ def test_hidden_home_art_keeps_series_statistics_and_images(web):
     assert next(series for series in stats['series'] if series['label'] == '乙分类')['image'] == '/mc/api/art/2'
     assert stats['players'][0]['deck']['categories'] == front['deck']['categories']
 
+def test_special_labels_are_title_suffixes_not_a_changed_classification():
+    from hikari_bot.services.mycard_archive.queries import deck_title
+    from hikari_bot.services.mycard_archive.replay import Deck
+    from hikari_bot.services.mycard_archive.presentation import classify
+
+    rules = [{'label': 'FTK', 'cards': [12]}, {'label': '正常主轴', 'cards': [11]}]
+    deck = Deck('测试', (11,) * 40 + (12,) * 20, (), ())
+    assert classify(deck, rules)['labels'] == ['FTK', '正常主轴']
+    assert deck_title(deck, rules) == '60FTK正常主轴'
+    assert deck_title(deck, rules, trailing_labels={'FTK'}) == '60正常主轴FTK'
+
+
 def test_rank_is_official_and_individual_failure_keeps_decks(web):
     module, client, root = web
     async def fetch_stats(player):
