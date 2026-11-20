@@ -9,7 +9,7 @@ import sqlite3
 import time
 
 
-SESSION_SECONDS = 12 * 60 * 60
+SESSION_SECONDS = 30 * 24 * 60 * 60
 
 
 def password_record(password):
