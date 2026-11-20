@@ -31,7 +31,7 @@ def test_search_many_can_include_effect_text_and_pendulum_text(tmp_path):
     path = tmp_path / 'cards.sqlite3'
     db = cat.connect(path)
     effect_card = card(cid=1, passcode=1001, name='测试怪兽甲')
-    effect_card['text']['desc'] = '从卡组\\n送去墓地，然后抽1张卡。'.replace('\\n', '\\n')
+    effect_card['text']['desc'] = '从卡组' + chr(10) + '送去墓地，然后抽1张卡。'
     pendulum_card = card(cid=2, passcode=1002, name='测试灵摆乙')
     pendulum_card['text']['pdesc'] = '灵摆效果专属关键词：可以特殊召唤。'
     name_card = card(cid=3, passcode=1003, name='送去墓地')
