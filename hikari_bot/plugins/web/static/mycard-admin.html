@@ -33,6 +33,11 @@
         <h2>分类代表卡</h2>
         <form id="representative-form">
           <label for="representative-label">分类</label><select id="representative-label"></select>
+          <div class="home-art-settings">
+            <label class="home-art-toggle" for="hide-home-art"><input id="hide-home-art" type="checkbox"><span>不在前排卡组首页展示此分类卡图</span></label>
+            <p>仍参与分类识别、系列统计和胜率计算；系列统计中继续显示代表卡图。</p>
+            <button type="button" id="save-home-art" class="secondary">保存首页卡图设置</button>
+          </div>
           <div id="representative-current" aria-live="polite"></div>
           <p id="representative-count"></p>
           <div id="representative-gallery" class="representative-grid" aria-label="分类候选卡图"></div>
