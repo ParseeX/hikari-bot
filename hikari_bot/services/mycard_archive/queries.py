@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import aiohttp
 
 from .short_links import ShortLinks
-from .presentation import classify, read_rules
+from .presentation import classify, order_display_labels, read_rules
 from hikari_bot.services.deck_message_image import encode_deck_message_image
 
 
@@ -54,11 +54,12 @@ class Leaderboard:
             return list(players)
 
 
-def deck_title(deck, rules):
+def deck_title(deck, rules, *, trailing_labels=()):
     classification = classify(deck, rules)
     if not classification['labels']:
         return ''
-    return ('60' if len(deck.main) == 60 else '') + classification['name']
+    labels = order_display_labels(classification['labels'], trailing_labels)
+    return ('60' if len(deck.main) == 60 else '') + ''.join(labels)
 
 
 async def player_image(player, version, rules_path):
