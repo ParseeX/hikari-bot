@@ -62,7 +62,8 @@ def test_symbol_free_search_fallback_does_not_relax_final_title_match():
     query = AsyncMock(side_effect=[dict(numPages=1,result=[]),dict(numPages=1,result=[
         dict(bvid=BV,title='【现场】 A &amp; B ♪',author='实际UP'),
         dict(bvid='BV1Cu4x6jEdA',title='现场 A B',author='实际UP')])])
-    result = asyncio.run(search_title('【现场】 A & B ♪',author='实际UP',query=query))
+    result = asyncio.run(search_title('【现场】 A & B ♪',author='实际UP',query=query,
+                                      user_query=AsyncMock(return_value={'result':[]})))
     assert [v['bvid'] for v in result] == [BV]
     assert query.call_args_list[1].kwargs['keyword'] == '实际UP 现场 A B'
 
@@ -105,5 +106,6 @@ def test_same_author_same_title_keeps_all_candidates_and_rejects_other_owner(tmp
 def test_no_symbols_or_wrong_author_never_becomes_a_fuzzy_match():
     assert exact_videos('A+B',[dict(bvid=BV,title='AB',author='作者')]) == []
     query = AsyncMock(return_value=dict(numPages=1,result=[dict(bvid=BV,title='A+B',author='搬运者')]))
-    assert asyncio.run(search_title('A+B',author='原作者',query=query)) == []
+    assert asyncio.run(search_title('A+B',author='原作者',query=query,
+                                   user_query=AsyncMock(return_value={'result':[]}))) == []
     assert query.await_count == 2

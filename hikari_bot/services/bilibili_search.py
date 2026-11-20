@@ -70,7 +70,27 @@ def related_authors(title, rows, author=''):
     return [(uid, owner) for uid, (_, owner) in sorted(owners.items(), key=lambda pair: -pair[1][0])[:3]]
 
 
-async def search_author_uploads(title, rows, *, author='', query=None):
+async def resolve_author(author, query):
+    """先搜用户，只有一个名称匹配且 UID 有效的账号才作为明确作者。"""
+    from bilibili_api import search
+    data = await query(keyword=search_text(author), search_type=search.SearchObjectType.USER,
+                       page=1, page_size=20)
+    if not isinstance(data, dict) or not isinstance(data.get('result'), list):
+        raise ValueError('作者搜索返回无效')
+    owners = {}
+    for row in data['result'][:20]:
+        if not isinstance(row, dict):
+            continue
+        uid, name = row.get('mid'), row.get('uname')
+        if isinstance(uid, str) and uid.isascii() and uid.isdigit() and len(uid) <= 16:
+            uid = int(uid)
+        if (type(uid) is int and 0 < uid < 2**53 and isinstance(name, str)
+                and search_text(name) == search_text(author)):
+            owners[uid] = name
+    return list(owners.items()) if len(owners) == 1 else []
+
+
+async def search_author_uploads(title, rows, *, author='', query=None, owners=None, skip_uids=()):
     from bilibili_api import user
 
     async def live(uid, *, pn, ps):
@@ -78,7 +98,9 @@ async def search_author_uploads(title, rows, *, author='', query=None):
 
     query = query or live
     found = {}
-    for uid, owner in related_authors(title, rows, author):
+    for uid, owner in (related_authors(title, rows, author) if owners is None else owners):
+        if uid in skip_uids:
+            continue
         for page in range(1, 3):
             data = await query(uid, pn=page, ps=50)
             videos = data.get('list', {}).get('vlist') if isinstance(data, dict) else None
@@ -100,7 +122,7 @@ async def search_author_uploads(title, rows, *, author='', query=None):
     return list(found.values())
 
 
-async def search_title(title, *, author='', query=None, author_query=None):
+async def search_title(title, *, author='', query=None, author_query=None, user_query=None):
     if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
         raise ValueError('标题无效')
     if not isinstance(author, str) or len(author) > 80:
@@ -108,6 +130,14 @@ async def search_title(title, *, author='', query=None, author_query=None):
     from bilibili_api import search
     query = query or search.search_by_type
     wanted_title, wanted_author = title, author
+    checked_uids = set()
+    if author.strip():
+        owners = await resolve_author(author, user_query or query)
+        if owners:
+            found = await search_author_uploads(title, [], author=author, query=author_query, owners=owners)
+            if found:
+                return found
+            checked_uids.update(uid for uid, _ in owners)
     title, author = search_text(title), search_text(author)
     keyword = ' '.join(part for part in (author, title) if part)
     # 符号仅从备用搜索词去除，最终标题与作者核对不放宽。
@@ -131,4 +161,5 @@ async def search_title(title, *, author='', query=None, author_query=None):
         if found:
             return found
         related.extend(rows)
-    return await search_author_uploads(wanted_title, related, author=wanted_author, query=author_query)
+    return await search_author_uploads(wanted_title, related, author=wanted_author,
+                                       query=author_query, skip_uids=checked_uids)
