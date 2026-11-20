@@ -13,7 +13,7 @@ import pytest
 from hikari_bot.qq_official import output_templates as templates
 from hikari_bot.qq_official.editor_web import create_app, COOKIE
 from hikari_bot.qq_official.output_templates import Store, SCHEMA, default, present, Output
-from hikari_bot.services.mycard_archive.admin_auth import AdminAuth, password_record
+from hikari_bot.services.mycard_archive.admin_auth import AdminAuth, password_record, SESSION_SECONDS
 from hikari_bot.services.platform import Result
 from hikari_bot.services.wording import using_wording, NoticeText
 
@@ -50,6 +50,7 @@ def test_password_reuse_sessions_independent_and_rotation_revokes(setup, tmp_pat
     response = login(client)
     cookie = response.headers['set-cookie']
     assert all(value in cookie for value in ['Secure', 'HttpOnly', 'SameSite=strict', 'Path=/'])
+    assert f'Max-Age={SESSION_SECONDS}' in cookie
     token = client.cookies.get(COOKIE)
     old_root = tmp_path / 'original-admin'
     old_root.mkdir()
