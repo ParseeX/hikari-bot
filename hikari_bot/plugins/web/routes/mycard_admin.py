@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, Field, StrictBool, StrictInt
 
 from hikari_bot.core.config import settings
 from hikari_bot.services.card_catalog import CardCatalog
@@ -301,7 +301,28 @@ def list_rules():
         raise HTTPException(503, '规则或卡片资料读取失败') from None
     return {'revision': revision, 'rules': data['rules'], 'names': names,
             'representatives': data.get('representatives', {}), 'effective_representatives': effective,
-            'art_subjects': data.get('art_subjects', {}), 'pie_center_series': data.get('pie_center_series')}
+            'art_subjects': data.get('art_subjects', {}), 'pie_center_series': data.get('pie_center_series'),
+            'hidden_home_art': data.get('hidden_home_art', [])}
+
+
+class HomeArtVisibility(BaseModel):
+    revision: str = Field(min_length=64, max_length=64)
+    label: str = Field(min_length=1, max_length=60)
+    hidden: StrictBool
+
+
+@router.post('/mc/admin/api/home-art-visibility', dependencies=[Depends(admin)])
+async def home_art_visibility(body: HomeArtVisibility, request: Request, background_tasks: BackgroundTasks):
+    try:
+        rules().set_home_art_hidden(body.revision, body.label, body.hidden)
+    except StaleRules as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    except OSError:
+        raise HTTPException(503, '保存失败，请稍后重试') from None
+    background_tasks.add_task(refresh_series, request)
+    return {'ok': True}
 
 
 class PieCenterEdit(BaseModel):
