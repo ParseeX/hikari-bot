@@ -1,5 +1,6 @@
 """缺少原链接的小程序卡片按完整标题搜索；仅在隔离解析进程调用外部 API。"""
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from html import unescape
 import re
 import unicodedata
@@ -22,7 +23,8 @@ def search_text(text, *, highlighted=False):
         text = re.sub(r'</?em(?:\s+class=[\"\']keyword[\"\'])?\s*>', '', text, flags=re.I)
     text = unicodedata.normalize('NFKC', unescape(text))
     text = text.translate(str.maketrans({'“': '"', '”': '"', '‘': "'", '’': "'", '\u200b': '', '\ufeff': ''}))
-    return ' '.join(text.split())
+    text = ' '.join(text.split())
+    return re.sub(r'\s*([【】])\s*', r'\1', text)
 
 
 def exact_videos(title, rows, *, author='', highlighted=True):
@@ -45,7 +47,60 @@ def exact_videos(title, rows, *, author='', highlighted=True):
     return list(found.values())
 
 
-async def search_title(title, *, author='', query=None):
+def related_authors(title, rows, author=''):
+    """相近标题只用来找到要检查的 UP 主，不能直接成为下载结果。"""
+    owners = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        uid, owner, name = row.get('mid'), row.get('author'), row.get('title')
+        if isinstance(uid, str) and uid.isascii() and uid.isdigit():
+            uid = int(uid)
+        if (type(uid) is not int or not 0 < uid < 2**53
+                or not isinstance(owner, str) or not 1 <= len(owner.strip()) <= 80
+                or not isinstance(name, str)):
+            continue
+        if author and search_text(owner) != search_text(author):
+            continue
+        score = SequenceMatcher(None, search_text(title), search_text(name, highlighted=True), autojunk=False).ratio()
+        if not author and score < 0.8:
+            continue
+        if uid not in owners or owners[uid][0] < score:
+            owners[uid] = (score, owner)
+    return [(uid, owner) for uid, (_, owner) in sorted(owners.items(), key=lambda pair: -pair[1][0])[:3]]
+
+
+async def search_author_uploads(title, rows, *, author='', query=None):
+    from bilibili_api import user
+
+    async def live(uid, *, pn, ps):
+        return await user.User(uid).get_videos(pn=pn, ps=ps)
+
+    query = query or live
+    found = {}
+    for uid, owner in related_authors(title, rows, author):
+        for page in range(1, 3):
+            data = await query(uid, pn=page, ps=50)
+            videos = data.get('list', {}).get('vlist') if isinstance(data, dict) else None
+            if not isinstance(videos, list):
+                raise ValueError('作者投稿列表无效')
+            candidates = []
+            for row in videos[:50]:
+                if not isinstance(row, dict):
+                    continue
+                # 投稿来源绑定 UID，若行内带 mid 也必须一致；不借用全站结果的作者名。
+                if 'mid' in row and str(row['mid']) != str(uid):
+                    continue
+                candidates.append({**row, 'duration': row.get('length', row.get('duration', ''))})
+            for item in exact_videos(title, candidates, author=owner, highlighted=False):
+                found.setdefault(item['bvid'], item)
+            count = data.get('page', {}).get('count')
+            if len(videos) < 50 or (type(count) is int and page * 50 >= count):
+                break
+    return list(found.values())
+
+
+async def search_title(title, *, author='', query=None, author_query=None):
     if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
         raise ValueError('标题无效')
     if not isinstance(author, str) or len(author) > 80:
@@ -59,6 +114,7 @@ async def search_title(title, *, author='', query=None):
     words = ' '.join(''.join(c if c.isalnum() else ' ' for c in title).split())
     alternate = ' '.join(part for part in (author, words) if part)
     keywords = [keyword] + ([alternate] if words and alternate != keyword else [])
+    related = []
     for keyword in keywords:
         rows = []
         # 每种搜索词最多三页；搜索结果唯一不等于全站唯一。
@@ -74,4 +130,5 @@ async def search_title(title, *, author='', query=None):
         found = exact_videos(wanted_title, rows, author=wanted_author)
         if found:
             return found
-    return []
+        related.extend(rows)
+    return await search_author_uploads(wanted_title, related, author=wanted_author, query=author_query)
