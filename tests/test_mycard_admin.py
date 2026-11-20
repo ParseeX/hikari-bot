@@ -309,6 +309,48 @@ def test_representative_persistence_conflicts_clear_and_shared_label(web, root):
 
 
 
+def test_home_art_visibility_is_per_category_revocable_and_pruned(web, root):
+    module, client = web
+    endpoint = '/mc/admin/api/home-art-visibility'
+    manager = RuleAdmin(root / 'deck-rules.json')
+    for code in (123, 456):
+        _, rev = manager.read()
+        manager.change(rev, rule={'label': 'FTK', 'cards': [code]})
+
+    state = client.get('/mc/admin/api/rules')
+    assert state.status_code == 401
+    assert client.post(endpoint, json={}).status_code == 401
+    client.post('/mc/admin/api/login', json={'password': PASSWORD})
+    state = client.get('/mc/admin/api/rules').json()
+    assert state['hidden_home_art'] == []
+    body = {'revision': state['revision'], 'label': 'FTK', 'hidden': True}
+    assert client.post(endpoint, json=body, headers={'Origin': 'https://evil.invalid'}).status_code == 403
+    assert client.post(endpoint, json={**body, 'hidden': 1}).status_code == 422
+    assert client.post(endpoint, json={**body, 'label': '不存在'}).status_code == 400
+    assert client.post(endpoint, json=body).status_code == 200
+    assert client.post(endpoint, json=body).status_code == 409
+    assert manager.read()[0]['hidden_home_art'] == ['FTK']
+    assert client.get('/mc/admin/api/rules').json()['effective_representatives'] == {'FTK': 123}
+
+    _, rev = manager.read()
+    manager.change(rev, index=0)
+    assert manager.read()[0]['hidden_home_art'] == ['FTK']
+    _, rev = manager.read()
+    manager.change(rev, index=0)
+    assert 'hidden_home_art' not in manager.read()[0]
+
+    _, rev = manager.read()
+    manager.change(rev, rule={'label': 'FTK', 'cards': [123]})
+    state = client.get('/mc/admin/api/rules').json()
+    assert state['hidden_home_art'] == []  # 新建同名分类不能继承已删除的设置。
+    body = {'revision': state['revision'], 'label': 'FTK', 'hidden': True}
+    assert client.post(endpoint, json=body).status_code == 200
+    body['revision'] = client.get('/mc/admin/api/rules').json()['revision']
+    body['hidden'] = False
+    assert client.post(endpoint, json=body).status_code == 200
+    assert client.get('/mc/admin/api/rules').json()['hidden_home_art'] == []
+
+
 def test_subject_box_roundtrip_shared_image_legacy_client_and_validation(web, root):
     module, client = web
     client.post('/mc/admin/api/login', json={'password': PASSWORD})
