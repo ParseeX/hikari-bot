@@ -45,6 +45,7 @@ def front_rows(players, stats, *, latest=None):
     if latest is None:
         latest = DeckLibrary(root / 'archive.sqlite3').latest_many(players)
     representatives = effective_representatives(data)
+    hidden_home_art = set(data.get('hidden_home_art', []))
     rows = []
     for player in players:
         version = latest.get(player)
@@ -53,7 +54,8 @@ def front_rows(players, stats, *, latest=None):
             labels = classify(version.deck, data['rules'])['labels']
             deck = {'name': deck_title(version.deck, data['rules']) or '未识别',
                     'categories': [{'label': label, 'image':
-                     f'/mc/api/art/{representatives[label]}' if label in representatives else None}
+                     f'/mc/api/art/{representatives[label]}' if label in representatives else None,
+                     **({'hide_home_art': True} if label in hidden_home_art else {})}
                     for label in labels], 'links': deck_links(version.deck),
                     'updated_at': version.updated_at}
         # 分类属于同一完整卡组，不将混合构筑拆成多套卡组。
