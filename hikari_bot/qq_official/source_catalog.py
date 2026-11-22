@@ -14,7 +14,7 @@ SOURCES = {
     'passcode': [Q+'commands.py', S+'card_catalog.py'],
     'effect': [Q+'card_actions.py', Q+'commands.py', S+'card_catalog.py'],
     'art': [Q+'card_actions.py', S+'card_media.py', S+'card_image_sources.py'],
-    'daily_card': [Q+'business.py', S+'card_media.py'],
+    'daily_card': [Q+'business.py', S+'daily_cards.py', S+'card_media.py'],
     'calculation': [Q+'business.py', S+'card_media.py'],
     'price': [Q+'price_outputs.py', Q+'prices.py', F+'card_prices/service.py', F+'card_prices/japanese.py'],
     'price_history': [S+'price_reports.py', F+'cardrush/reporting/chart.py'],

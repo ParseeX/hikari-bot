@@ -51,6 +51,7 @@ def build_migration_queries(home, catalog, *, price_backend=None, config=None, c
     from functools import partial
     from hikari_bot.services.platform_state import PlatformState
     from hikari_bot.services.card_media import CardMedia
+    from hikari_bot.services.daily_cards import DailyCards
     from hikari_bot.services.deck_renderer import DeckRenderer
     from hikari_bot.services.ruling_client import conclusion
     from hikari_bot.services.link_parser import LinkParser
@@ -66,7 +67,10 @@ def build_migration_queries(home, catalog, *, price_backend=None, config=None, c
         if set(profile) != {'database'}:
             raise ValueError('invalid legacy source profile')
         legacy = LegacyRecords(profile['database'])
-    media = CardMedia(catalog, directory / 'card-images') if catalog else None
+    async def image_log(message):
+        print('SRBS_CARD_IMAGE ' + json.dumps({'message': message}, ensure_ascii=True), flush=True)
+
+    media = CardMedia(catalog, directory / 'card-images', log_message=image_log) if catalog else None
     power = None
     power_profile = Path(home) / '.config/srbs/nas-power.json'
     if config and config.admins and credential_directory and power_profile.is_file():
@@ -104,6 +108,7 @@ def build_migration_queries(home, catalog, *, price_backend=None, config=None, c
 
     management = Management(config, bus, restart=restart if credential_directory else None) if config else None
     return Queries(catalog, image_loader=media.full if media else None,
+                   daily_cards=DailyCards(catalog, media.full, path=directory / 'daily-cards.sqlite3') if media else None,
                    deck_renderer=DeckRenderer(catalog, media.full) if media else None,
                    ruling=partial(conclusion, url='https://ocg-ruling-assistant.vercel.app/api/answer'),
                    state=state, links=LinkParser(), notifications=notifications,

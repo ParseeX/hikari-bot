@@ -2,7 +2,6 @@
 from .output_templates import present, render_outputs
 import asyncio
 from datetime import datetime
-import hashlib
 import re
 from zoneinfo import ZoneInfo
 
@@ -22,8 +21,10 @@ def binding_help(command=None):
 
 
 class Queries:
-    def __init__(self, catalog, *, image_loader=None, ruling=None, deck_renderer=None, state=None, links=None, price_reports=None, admin=None, notifications=None, front_decks=None):
+    def __init__(self, catalog, *, image_loader=None, ruling=None, deck_renderer=None, state=None, links=None, price_reports=None, admin=None, notifications=None, front_decks=None, daily_cards=None):
         self.catalog, self.image_loader = catalog, image_loader
+        from hikari_bot.services.daily_cards import DailyCards
+        self.daily_cards = daily_cards if daily_cards is not None else DailyCards(catalog, image_loader)
         self.ruling, self.deck_renderer = ruling, deck_renderer
         self.state = state
         self.links = links
@@ -118,10 +119,7 @@ class Queries:
         if command == "每日一卡":
             if self.catalog is None or self.image_loader is None:
                 return Result(present('daily_card.business_489fa409', {}))
-            today = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y-%m-%d")
-            seed = int.from_bytes(hashlib.sha256(f"{request.actor.key}_{today}".encode()).digest()[:8], "big")
-            code = await asyncio.to_thread(self.catalog.random_id, seed)
-            data = await self.image_loader(code)
+            data = await self.daily_cards.draw(request)
             return Result(images=(data,)) if data else Result(present('daily_card.business_68880f3d', {}))
         if command == "共界计算":
             if not argument:
