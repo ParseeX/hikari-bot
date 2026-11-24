@@ -48,6 +48,14 @@ class HealthNotifications:
                     detail = '后台检查长时间没有完成。'
                 elif health.get('reason') == 'price':
                     detail = '小程序会话可用，但实际查价失败。'
+                elif health.get('reason') == 'runtime_unsupported':
+                    detail = '当前微信版本尚未适配，重复重连无法恢复，需要更新桥接。'
+                elif health.get('reason') == 'runtime_unavailable':
+                    detail = '微信小程序运行环境未就绪，自动恢复尚未成功。'
+                elif health.get('reason') == 'connection':
+                    detail = '手机离线或无线调试连接不可用。'
+                elif health.get('reason') == 'business_context':
+                    detail = '小程序业务会话不可用，请确认集换社已登录。'
                 else:
                     detail = '手机连接或小程序会话检查失败，自动恢复尚未成功。'
                 messages.append('集换社查询异常：' + detail + '恢复后会再通知你。')

@@ -55,6 +55,39 @@ def test_startup_prepares_once_and_does_not_keep_retrying_offline(monkeypatch):
     worker.recover.assert_called_once()
 
 
+def test_agent_allows_slow_network_after_js_has_started(tmp_path):
+    # 实际 agent、虚拟时钟：9 秒响应不能被原来的 8 秒看门狗误判为会话失效。
+    harness = tmp_path / 'slow-response.cjs'
+    harness.write_text(r'''
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+let now=0,next=1;const timers=new Map();
+const page={require(){return {cloudRequest(){}};},getApp(){return {globalData:{jwt:'test-only'}};}};
+const runtime={evaluateJavascript(code,cb){const value=vm.runInNewContext(code,page);if(cb)cb.onReceiveValue(value);}};
+const factory={use(){return {class:{hashCode(){return 1;}}};},choose(name,cbs){cbs.onMatch(runtime);cbs.onComplete();}};
+const context={rpc:{exports:{}},Process:{id:1},Date:{now:()=>now},
+ setTimeout(fn,delay){const id=next++;timers.set(id,{fn,time:now+delay});return id;},clearTimeout(id){timers.delete(id);},
+ Java:{perform:fn=>fn(),retain:x=>x,use:()=>({}),enumerateClassLoadersSync:()=>[{}],ClassFactory:{get:()=>factory},
+ registerClass(spec){return {$new(){return {jobId:{value:0},kind:{value:0},onReceiveValue:spec.methods.onReceiveValue};}};}}};
+vm.createContext(context);vm.runInContext(fs.readFileSync(process.argv[2],'utf8'),context);
+function advance(target){for(;;){let first=[...timers].filter(([id,t])=>t.time<=target).sort((a,b)=>a[1].time-b[1].time)[0];if(!first)break;const [id,t]=first;timers.delete(id);now=t.time;t.fn();}now=target;}
+(async()=>{
+ await context.rpc.exports.init();let result;
+ const pending=context.rpc.exports.query('globalThis.__codexJhsFastProbe={status:"pending"};JSON.stringify({status:"started"})').then(r=>result=r);
+ advance(9000);await Promise.resolve();assert.equal(result,undefined,'a slow response was misclassified as timeout');
+ const key=Object.keys(page).find(k=>k.startsWith('__hikariJhs'));page[key]={status:'done',price:123};
+ advance(9200);await pending;assert.equal(result.status,'done');assert.equal(result.price,123);
+ const stalled=context.rpc.exports.query('globalThis.__codexJhsFastProbe={status:"pending"};JSON.stringify({status:"started"})');
+ advance(now+21000);assert.equal((await stalled).stage,'waiting_price');
+ runtime.evaluateJavascript=()=>{};
+ const notStarted=context.rpc.exports.query('unused');advance(now+8000);
+ assert.equal((await notStarted).stage,'js_not_started');
+})().catch(e=>{console.error(e);process.exitCode=1;});
+''', encoding='utf-8')
+    result = subprocess.run(['node', str(harness), str(Path('scripts/jihuanshe_bridge/agent.js').resolve())],
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+
+
 def test_recovery_reports_stage_without_private_exception(monkeypatch, caplog):
     base = Path('scripts/jihuanshe_bridge')
     monkeypatch.setitem(sys.modules, 'frida', SimpleNamespace(get_device_manager=Mock()))

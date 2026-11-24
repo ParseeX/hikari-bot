@@ -64,6 +64,9 @@ def test_failed_delivery_retries_and_same_version_reinstall_alerts(tmp_path):
 @pytest.mark.parametrize('data,text', [
     ({**healthy(), 'ok': False, 'reason': 'price'}, '实际查价失败'),
     ({**healthy(), 'ok': False, 'reason': 'session'}, '手机连接'),
+    ({**healthy(), 'ok': False, 'reason': 'runtime_unsupported'}, '尚未适配'),
+    ({**healthy(), 'ok': False, 'reason': 'runtime_unavailable'}, '运行环境未就绪'),
+    ({**healthy(), 'ok': False, 'reason': 'connection'}, '手机离线'),
     (healthy(checked_at=1), '长时间没有完成'),
 ])
 def test_unhealthy_or_stale_snapshot_is_never_recovery(tmp_path, data, text):
@@ -125,6 +128,15 @@ def test_price_failure_is_visible_and_retried_without_version_change(worker):
     instance.prices.return_value = {'prices': [dict(id=119467, min_price=1, market_price=2)]}
     instance.update_health(True)
     assert instance.health['ok']
+
+
+def test_runtime_failure_reason_reaches_health_without_price_query(worker):
+    instance, _ = worker
+    instance.session_failure_reason = 'runtime_unsupported'
+    instance.update_health(False)
+    assert instance.health['reason'] == 'runtime_unsupported'
+    assert instance.health['ok'] is False
+    instance.prices.assert_not_called()
 
 
 def test_busy_checks_skip_and_http_snapshot_does_not_touch_phone(worker):

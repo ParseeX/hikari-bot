@@ -14,7 +14,10 @@ import frida_tools
 
 from phone import BASE, Phone
 
-LIB_SHA256 = '9b9257b9d57c5ebed49b24d7802f6d15de8c2bc896d723f8c994aabad7b0b87c'
+SUPPORTED_RUNTIME_SHA256 = {
+    '9b9257b9d57c5ebed49b24d7802f6d15de8c2bc896d723f8c994aabad7b0b87c': '8.0.79',
+    'a88cb7b86e05eb0b814b6d21b48a49bd05cdc3aa69e17a232d7323eb22a7f395': '8.0.80',
+}
 SESSION_CHECK_INTERVAL = 300
 SESSION_RETRY_MAX = 1800
 # 只确认当前 JS 环境可执行且已登录，不调用 cloudRequest，也不返回登录凭据。
@@ -43,6 +46,10 @@ class SourceValidationError(ValueError):
     """仅使用代码内定义的原因码，允许安全记录与区分重试策略。"""
 
 
+class RuntimeCompatibilityError(RuntimeError):
+    """运行库尚未验证；不能按临时网络故障报告。"""
+
+
 class Worker:
     def __init__(self):
         self.phone = Phone()
@@ -52,6 +59,7 @@ class Worker:
         self.session = self.script = self.device = None
         self.identity = None
         self.last_failure = 0.0
+        self.session_failure_reason = None
         self.lock = threading.Lock()
         self.health = {'ok': None, 'checked_at': 0, 'version': None, 'price_checked_at': 0}
         self.health_version_id = int(os.getenv('JHS_HEALTH_VERSION_ID', '119467'))
@@ -140,8 +148,9 @@ class Worker:
                 probe.load()
                 path = rpc(probe.exports_sync.path)
                 import shlex
-                if self.phone.root('sha256sum ' + shlex.quote(path)).split()[0] != LIB_SHA256:
-                    raise RuntimeError('WeChat runtime version changed')
+                digest = self.phone.root('sha256sum ' + shlex.quote(path)).split()[0]
+                if digest not in SUPPORTED_RUNTIME_SHA256:
+                    raise RuntimeCompatibilityError('WeChat runtime version changed')
             finally:
                 probe.unload()
             stage = 'business_context'
@@ -151,9 +160,15 @@ class Worker:
             ready_started = time.monotonic()
             if not rpc(self.script.exports_sync.init).get('ready'):
                 raise RuntimeError('business context unavailable')
+            self.session_failure_reason = None
             logging.info('phone context recovered seconds=%.2f readiness_seconds=%.2f',
                          time.monotonic() - started, time.monotonic() - ready_started)
         except Exception as error:
+            self.session_failure_reason = (
+                'runtime_unsupported' if isinstance(error, RuntimeCompatibilityError)
+                else {'connect': 'connection', 'runtime_version': 'runtime_unavailable',
+                      'business_context': 'business_context'}.get(stage, 'session')
+            )
             # 阶段名来自固定枚举，不记录异常正文或手机返回的敏感内容。
             logging.warning('phone recovery failed stage=%s error=%s', stage, type(error).__name__)
             self.last_failure = time.monotonic()
@@ -198,9 +213,11 @@ class Worker:
         connected = False
         started = time.monotonic()
         recovered = False
+        self.session_failure_reason = 'connection'
         try:
             self.phone.connect()
             connected = True
+            self.session_failure_reason = 'session'
             ready = False
             if self.script and self.identity and self.phone.identity(self.identity['pid']) == self.identity:
                 try:
@@ -214,6 +231,7 @@ class Worker:
                     raise RuntimeError('business context unavailable')
             logging.info('background session ready recovered=%s seconds=%.2f',
                          recovered, time.monotonic() - started)
+            self.session_failure_reason = None
             return True
         except Exception as error:
             logging.warning('background session check failed: %s', type(error).__name__)
@@ -230,7 +248,8 @@ class Worker:
         if session_ready is None or not self.lock.acquire(blocking=False):
             return
         previous = self.health
-        status = {**previous, 'ok': False, 'checked_at': time.time(), 'reason': 'session'}
+        status = {**previous, 'ok': False, 'checked_at': time.time(),
+                  'reason': getattr(self, 'session_failure_reason', None) or 'session'}
         try:
             status['version'] = self.phone.wechat_version()
             if not session_ready:

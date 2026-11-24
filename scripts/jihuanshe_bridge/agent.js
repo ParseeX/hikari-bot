@@ -26,7 +26,11 @@ rpc.exports={
       if(kind===0){if(!settled&&result&&result.target){runtime=retained[id];settled=true;clearTimeout(deadline);clearTimeout(discoveryTimer);resolve({ready:true,pid:Process.id});}return;}
       const job=pending.get(id);if(!job)return;
       if(result.status==='started'){
-        job.jsStarted=true;if(!job.finished)poll(id);
+        job.jsStarted=true;
+        // 上游响应较慢不代表 JS 会话失效；总时长仍短于宿主的 25 秒 RPC 限制。
+        clearTimeout(job.timeout);
+        job.timeout=setTimeout(()=>finish(id,{status:'timeout',stage:'waiting_price'}),Math.max(1,20000-(Date.now()-job.started)));
+        if(!job.finished)poll(id);
       }else if(result.status==='done'||result.status==='error'||result.status==='skip'){
         finish(id,result);
 
